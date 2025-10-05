@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 import '../widgets/glass.dart';
 
@@ -56,34 +57,38 @@ class _LoginPageState extends State<LoginPage> {
       case 'user-not-found':
         return 'Usuario no encontrado';
       case 'wrong-password':
-        return 'Contrase�a incorrecta';
+        return 'Contraseña incorrecta';
       default:
-        return e.message ?? 'Error de autenticaci�n';
+        return e.message ?? 'Error de autenticación';
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        color: AppColors.bg,
-        alignment: Alignment.center,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: GlassCard(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      body: GlassBackground(
+        child: Container(
+          alignment: Alignment.center,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: GlassCard(
                 child: Form(
                   key: _formKey,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Nootes', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+                      Text(
+                        'Nootes',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 4),
-                      Text('Bienvenido, inicia sesi�n para continuar', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted)),
+                      Text(
+                        'Bienvenido, inicia sesión para continuar',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+                      ),
                       const SizedBox(height: 20),
                       TextFormField(
                         controller: _emailController,
@@ -104,7 +109,7 @@ class _LoginPageState extends State<LoginPage> {
                       TextFormField(
                         controller: _passwordController,
                         decoration: InputDecoration(
-                          labelText: 'Contrase�a',
+                          labelText: 'Contraseña',
                           prefixIcon: const Icon(Icons.lock_rounded),
                           suffixIcon: IconButton(
                             onPressed: () => setState(() => _obscure = !_obscure),
@@ -116,8 +121,8 @@ class _LoginPageState extends State<LoginPage> {
                         textInputAction: TextInputAction.done,
                         onFieldSubmitted: (_) => _loading ? null : _signIn(),
                         validator: (v) {
-                          if (v == null || v.isEmpty) return 'Ingresa tu Contrase�a';
-                          if (v.length < 6) return 'M�nimo 6 caracteres';
+                          if (v == null || v.isEmpty) return 'Ingresa tu contraseña';
+                          if (v.length < 6) return 'Mínimo 6 caracteres';
                           return null;
                         },
                       ),
@@ -126,7 +131,7 @@ class _LoginPageState extends State<LoginPage> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () => Navigator.of(context).pushNamed('/forgot'),
-                          child: const Text('¿�Olvidaste tu Contrase�a?'),
+                          child: const Text('¿Olvidaste tu contraseña?'),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -137,7 +142,16 @@ class _LoginPageState extends State<LoginPage> {
                             : const Text('Entrar'),
                       ),
                       const SizedBox(height: 12),
-                      Row(children: const [Expanded(child: Divider()), Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('o')), Expanded(child: Divider())]),
+                      Row(
+                        children: const [
+                          Expanded(child: Divider()),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8),
+                            child: Text('o'),
+                          ),
+                          Expanded(child: Divider()),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       OutlinedButton(
                         onPressed: _loading ? null : () => Navigator.of(context).pushNamed('/register'),

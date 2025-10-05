@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 import '../widgets/glass.dart';
 
@@ -67,9 +68,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Recuperar contraseña', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                      Text(
+                        'Recuperar contraseña',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 4),
-                      const Text('Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.', style: TextStyle(color: AppColors.textMuted)),
+                      const Text(
+                        'Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.',
+                        style: TextStyle(color: AppColors.textMuted),
+                      ),
                       const SizedBox(height: 20),
                       TextFormField(
                         controller: _emailController,
@@ -107,3 +114,4 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 }
+

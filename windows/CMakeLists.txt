@@ -10,6 +10,11 @@ set(BINARY_NAME "nootes")
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
 
+# Quiet upstream CMake deprecation warnings from third-party SDKs (e.g., Firebase C++),
+# since those CMakeLists are vendor-managed and generated in build/.
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Suppress deprecated warnings" FORCE)
+set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS ON CACHE BOOL "Suppress developer warnings" FORCE)
+
 # Define build configuration option.
 get_property(IS_MULTICONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(IS_MULTICONFIG)
