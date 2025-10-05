@@ -40,21 +40,21 @@ class DefaultFirebaseOptions {
   // Placeholder options for other platforms.
   // Reemplázalos con el archivo generado por: flutterfire configure
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_ANDROID_API_KEY',
-    appId: 'REPLACE_WITH_ANDROID_APP_ID',
-    messagingSenderId: 'REPLACE_WITH_ANDROID_SENDER_ID',
+    apiKey: 'AIzaSyCY-b8ZGui_HzonzP4Yhmc8xNjfdmZLmG0',
+    appId: '1:479471329501:android:c9142d7dae1f5e75a43b34',
+    messagingSenderId: '479471329501',
     projectId: 'smartnotes-d0bdd',
-    storageBucket: 'smartnotes-d0bdd.appspot.com',
+    storageBucket: 'smartnotes-d0bdd.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_IOS_API_KEY',
-    appId: 'REPLACE_WITH_IOS_APP_ID',
-    messagingSenderId: 'REPLACE_WITH_IOS_SENDER_ID',
+    apiKey: 'AIzaSyBXdsR4GXeZqziZ8VN-hAl2AKLlOsVR15o',
+    appId: '1:479471329501:ios:196a8256f420d8f4a43b34',
+    messagingSenderId: '479471329501',
     projectId: 'smartnotes-d0bdd',
-    storageBucket: 'smartnotes-d0bdd.appspot.com',
-    iosClientId: 'REPLACE_WITH_IOS_CLIENT_ID',
-    iosBundleId: 'REPLACE_WITH_IOS_BUNDLE_ID',
+    storageBucket: 'smartnotes-d0bdd.firebasestorage.app',
+    iosClientId: '479471329501-misbtbm73ag6pcd7hm7hb0n3q8br3u5c.apps.googleusercontent.com',
+    iosBundleId: 'Nootes-IOS',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(

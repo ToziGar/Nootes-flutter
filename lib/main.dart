@@ -9,6 +9,7 @@ import 'auth/login_page.dart';
 import 'auth/register_page.dart';
 import 'auth/forgot_password_page.dart';
 import 'home_page.dart';
+import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,10 +38,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Nootes',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.darkTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.dark,
       routes: {
         '/login': (_) => const LoginPage(),
         '/register': (_) => const RegisterPage(),
