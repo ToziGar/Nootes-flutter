@@ -10,6 +10,7 @@ import 'auth/register_page.dart';
 import 'auth/forgot_password_page.dart';
 import 'home_page.dart';
 import 'theme/app_theme.dart';
+import 'services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,11 +18,14 @@ Future<void> main() async {
   try {
     final isMobileOrWeb = kIsWeb ||
         defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS;
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
     if (isMobileOrWeb) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+    } else if (defaultTargetPlatform == TargetPlatform.windows) {
+      await AuthService.instance.init();
     }
   } catch (e) {
     initError = e;
@@ -57,11 +61,23 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Ejecutar como Web en Windows y macOS
-    final isDesktop = defaultTargetPlatform == TargetPlatform.windows ||
-        defaultTargetPlatform == TargetPlatform.macOS ||
-        defaultTargetPlatform == TargetPlatform.linux;
-    if (isDesktop && !kIsWeb) {
+    // Windows usa AuthService (REST)
+    if (defaultTargetPlatform == TargetPlatform.windows && !kIsWeb) {
+      return StreamBuilder<AuthUser?>(
+        stream: AuthService.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasData) return const HomePage();
+          return const LoginPage();
+        },
+      );
+    }
+    // Linux sin soporte: mostrar redirección Web
+    if (defaultTargetPlatform == TargetPlatform.linux && !kIsWeb) {
       return const UnsupportedAuthPage();
     }
     return StreamBuilder<User?> (
