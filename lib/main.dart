@@ -63,15 +63,13 @@ class AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     // Windows usa AuthService (REST)
     if (defaultTargetPlatform == TargetPlatform.windows && !kIsWeb) {
+      final svc = AuthService.instance;
       return StreamBuilder<AuthUser?>(
-        stream: AuthService.instance.authStateChanges(),
+        stream: svc.authStateChanges(),
+        initialData: svc.currentUser,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (snapshot.hasData) return const HomePage();
+          final user = snapshot.data;
+          if (user != null) return const HomePage();
           return const LoginPage();
         },
       );
@@ -104,7 +102,7 @@ class UnsupportedAuthPage extends StatelessWidget {
   Widget build(BuildContext context) {
     const webUrl = String.fromEnvironment('WEB_APP_URL');
     return Scaffold(
-      appBar: AppBar(title: const Text('Abrir versiÃ³n Web')),
+      appBar: AppBar(title: const Text('Abrir versión Web')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),

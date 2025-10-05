@@ -9,7 +9,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final displayEmail = AuthService.instance.currentUser?.email ?? FirebaseAuth.instance.currentUser?.email;
     return Scaffold(
       body: GlassBackground(
         child: Center(
@@ -24,7 +24,7 @@ class HomePage extends StatelessWidget {
                   children: [
                     Text('Hola,', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.textMuted)),
                     const SizedBox(height: 4),
-                    Text(user?.email ?? 'Usuario', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                    Text(displayEmail ?? 'Usuario', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
                     const Text('Estás dentro. Pronto verás tu espacio de notas avanzadas con grafo, esquemas y más.'),
                     const SizedBox(height: 20),

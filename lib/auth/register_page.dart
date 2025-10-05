@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass.dart';
 import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 class RegisterPage extends StatefulWidget {
@@ -68,10 +69,30 @@ class _RegisterPageState extends State<RegisterPage> {
 
       final isWin = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
       if (isWin) {
-        await AuthService.instance.createUserWithEmailAndPassword(
+        final user = await AuthService.instance.createUserWithEmailAndPassword(
           _emailController.text.trim(),
           _passwordController.text,
         );
+        try {
+          await FirestoreService.instance.reserveHandle(username: _usernameController.text.trim().toLowerCase(), uid: user.uid);
+          await FirestoreService.instance.setUserProfile(uid: user.uid, data: {
+            'uid': user.uid,
+            'email': _emailController.text.trim(),
+            'fullName': _fullNameController.text.trim(),
+            'username': _usernameController.text.trim().toLowerCase(),
+            'organization': _orgController.text.trim(),
+            'role': _role,
+            'experience': _experience,
+            'interests': _interests,
+            'language': _language,
+            'preferredTheme': _preferredTheme,
+            'timezone': DateTime.now().timeZoneName,
+            'newsOptIn': _optInNews,
+          });
+        } catch (e) {
+          await AuthService.instance.signOut();
+          rethrow;
+        }
         if (mounted) {
           Navigator.of(context).pushReplacementNamed('/home');
         }
@@ -135,6 +156,12 @@ class _RegisterPageState extends State<RegisterPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message ?? 'No se pudo guardar el perfil')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
         );
       }
     } finally {

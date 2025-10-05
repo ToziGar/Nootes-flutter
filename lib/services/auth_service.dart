@@ -19,6 +19,9 @@ abstract class AuthService {
   static AuthService? _instance;
   static AuthService get instance => _instance ??= _resolve();
 
+  // Helper to obtain a valid ID token for REST calls
+  static Future<String> instanceToken() async => (await instance.getIdToken())!;
+
   static AuthService _resolve() {
     final isMobileOrWeb = kIsWeb ||
         defaultTargetPlatform == TargetPlatform.android ||
@@ -29,12 +32,14 @@ abstract class AuthService {
   }
 
   bool get usesRest;
+  AuthUser? get currentUser;
   Stream<AuthUser?> authStateChanges();
   Future<void> init();
   Future<void> signOut();
   Future<AuthUser> signInWithEmailAndPassword(String email, String password);
   Future<AuthUser> createUserWithEmailAndPassword(String email, String password);
   Future<void> sendPasswordResetEmail(String email);
+  Future<String?> getIdToken();
 }
 
 class _FirebaseAuthService implements AuthService {
@@ -42,6 +47,12 @@ class _FirebaseAuthService implements AuthService {
 
   @override
   bool get usesRest => false;
+
+  @override
+  AuthUser? get currentUser {
+    final u = _auth.currentUser;
+    return u == null ? null : AuthUser(uid: u.uid, email: u.email);
+  }
 
   @override
   Stream<AuthUser?> authStateChanges() => _auth
@@ -70,6 +81,9 @@ class _FirebaseAuthService implements AuthService {
 
   @override
   Future<void> signOut() => _auth.signOut();
+
+  @override
+  Future<String?> getIdToken() async => (await _auth.currentUser?.getIdToken());
 }
 
 class _RestAuthService implements AuthService {
@@ -90,6 +104,19 @@ class _RestAuthService implements AuthService {
 
   @override
   bool get usesRest => true;
+
+  @override
+  AuthUser? get currentUser => _uid == null ? null : AuthUser(uid: _uid!, email: _email);
+
+  bool get _isExpired => _expiry == null || DateTime.now().isAfter(_expiry!);
+
+  @override
+  Future<String?> getIdToken() async {
+    if (_idToken == null || _isExpired) {
+      await _refreshIdToken();
+    }
+    return _idToken;
+  }
 
   @override
   Stream<AuthUser?> authStateChanges() => _controller.stream;
@@ -219,4 +246,3 @@ class _RestAuthService implements AuthService {
     }
   }
 }
-
