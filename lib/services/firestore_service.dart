@@ -30,13 +30,15 @@ class _FirebaseFirestoreService implements FirestoreService {
   @override
   Future<void> reserveHandle({required String username, required String uid}) async {
     final ref = _db.collection('handles').doc(username);
-    final existing = await ref.get();
-    if (existing.exists) {
-      throw Exception('handle-already-exists');
-    }
-    await ref.set({
-      'uid': uid,
-      'createdAt': fs.FieldValue.serverTimestamp(),
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (snap.exists) {
+        throw Exception('handle-already-exists');
+      }
+      tx.set(ref, {
+        'uid': uid,
+        'createdAt': fs.FieldValue.serverTimestamp(),
+      });
     });
   }
 
@@ -109,4 +111,3 @@ class _RestFirestoreService implements FirestoreService {
     return {'stringValue': value?.toString() ?? ''};
   }
 }
-

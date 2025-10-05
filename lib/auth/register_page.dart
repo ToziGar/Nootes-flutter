@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../theme/app_theme.dart';
 import '../widgets/glass.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -59,71 +55,22 @@ class _RegisterPageState extends State<RegisterPage> {
       );
       return;
     }
-
     setState(() => _loading = true);
     try {
       final username = _usernameController.text.trim().toLowerCase();
       if (!RegExp(r'^[a-z0-9._]{3,20}$').hasMatch(username)) {
-        throw FirebaseException(plugin: 'app', message: 'Usuario inválido');
+        throw Exception('Usuario inválido');
       }
 
-      final isWin = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-      if (isWin) {
-        final user = await AuthService.instance.createUserWithEmailAndPassword(
-          _emailController.text.trim(),
-          _passwordController.text,
-        );
-        try {
-          await FirestoreService.instance.reserveHandle(username: _usernameController.text.trim().toLowerCase(), uid: user.uid);
-          await FirestoreService.instance.setUserProfile(uid: user.uid, data: {
-            'uid': user.uid,
-            'email': _emailController.text.trim(),
-            'fullName': _fullNameController.text.trim(),
-            'username': _usernameController.text.trim().toLowerCase(),
-            'organization': _orgController.text.trim(),
-            'role': _role,
-            'experience': _experience,
-            'interests': _interests,
-            'language': _language,
-            'preferredTheme': _preferredTheme,
-            'timezone': DateTime.now().timeZoneName,
-            'newsOptIn': _optInNews,
-          });
-        } catch (e) {
-          await AuthService.instance.signOut();
-          rethrow;
-        }
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/home');
-        }
-        return;
-      }
-
-      final handles = FirebaseFirestore.instance.collection('handles');
-      final handleDoc = await handles.doc(username).get();
-      if (handleDoc.exists) {
-        throw FirebaseException(plugin: 'cloud_firestore', message: 'El nombre de usuario ya está en uso');
-      }
-
-      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+      final user = await AuthService.instance.createUserWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text,
       );
 
-      final uid = cred.user!.uid;
-      await FirebaseFirestore.instance.runTransaction((tx) async {
-        final handleRef = handles.doc(username);
-        final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-        final existing = await tx.get(handleRef);
-        if (existing.exists) {
-          throw FirebaseException(plugin: 'cloud_firestore', message: 'El nombre de usuario ya está en uso');
-        }
-        tx.set(handleRef, {
-          'uid': uid,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        tx.set(userRef, {
-          'uid': uid,
+      try {
+        await FirestoreService.instance.reserveHandle(username: username, uid: user.uid);
+        await FirestoreService.instance.setUserProfile(uid: user.uid, data: {
+          'uid': user.uid,
           'email': _emailController.text.trim(),
           'fullName': _fullNameController.text.trim(),
           'username': username,
@@ -135,28 +82,14 @@ class _RegisterPageState extends State<RegisterPage> {
           'preferredTheme': _preferredTheme,
           'timezone': DateTime.now().timeZoneName,
           'newsOptIn': _optInNews,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
         });
-      });
+      } catch (e) {
+        await AuthService.instance.signOut();
+        rethrow;
+      }
 
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/home');
-      }
-    } on FirebaseAuthException catch (e) {
-      final msg = _mapAuthError(e);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg)),
-        );
-      }
-    } on FirebaseException catch (e) {
-      try { await FirebaseAuth.instance.currentUser?.delete(); } catch (_) {}
-      await FirebaseAuth.instance.signOut();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'No se pudo guardar el perfil')),
-        );
       }
     } catch (e) {
       if (mounted) {
@@ -166,19 +99,6 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  String _mapAuthError(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'email-already-in-use':
-        return 'Este email ya está en uso';
-      case 'invalid-email':
-        return 'Email inválido';
-      case 'weak-password':
-        return 'Contraseña débil';
-      default:
-        return e.message ?? 'Error al registrar';
     }
   }
 
@@ -209,7 +129,6 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Cuenta
                       Text('Cuenta', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
                       LayoutBuilder(
@@ -331,8 +250,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
                       const SizedBox(height: 16),
                       const Divider(),
-
-                      // Perfil
                       const SizedBox(height: 8),
                       Text('Perfil', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
@@ -420,8 +337,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
                       const SizedBox(height: 16),
                       const Divider(),
-
-                      // Preferencias
                       const SizedBox(height: 8),
                       Text('Preferencias', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
@@ -619,3 +534,4 @@ class _PasswordStrength extends StatelessWidget {
     );
   }
 }
+
