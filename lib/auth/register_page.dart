@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../theme/app_theme.dart';
+import '../widgets/glass.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -143,21 +144,14 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        color: AppColors.bg,
-        alignment: Alignment.center,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: Card(
-              elevation: 6,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: AppColors.borderColor),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      body: GlassBackground(
+        child: Container(
+          alignment: Alignment.center,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: GlassCard(
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -584,4 +578,3 @@ class _PasswordStrength extends StatelessWidget {
     );
   }
 }
-

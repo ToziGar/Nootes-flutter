@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+import '../widgets/glass.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -54,9 +56,9 @@ class _LoginPageState extends State<LoginPage> {
       case 'user-not-found':
         return 'Usuario no encontrado';
       case 'wrong-password':
-        return 'Contraseña incorrecta';
+        return 'Contrase�a incorrecta';
       default:
-        return e.message ?? 'Error de autenticación';
+        return e.message ?? 'Error de autenticaci�n';
     }
   }
 
@@ -70,12 +72,7 @@ class _LoginPageState extends State<LoginPage> {
           padding: const EdgeInsets.all(16),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
-            child: Card(
-              elevation: 6,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: AppColors.borderColor),
-              ),
+            child: GlassCard(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                 child: Form(
@@ -86,7 +83,7 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       Text('Nootes', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text('Bienvenido, inicia sesión para continuar', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted)),
+                      Text('Bienvenido, inicia sesi�n para continuar', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted)),
                       const SizedBox(height: 20),
                       TextFormField(
                         controller: _emailController,
@@ -107,7 +104,7 @@ class _LoginPageState extends State<LoginPage> {
                       TextFormField(
                         controller: _passwordController,
                         decoration: InputDecoration(
-                          labelText: 'Contraseña',
+                          labelText: 'Contrase�a',
                           prefixIcon: const Icon(Icons.lock_rounded),
                           suffixIcon: IconButton(
                             onPressed: () => setState(() => _obscure = !_obscure),
@@ -119,8 +116,8 @@ class _LoginPageState extends State<LoginPage> {
                         textInputAction: TextInputAction.done,
                         onFieldSubmitted: (_) => _loading ? null : _signIn(),
                         validator: (v) {
-                          if (v == null || v.isEmpty) return 'Ingresa tu contraseña';
-                          if (v.length < 6) return 'Mínimo 6 caracteres';
+                          if (v == null || v.isEmpty) return 'Ingresa tu Contrase�a';
+                          if (v.length < 6) return 'M�nimo 6 caracteres';
                           return null;
                         },
                       ),
@@ -129,7 +126,7 @@ class _LoginPageState extends State<LoginPage> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () => Navigator.of(context).pushNamed('/forgot'),
-                          child: const Text('¿Olvidaste tu contraseña?'),
+                          child: const Text('¿�Olvidaste tu Contrase�a?'),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -157,4 +154,4 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-import '../theme/app_theme.dart';
+
