@@ -158,24 +158,39 @@ class _ProfilePageState extends State<ProfilePage> {
                                 validator: (v) => (v == null || v.trim().isEmpty || !v.contains('@')) ? 'Email inválido' : null,
                               ),
                               const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _username,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Usuario (handle)',
-                                        prefixIcon: Icon(Icons.alternate_email_rounded),
-                                      ),
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final isWide = constraints.maxWidth > 480;
+                                  final field = TextFormField(
+                                    controller: _username,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Usuario (handle)',
+                                      prefixIcon: Icon(Icons.alternate_email_rounded),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  FilledButton.icon(
+                                  );
+                                  final button = FilledButton.icon(
                                     onPressed: _saving ? null : _changeHandle,
                                     icon: const Icon(Icons.check_rounded),
                                     label: const Text('Cambiar'),
-                                  ),
-                                ],
+                                  );
+                                  if (isWide) {
+                                    return Row(
+                                      children: [
+                                        Expanded(child: field),
+                                        const SizedBox(width: 8),
+                                        button,
+                                      ],
+                                    );
+                                  }
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      field,
+                                      const SizedBox(height: 8),
+                                      button,
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 8),
                               TextFormField(
@@ -232,4 +247,3 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 }
-

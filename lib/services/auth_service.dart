@@ -20,7 +20,13 @@ abstract class AuthService {
   static AuthService get instance => _instance ??= _resolve();
 
   // Helper to obtain a valid ID token for REST calls
-  static Future<String> instanceToken() async => (await instance.getIdToken())!;
+  static Future<String> instanceToken() async {
+    final t = await instance.getIdToken();
+    if (t == null) {
+      throw Exception('auth/no-id-token');
+    }
+    return t;
+  }
 
   static AuthService _resolve() {
     final isMobileOrWeb = kIsWeb ||

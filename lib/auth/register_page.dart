@@ -136,7 +136,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         builder: (context, constraints) {
                           final isWide = constraints.maxWidth > 560;
                           return Flex(
-                            direction: isWide ? Axis.horizontal : Axis.vertical,
+                            direction: Axis.horizontal,
                             children: [
                               Expanded(
                                 child: Padding(
@@ -203,7 +203,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         builder: (context, constraints) {
                           final isWide = constraints.maxWidth > 560;
                           return Flex(
-                            direction: isWide ? Axis.horizontal : Axis.vertical,
+                            direction: Axis.horizontal,
                             children: [
                               Expanded(
                                 child: Padding(
@@ -258,7 +258,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         builder: (context, constraints) {
                           final isWide = constraints.maxWidth > 560;
                           return Flex(
-                            direction: isWide ? Axis.horizontal : Axis.vertical,
+                            direction: Axis.horizontal,
                             children: [
                               Expanded(
                                 child: Padding(
@@ -349,7 +349,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         builder: (context, constraints) {
                           final isWide = constraints.maxWidth > 560;
                           return Flex(
-                            direction: isWide ? Axis.horizontal : Axis.vertical,
+                            direction: Axis.horizontal,
                             children: [
                               Expanded(
                                 child: Padding(
