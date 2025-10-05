@@ -1,8 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/glass.dart';
+import '../services/auth_service.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -26,21 +26,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _sending = true);
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: _emailController.text.trim(),
-      );
+      await AuthService.instance.sendPasswordResetEmail(_emailController.text.trim());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Correo de restablecimiento enviado')),
         );
         Navigator.of(context).pop();
       }
-    } on FirebaseAuthException catch (e) {
-      final msg = switch (e.code) {
-        'invalid-email' => 'Email inválido',
-        'user-not-found' => 'Usuario no encontrado',
-        _ => e.message ?? 'No se pudo enviar el correo',
-      };
+    } catch (e) {
+      final msg = 'No se pudo enviar el correo';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(msg)),
@@ -114,4 +108,3 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 }
-

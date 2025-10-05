@@ -1,8 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/glass.dart';
+import '../services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,15 +29,13 @@ class _LoginPageState extends State<LoginPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+      await AuthService.instance
+          .signInWithEmailAndPassword(_emailController.text.trim(), _passwordController.text);
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/home');
       }
-    } on FirebaseAuthException catch (e) {
-      final msg = _mapAuthError(e);
+    } catch (e) {
+      final msg = e.toString();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(msg)),
@@ -48,20 +46,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  String _mapAuthError(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'invalid-email':
-        return 'Email inválido';
-      case 'user-disabled':
-        return 'Usuario deshabilitado';
-      case 'user-not-found':
-        return 'Usuario no encontrado';
-      case 'wrong-password':
-        return 'Contraseña incorrecta';
-      default:
-        return e.message ?? 'Error de autenticación';
-    }
-  }
+  String _mapAuthError(Object e) => e.toString();
 
   @override
   Widget build(BuildContext context) {
@@ -168,4 +153,3 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-
