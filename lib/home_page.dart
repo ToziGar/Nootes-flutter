@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'widgets/glass.dart';
 import 'services/auth_service.dart';
+import 'profile/profile_page.dart';
+import 'profile/profiles_list_page.dart';
+import 'profile/handles_list_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -40,6 +43,33 @@ class HomePage extends StatelessWidget {
                             label: const Text('Crear nota'),
                           ),
                           OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const ProfilePage()),
+                              );
+                            },
+                            icon: const Icon(Icons.person_outline_rounded),
+                            label: const Text('Editar perfil'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const ProfilesListPage()),
+                              );
+                            },
+                            icon: const Icon(Icons.people_outline_rounded),
+                            label: const Text('Perfiles'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const HandlesListPage()),
+                              );
+                            },
+                            icon: const Icon(Icons.alternate_email_rounded),
+                            label: const Text('Handles'),
+                          ),
+                          OutlinedButton.icon(
                             onPressed: () async {
                               await AuthService.instance.signOut();
                               if (context.mounted) {
@@ -62,3 +92,4 @@ class HomePage extends StatelessWidget {
     );
   }
 }
+
