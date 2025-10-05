@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass.dart';
+import '../widgets/two_up.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 
@@ -115,312 +116,269 @@ class _RegisterPageState extends State<RegisterPage> {
                 constraints: const BoxConstraints(maxWidth: 720),
                 child: GlassCard(
                   child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'Crear cuenta',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Configura tu perfil de Nootes para una experiencia avanzada de notas',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
-                      ),
-                      const SizedBox(height: 20),
-
-                      Text('Cuenta', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isWide = constraints.maxWidth > 560;
-                          return Flex(
-                            direction: Axis.horizontal,
-                            children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
-                                  child: TextFormField(
-                                    controller: _fullNameController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Nombre completo',
-                                      prefixIcon: Icon(Icons.person_outline_rounded),
-                                    ),
-                                    textInputAction: TextInputAction.next,
-                                    validator: (v) {
-                                      if (v == null || v.trim().isEmpty) return 'Ingresa tu nombre';
-                                      if (v.trim().length < 3) return 'Nombre demasiado corto';
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
-                                  child: TextFormField(
-                                    controller: _usernameController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Usuario (único)',
-                                      prefixIcon: Icon(Icons.alternate_email_rounded),
-                                      helperText: '3–20 chars, minúsculas, números, . o _',
-                                    ),
-                                    textInputAction: TextInputAction.next,
-                                    validator: (v) {
-                                      final value = (v ?? '').trim().toLowerCase();
-                                      if (value.isEmpty) return 'Ingresa un usuario';
-                                      if (!RegExp(r'^[a-z0-9._]{3,20}$').hasMatch(value)) {
-                                        return 'Formato inválido';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                          prefixIcon: Icon(Icons.mail_outline_rounded),
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Crear cuenta',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                         ),
-                        autofillHints: const [AutofillHints.email],
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'Ingresa tu email';
-                          if (!v.contains('@')) return 'Email inválido';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isWide = constraints.maxWidth > 560;
-                          return Flex(
-                            direction: Axis.horizontal,
-                            children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
-                                  child: _PasswordField(
-                                    controller: _passwordController,
-                                    obscure: _obscure,
-                                    onToggle: () => setState(() => _obscure = !_obscure),
-                                    validator: _passwordValidator,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
-                                  child: TextFormField(
-                                    controller: _confirmController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Confirmar contraseña',
-                                      prefixIcon: const Icon(Icons.lock_outline_rounded),
-                                      suffixIcon: IconButton(
-                                        onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                                        icon: Icon(_obscureConfirm ? Icons.visibility_rounded : Icons.visibility_off_rounded),
-                                        tooltip: _obscureConfirm ? 'Mostrar' : 'Ocultar',
-                                      ),
-                                    ),
-                                    obscureText: _obscureConfirm,
-                                    textInputAction: TextInputAction.next,
-                                    validator: (v) {
-                                      if (v != _passwordController.text) return 'No coincide';
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: _passwordController,
-                        builder: (_, val, __) => _PasswordStrength(value: val.text),
-                      ),
-
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      Text('Perfil', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isWide = constraints.maxWidth > 560;
-                          return Flex(
-                            direction: Axis.horizontal,
-                            children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
-                                  child: TextFormField(
-                                    controller: _orgController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Equipo/Organización (opcional)',
-                                      prefixIcon: Icon(Icons.apartment_rounded),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
-                                  child: DropdownButtonFormField<String>(
-                                    value: _role,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Rol',
-                                      prefixIcon: Icon(Icons.badge_outlined),
-                                    ),
-                                    items: const [
-                                      DropdownMenuItem(value: 'Estudiante', child: Text('Estudiante')),
-                                      DropdownMenuItem(value: 'Investigador', child: Text('Investigador')),
-                                      DropdownMenuItem(value: 'Desarrollador', child: Text('Desarrollador')),
-                                      DropdownMenuItem(value: 'Producto', child: Text('Producto/PM')),
-                                      DropdownMenuItem(value: 'Otro', child: Text('Otro')),
-                                    ],
-                                    onChanged: (v) => setState(() => _role = v ?? _role),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        value: _experience,
-                        decoration: const InputDecoration(
-                          labelText: 'Experiencia con toma de notas',
-                          prefixIcon: Icon(Icons.insights_outlined),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Configura tu perfil de Nootes para una experiencia avanzada de notas',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
                         ),
-                        items: const [
-                          DropdownMenuItem(value: 'Principiante', child: Text('Principiante')),
-                          DropdownMenuItem(value: 'Intermedio', child: Text('Intermedio')),
-                          DropdownMenuItem(value: 'Avanzado', child: Text('Avanzado')),
-                        ],
-                        onChanged: (v) => setState(() => _experience = v ?? _experience),
-                      ),
-                      const SizedBox(height: 8),
-                      Text('Intereses (pulsa Enter para añadir)', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
-                      const SizedBox(height: 6),
-                      LayoutBuilder(builder: (context, constraints) {
-                        final maxW = constraints.maxWidth;
-                        final inputMax = maxW < 260 ? maxW - 40 : 260.0;
-                        return Wrap(
-                          spacing: 6,
-                          runSpacing: -6,
-                          children: [
-                            for (final tag in _interests)
-                              Chip(
-                                label: Text(tag),
-                                onDeleted: () => setState(() => _interests.remove(tag)),
+                        const SizedBox(height: 20),
+
+                        Text('Cuenta', style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        TwoUp(
+                          first: Padding(
+                            padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
+                            child: TextFormField(
+                              controller: _fullNameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Nombre completo',
+                                prefixIcon: Icon(Icons.person_outline_rounded),
                               ),
-                            ConstrainedBox(
-                              constraints: BoxConstraints(maxWidth: inputMax, minWidth: 120),
-                              child: TextField(
-                                controller: _interestController,
-                                decoration: const InputDecoration(
-                                  hintText: 'Añadir interés...',
-                                  prefixIcon: Icon(Icons.add_rounded),
+                              textInputAction: TextInputAction.next,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return 'Ingresa tu nombre';
+                                if (v.trim().length < 3) return 'Nombre demasiado corto';
+                                return null;
+                              },
+                            ),
+                          ),
+                          second: Padding(
+                            padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
+                            child: TextFormField(
+                              controller: _usernameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Usuario (único)',
+                                prefixIcon: Icon(Icons.alternate_email_rounded),
+                                helperText: '3-20 chars, minúsculas, números, . o _',
+                              ),
+                              textInputAction: TextInputAction.next,
+                              validator: (v) {
+                                final value = (v ?? '').trim().toLowerCase();
+                                if (value.isEmpty) return 'Ingresa un usuario';
+                                if (!RegExp(r'^[a-z0-9._]{3,20}$').hasMatch(value)) {
+                                  return 'Formato inválido';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          breakpoint: 560,
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _emailController,
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            prefixIcon: Icon(Icons.mail_outline_rounded),
+                          ),
+                          autofillHints: const [AutofillHints.email],
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return 'Ingresa tu email';
+                            if (!v.contains('@')) return 'Email inválido';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        TwoUp(
+                          first: Padding(
+                            padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
+                            child: _PasswordField(
+                              controller: _passwordController,
+                              obscure: _obscure,
+                              onToggle: () => setState(() => _obscure = !_obscure),
+                              validator: _passwordValidator,
+                            ),
+                          ),
+                          second: Padding(
+                            padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
+                            child: TextFormField(
+                              controller: _confirmController,
+                              decoration: InputDecoration(
+                                labelText: 'Confirmar contraseña',
+                                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                                suffixIcon: IconButton(
+                                  onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                                  icon: Icon(_obscureConfirm ? Icons.visibility_rounded : Icons.visibility_off_rounded),
+                                  tooltip: _obscureConfirm ? 'Mostrar' : 'Ocultar',
                                 ),
-                                onSubmitted: _addInterest,
+                              ),
+                              obscureText: _obscureConfirm,
+                              textInputAction: TextInputAction.next,
+                              validator: (v) {
+                                if (v != _passwordController.text) return 'No coincide';
+                                return null;
+                              },
+                            ),
+                          ),
+                          breakpoint: 560,
+                        ),
+                        const SizedBox(height: 8),
+                        ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _passwordController,
+                          builder: (_, val, __) => _PasswordStrength(value: val.text),
+                        ),
+
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 8),
+                        Text('Perfil', style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        TwoUp(
+                          first: Padding(
+                            padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
+                            child: TextFormField(
+                              controller: _orgController,
+                              decoration: const InputDecoration(
+                                labelText: 'Equipo/Organización (opcional)',
+                                prefixIcon: Icon(Icons.apartment_rounded),
                               ),
                             ),
-                          ],
-                        );
-                      }),
-
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      Text('Preferencias', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isWide = constraints.maxWidth > 560;
-                          return Flex(
-                            direction: Axis.horizontal,
-                            children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
-                                  child: DropdownButtonFormField<String>(
-                                    value: _language,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Idioma',
-                                      prefixIcon: Icon(Icons.language_rounded),
-                                    ),
-                                    items: const [
-                                      DropdownMenuItem(value: 'es', child: Text('Español')),
-                                      DropdownMenuItem(value: 'en', child: Text('English')),
-                                    ],
-                                    onChanged: (v) => setState(() => _language = v ?? _language),
-                                  ),
-                                ),
+                          ),
+                          second: Padding(
+                            padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
+                            child: DropdownButtonFormField<String>(
+                              value: _role,
+                              decoration: const InputDecoration(
+                                labelText: 'Rol',
+                                prefixIcon: Icon(Icons.badge_outlined),
                               ),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
-                                  child: DropdownButtonFormField<String>(
-                                    value: _preferredTheme,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Tema preferido',
-                                      prefixIcon: Icon(Icons.dark_mode_outlined),
-                                    ),
-                                    items: const [
-                                      DropdownMenuItem(value: 'oscuro', child: Text('Oscuro')),
-                                      DropdownMenuItem(value: 'claro', child: Text('Claro')),
-                                      DropdownMenuItem(value: 'sistema', child: Text('Sistema')),
-                                    ],
-                                    onChanged: (v) => setState(() => _preferredTheme = v ?? _preferredTheme),
+                              items: const [
+                                DropdownMenuItem(value: 'Estudiante', child: Text('Estudiante')),
+                                DropdownMenuItem(value: 'Investigador', child: Text('Investigador')),
+                                DropdownMenuItem(value: 'Desarrollador', child: Text('Desarrollador')),
+                                DropdownMenuItem(value: 'Producto', child: Text('Producto/PM')),
+                                DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+                              ],
+                              onChanged: (v) => setState(() => _role = v ?? _role),
+                            ),
+                          ),
+                          breakpoint: 560,
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: _experience,
+                          decoration: const InputDecoration(
+                            labelText: 'Experiencia con toma de notas',
+                            prefixIcon: Icon(Icons.insights_outlined),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'Principiante', child: Text('Principiante')),
+                            DropdownMenuItem(value: 'Intermedio', child: Text('Intermedio')),
+                            DropdownMenuItem(value: 'Avanzado', child: Text('Avanzado')),
+                          ],
+                          onChanged: (v) => setState(() => _experience = v ?? _experience),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Intereses (pulsa Enter para añadir)', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
+                        const SizedBox(height: 6),
+                        LayoutBuilder(builder: (context, constraints) {
+                          final maxW = constraints.maxWidth;
+                          final inputMax = maxW < 260 ? maxW - 40 : 260.0;
+                          return Wrap(
+                            spacing: 6,
+                            runSpacing: -6,
+                            children: [
+                              for (final tag in _interests)
+                                Chip(
+                                  label: Text(tag),
+                                  onDeleted: () => setState(() => _interests.remove(tag)),
+                                ),
+                              ConstrainedBox(
+                                constraints: BoxConstraints(maxWidth: inputMax, minWidth: 120),
+                                child: TextField(
+                                  controller: _interestController,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Añadir interés...',
+                                    prefixIcon: Icon(Icons.add_rounded),
                                   ),
+                                  onSubmitted: _addInterest,
                                 ),
                               ),
                             ],
                           );
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      SwitchListTile(
-                        value: _optInNews,
-                        onChanged: (v) => setState(() => _optInNews = v),
-                        title: const Text('Recibir novedades por email'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      CheckboxListTile(
-                        value: _acceptTerms,
-                        onChanged: (v) => setState(() => _acceptTerms = v ?? false),
-                        title: const Text('Acepto los Términos y la Política de Privacidad'),
-                        contentPadding: EdgeInsets.zero,
-                        controlAffinity: ListTileControlAffinity.leading,
-                      ),
+                        }),
 
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: _loading ? null : _register,
-                        child: _loading
-                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Crear cuenta'),
-                      ),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () => Navigator.of(context).pushReplacementNamed('/login'),
-                          child: const Text('Ya tengo una cuenta'),
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 8),
+                        Text('Preferencias', style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        TwoUp(
+                          first: Padding(
+                            padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
+                            child: DropdownButtonFormField<String>(
+                              value: _language,
+                              decoration: const InputDecoration(
+                                labelText: 'Idioma',
+                                prefixIcon: Icon(Icons.language_rounded),
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: 'es', child: Text('Español')),
+                                DropdownMenuItem(value: 'en', child: Text('English')),
+                              ],
+                              onChanged: (v) => setState(() => _language = v ?? _language),
+                            ),
+                          ),
+                          second: Padding(
+                            padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
+                            child: DropdownButtonFormField<String>(
+                              value: _preferredTheme,
+                              decoration: const InputDecoration(
+                                labelText: 'Tema preferido',
+                                prefixIcon: Icon(Icons.dark_mode_outlined),
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: 'oscuro', child: Text('Oscuro')),
+                                DropdownMenuItem(value: 'claro', child: Text('Claro')),
+                                DropdownMenuItem(value: 'sistema', child: Text('Sistema')),
+                              ],
+                              onChanged: (v) => setState(() => _preferredTheme = v ?? _preferredTheme),
+                            ),
+                          ),
+                          breakpoint: 560,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        SwitchListTile(
+                          value: _optInNews,
+                          onChanged: (v) => setState(() => _optInNews = v),
+                          title: const Text('Recibir novedades por email'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        CheckboxListTile(
+                          value: _acceptTerms,
+                          onChanged: (v) => setState(() => _acceptTerms = v ?? false),
+                          title: const Text('Acepto los Términos y la Política de Privacidad'),
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                        ),
+
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: _loading ? null : _register,
+                          child: _loading
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Text('Crear cuenta'),
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => Navigator.of(context).pushReplacementNamed('/login'),
+                            child: const Text('Ya tengo una cuenta'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -428,7 +386,6 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
         ),
       ),
-    ),
     );
   }
 
@@ -540,3 +497,4 @@ class _PasswordStrength extends StatelessWidget {
     );
   }
 }
+
