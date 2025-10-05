@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/glass.dart';
+import '../services/auth_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -62,6 +64,18 @@ class _RegisterPageState extends State<RegisterPage> {
       final username = _usernameController.text.trim().toLowerCase();
       if (!RegExp(r'^[a-z0-9._]{3,20}$').hasMatch(username)) {
         throw FirebaseException(plugin: 'app', message: 'Usuario inválido');
+      }
+
+      final isWin = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+      if (isWin) {
+        await AuthService.instance.createUserWithEmailAndPassword(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
+        return;
       }
 
       final handles = FirebaseFirestore.instance.collection('handles');

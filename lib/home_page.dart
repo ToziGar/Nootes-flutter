@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'widgets/glass.dart';
+import 'services/auth_service.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -37,7 +38,7 @@ class HomePage extends StatelessWidget {
                         const SizedBox(width: 12),
                         OutlinedButton.icon(
                           onPressed: () async {
-                            await FirebaseAuth.instance.signOut();
+                            await AuthService.instance.signOut();
                             if (context.mounted) {
                               Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
                             }
