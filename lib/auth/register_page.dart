@@ -106,14 +106,15 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: GlassBackground(
-        child: Container(
-          alignment: Alignment.center,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: GlassCard(
-                child: Form(
+        child: SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: GlassCard(
+                  child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -312,28 +313,32 @@ class _RegisterPageState extends State<RegisterPage> {
                       const SizedBox(height: 8),
                       Text('Intereses (pulsa Enter para añadir)', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
                       const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: -6,
-                        children: [
-                          for (final tag in _interests)
-                            Chip(
-                              label: Text(tag),
-                              onDeleted: () => setState(() => _interests.remove(tag)),
-                            ),
-                          SizedBox(
-                            width: 220,
-                            child: TextField(
-                              controller: _interestController,
-                              decoration: const InputDecoration(
-                                hintText: 'Añadir interés...',
-                                prefixIcon: Icon(Icons.add_rounded),
+                      LayoutBuilder(builder: (context, constraints) {
+                        final maxW = constraints.maxWidth;
+                        final inputMax = maxW < 260 ? maxW - 40 : 260.0;
+                        return Wrap(
+                          spacing: 6,
+                          runSpacing: -6,
+                          children: [
+                            for (final tag in _interests)
+                              Chip(
+                                label: Text(tag),
+                                onDeleted: () => setState(() => _interests.remove(tag)),
                               ),
-                              onSubmitted: _addInterest,
+                            ConstrainedBox(
+                              constraints: BoxConstraints(maxWidth: inputMax, minWidth: 120),
+                              child: TextField(
+                                controller: _interestController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Añadir interés...',
+                                  prefixIcon: Icon(Icons.add_rounded),
+                                ),
+                                onSubmitted: _addInterest,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        );
+                      }),
 
                       const SizedBox(height: 16),
                       const Divider(),
@@ -423,6 +428,7 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -534,4 +540,3 @@ class _PasswordStrength extends StatelessWidget {
     );
   }
 }
-

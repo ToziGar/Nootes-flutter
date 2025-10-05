@@ -179,6 +179,17 @@ Win32Window::MessageHandler(HWND hwnd,
                             WPARAM const wparam,
                             LPARAM const lparam) noexcept {
   switch (message) {
+    case WM_GETMINMAXINFO: {
+      // Enforce a minimum window size to help responsive layouts on desktop
+      MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lparam);
+      // Minimum client area ~360x600 logical pixels, scaled by current DPI
+      HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+      UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
+      double scale_factor = dpi / 96.0;
+      mmi->ptMinTrackSize.x = static_cast<LONG>(360 * scale_factor);
+      mmi->ptMinTrackSize.y = static_cast<LONG>(600 * scale_factor);
+      return 0;
+    }
     case WM_DESTROY:
       window_handle_ = nullptr;
       Destroy();

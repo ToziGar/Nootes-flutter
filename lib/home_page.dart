@@ -12,43 +12,47 @@ class HomePage extends StatelessWidget {
     final displayEmail = AuthService.instance.currentUser?.email ?? FirebaseAuth.instance.currentUser?.email;
     return Scaffold(
       body: GlassBackground(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: GlassCard(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Hola,', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.textMuted)),
-                    const SizedBox(height: 4),
-                    Text(displayEmail ?? 'Usuario', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    const Text('Estás dentro. Pronto verás tu espacio de notas avanzadas con grafo, esquemas y más.'),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        FilledButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.note_add_rounded),
-                          label: const Text('Crear nota'),
-                        ),
-                        const SizedBox(width: 12),
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            await AuthService.instance.signOut();
-                            if (context.mounted) {
-                              Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
-                            }
-                          },
-                          icon: const Icon(Icons.logout_rounded),
-                          label: const Text('Cerrar sesión'),
-                        ),
-                      ],
-                    )
-                  ],
+        child: SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: GlassCard(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Hola,', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.textMuted)),
+                      const SizedBox(height: 4),
+                      Text(displayEmail ?? 'Usuario', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      const Text('Estás dentro. Pronto verás tu espacio de notas avanzadas con grafo, esquemas y más.'),
+                      const SizedBox(height: 20),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: () {},
+                            icon: const Icon(Icons.note_add_rounded),
+                            label: const Text('Crear nota'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              await AuthService.instance.signOut();
+                              if (context.mounted) {
+                                Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+                              }
+                            },
+                            icon: const Icon(Icons.logout_rounded),
+                            label: const Text('Cerrar sesión'),
+                          ),
+                        ],
+                      )
+                    ],
+                  ),
                 ),
               ),
             ),
