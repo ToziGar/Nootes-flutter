@@ -284,11 +284,16 @@ class _FirebaseFirestoreService implements FirestoreService {
 
   @override
   Future<List<Map<String, dynamic>>> listNotesByTag({required String uid, required String tag}) async {
-    final q = await _db
+    final base = _db
         .collection('users').doc(uid).collection('notes')
-        .where('tags', arrayContains: tag)
-        .get();
-    return q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+        .where('tags', arrayContains: tag);
+    try {
+      final q = await base.orderBy('updatedAt', descending: true).get();
+      return q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    } catch (_) {
+      final q = await base.get();
+      return q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    }
   }
 
   @override
@@ -365,6 +370,7 @@ class _FirebaseFirestoreService implements FirestoreService {
 class _RestFirestoreService implements FirestoreService {
   String get _projectId => DefaultFirebaseOptions.web.projectId;
   String get _base => 'https://firestore.googleapis.com/v1/projects/$_projectId/databases/(default)/documents';
+  String _parentForUser(String uid) => 'projects/$_projectId/databases/(default)/documents/users/$uid';
 
   Future<Map<String, String>> _authHeader() async {
     final token = await AuthService.instanceToken();
@@ -718,13 +724,38 @@ class _RestFirestoreService implements FirestoreService {
 
   @override
   Future<List<Map<String, dynamic>>> listNotesByTag({required String uid, required String tag}) async {
-    final notes = await listNotes(uid: uid);
-    final res = <Map<String, dynamic>>[];
-    for (final n in notes) {
-      final tags = (n['tags'] as List?)?.whereType<String>() ?? const [];
-      if (tags.contains(tag)) res.add(n);
+    // Try runQuery with array-contains filter; if index required, retry without orderBy.
+    Future<List<Map<String, dynamic>>> run({required bool withOrder}) async {
+      final body = {
+        'parent': _parentForUser(uid),
+        'structuredQuery': {
+          'from': [
+            {'collectionId': 'notes'}
+          ],
+          'where': {
+            'fieldFilter': {
+              'field': {'fieldPath': 'tags'},
+              'op': 'ARRAY_CONTAINS',
+              'value': {'stringValue': tag},
+            }
+          },
+          if (withOrder)
+            'orderBy': [
+              {
+                'field': {'fieldPath': 'updatedAt'},
+                'direction': 'DESCENDING',
+              }
+            ],
+        },
+      };
+      return _runQueryAndDecode(body);
     }
-    return res;
+
+    try {
+      return await run(withOrder: true);
+    } catch (_) {
+      return await run(withOrder: false);
+    }
   }
 
   @override
@@ -832,13 +863,24 @@ class _RestFirestoreService implements FirestoreService {
 
   @override
   Future<List<String>> listIncomingLinks({required String uid, required String noteId}) async {
-    final notes = await listNotes(uid: uid);
-    final incoming = <String>[];
-    for (final n in notes) {
-      final links = (n['links'] as List?)?.whereType<String>() ?? const [];
-      if (links.contains(noteId)) incoming.add(n['id'].toString());
-    }
-    return incoming;
+    // Query notes where links array contains noteId
+    final body = {
+      'parent': _parentForUser(uid),
+      'structuredQuery': {
+        'from': [
+          {'collectionId': 'notes'}
+        ],
+        'where': {
+          'fieldFilter': {
+            'field': {'fieldPath': 'links'},
+            'op': 'ARRAY_CONTAINS',
+            'value': {'stringValue': noteId},
+          }
+        },
+      },
+    };
+    final docs = await _runQueryAndDecode(body);
+    return docs.map((d) => d['id'].toString()).toList();
   }
 
   @override
@@ -891,5 +933,36 @@ class _RestFirestoreService implements FirestoreService {
       }
     });
     return result;
+  }
+
+  Future<List<Map<String, dynamic>>> _runQueryAndDecode(Map<String, dynamic> body) async {
+    final uri = Uri.parse('$_base:runQuery');
+    final resp = await http.post(uri, headers: await _authHeader(), body: jsonEncode(body));
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      throw Exception('firestore-runQuery-${resp.statusCode}');
+    }
+    final text = resp.body.trim();
+    final List results = <dynamic>[];
+    if (text.startsWith('[')) {
+      results.addAll(jsonDecode(text) as List);
+    } else {
+      // Newline-delimited JSON fallback
+      for (final line in text.split('\n')) {
+        final l = line.trim();
+        if (l.isEmpty) continue;
+        results.add(jsonDecode(l));
+      }
+    }
+    final docs = <Map<String, dynamic>>[];
+    for (final item in results) {
+      if (item is Map && item['document'] != null) {
+        final d = item['document'] as Map<String, dynamic>;
+        final name = d['name']?.toString() ?? '';
+        final id = name.split('/').last;
+        final fields = _decodeFields(d['fields'] as Map<String, dynamic>?);
+        docs.add({'id': id, ...fields});
+      }
+    }
+    return docs;
   }
 }

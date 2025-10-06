@@ -122,16 +122,16 @@ class _NotesPageState extends State<NotesPage> {
                     Row(
                       children: [
                         Expanded(
-                          child: DropdownButtonFormField<String>(
+                          child: DropdownButtonFormField<String?>(
                             value: _selectedCollection,
                             decoration: const InputDecoration(
                               labelText: 'Colección',
                               prefixIcon: Icon(Icons.folder_outlined),
                             ),
                             items: [
-                              const DropdownMenuItem(value: null, child: Text('Todas')),
-                              const DropdownMenuItem(value: '', child: Text('Sin colección')),
-                              ..._collections.map((c) => DropdownMenuItem(
+                              const DropdownMenuItem<String?>(value: null, child: Text('Todas')),
+                              const DropdownMenuItem<String?>(value: '', child: Text('Sin colección')),
+                              ..._collections.map((c) => DropdownMenuItem<String?>(
                                     value: c['id'].toString(),
                                     child: Text(c['name']?.toString() ?? c['id'].toString()),
                                   )),
@@ -141,15 +141,15 @@ class _NotesPageState extends State<NotesPage> {
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: DropdownButtonFormField<String>(
+                          child: DropdownButtonFormField<String?>(
                             value: _selectedTag,
                             decoration: const InputDecoration(
                               labelText: 'Etiqueta',
                               prefixIcon: Icon(Icons.sell_outlined),
                             ),
                             items: [
-                              const DropdownMenuItem(value: null, child: Text('Todas')),
-                              ..._tags.map((t) => DropdownMenuItem(value: t, child: Text('#$t'))),
+                              const DropdownMenuItem<String?>(value: null, child: Text('Todas')),
+                              ..._tags.map((t) => DropdownMenuItem<String?>(value: t, child: Text('#$t'))),
                             ],
                             onChanged: (v) => setState(() => _selectedTag = v),
                           ),
@@ -209,4 +209,5 @@ class _NotesPageState extends State<NotesPage> {
     );
   }
 }
+
 

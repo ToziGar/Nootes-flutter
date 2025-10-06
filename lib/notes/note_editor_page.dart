@@ -142,16 +142,16 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         textInputAction: TextInputAction.next,
                       ),
                       const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
+                      DropdownButtonFormField<String?>(
                         value: _collectionId,
                         decoration: const InputDecoration(
                           labelText: 'Colección',
                           prefixIcon: Icon(Icons.folder_outlined),
                         ),
                         items: [
-                          const DropdownMenuItem(value: null, child: Text('Sin colección')),
-                          const DropdownMenuItem(value: '', child: Text('Sin colección')),
-                          ..._collections.map((c) => DropdownMenuItem(
+                          const DropdownMenuItem<String?>(value: null, child: Text('Sin colección')),
+                          const DropdownMenuItem<String?>(value: '', child: Text('Sin colección')),
+                          ..._collections.map((c) => DropdownMenuItem<String?>(
                                 value: c['id'].toString(),
                                 child: Text(c['name']?.toString() ?? c['id'].toString()),
                               )),
@@ -183,13 +183,13 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: DropdownButtonFormField<String?>(
                               decoration: const InputDecoration(
                                 labelText: 'Añadir enlace a…',
                                 prefixIcon: Icon(Icons.link_rounded),
                               ),
                               items: _otherNotes
-                                  .map((n) => DropdownMenuItem(
+                                  .map((n) => DropdownMenuItem<String?>(
                                         value: n['id'].toString(),
                                         child: Text((n['title']?.toString() ?? '').isEmpty ? n['id'].toString() : n['title'].toString()),
                                       ))
@@ -224,4 +224,5 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     );
   }
 }
+
 
