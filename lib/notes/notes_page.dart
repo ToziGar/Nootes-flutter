@@ -129,8 +129,8 @@ class _NotesPageState extends State<NotesPage> {
                               prefixIcon: Icon(Icons.folder_outlined),
                             ),
                             items: [
-                              const DropdownMenuItem<String?>(value: null, child: Text('Todas')),
-                              const DropdownMenuItem<String?>(value: '', child: Text('Sin colección')),
+                              DropdownMenuItem<String?>(value: null, child: Text('Todas')),
+                              DropdownMenuItem<String?>(value: '', child: Text('Sin colección')),
                               ..._collections.map((c) => DropdownMenuItem<String?>(
                                     value: c['id'].toString(),
                                     child: Text(c['name']?.toString() ?? c['id'].toString()),
@@ -148,7 +148,7 @@ class _NotesPageState extends State<NotesPage> {
                               prefixIcon: Icon(Icons.sell_outlined),
                             ),
                             items: [
-                              const DropdownMenuItem<String?>(value: null, child: Text('Todas')),
+                              DropdownMenuItem<String?>(value: null, child: Text('Todas')),
                               ..._tags.map((t) => DropdownMenuItem<String?>(value: t, child: Text('#$t'))),
                             ],
                             onChanged: (v) => setState(() => _selectedTag = v),

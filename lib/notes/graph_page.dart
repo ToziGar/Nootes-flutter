@@ -61,7 +61,7 @@ class _GraphPageState extends State<GraphPage> {
                       prefixIcon: Icon(Icons.filter_alt_outlined),
                     ),
                     items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('Todas')),
+                      DropdownMenuItem<String?>(value: null, child: Text('Todas')),
                       ..._notes.map((n) => DropdownMenuItem<String?>(
                             value: n['id'].toString(),
                             child: Text(idToTitle[n['id'].toString()] ?? n['id'].toString()),
@@ -82,8 +82,8 @@ class _GraphPageState extends State<GraphPage> {
                               final to = idToTitle[e['to']] ?? e['to'];
                               return ListTile(
                                 leading: const Icon(Icons.linear_scale_rounded),
-                                title: Text('$from → $to'),
-                                subtitle: Text('(${e['from']}) → (${e['to']})'),
+                                title: Text('$from -> $to'),
+                                subtitle: Text('(${e['from']}) -> (${e['to']})'),
                               );
                             },
                           ),
@@ -97,5 +97,6 @@ class _GraphPageState extends State<GraphPage> {
     );
   }
 }
+
 
 

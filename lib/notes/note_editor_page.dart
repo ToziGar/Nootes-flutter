@@ -149,8 +149,8 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                           prefixIcon: Icon(Icons.folder_outlined),
                         ),
                         items: [
-                          const DropdownMenuItem<String?>(value: null, child: Text('Sin colección')),
-                          const DropdownMenuItem<String?>(value: '', child: Text('Sin colección')),
+                          DropdownMenuItem<String?>(value: null, child: Text('Sin colección')),
+                          DropdownMenuItem<String?>(value: '', child: Text('Sin colección')),
                           ..._collections.map((c) => DropdownMenuItem<String?>(
                                 value: c['id'].toString(),
                                 child: Text(c['name']?.toString() ?? c['id'].toString()),
