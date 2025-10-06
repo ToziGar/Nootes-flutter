@@ -46,8 +46,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  String _mapAuthError(Object e) => e.toString();
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -155,3 +153,4 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+
