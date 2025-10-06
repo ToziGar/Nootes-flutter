@@ -6,6 +6,7 @@ import 'services/auth_service.dart';
 import 'profile/profile_page.dart';
 import 'profile/profiles_list_page.dart';
 import 'profile/handles_list_page.dart';
+import 'notes/notes_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -41,6 +42,15 @@ class HomePage extends StatelessWidget {
                             onPressed: () {},
                             icon: const Icon(Icons.note_add_rounded),
                             label: const Text('Crear nota'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const NotesPage()),
+                              );
+                            },
+                            icon: const Icon(Icons.library_books_rounded),
+                            label: const Text('Notas'),
                           ),
                           OutlinedButton.icon(
                             onPressed: () {
@@ -92,4 +102,3 @@ class HomePage extends StatelessWidget {
     );
   }
 }
-
