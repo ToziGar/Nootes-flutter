@@ -713,13 +713,29 @@ class _RestFirestoreService implements FirestoreService {
 
   @override
   Future<List<String>> listTags({required String uid}) async {
-    final notes = await listNotes(uid: uid);
+    // Use runQuery with projection to fetch only 'tags' from notes
+    final body = {
+      'parent': _parentForUser(uid),
+      'structuredQuery': {
+        'select': {
+          'fields': [
+            {'fieldPath': 'tags'}
+          ]
+        },
+        'from': [
+          {'collectionId': 'notes'}
+        ],
+      },
+    };
+    final docs = await _runQueryAndDecode(body);
     final set = <String>{};
-    for (final n in notes) {
-      final tags = (n['tags'] as List?)?.whereType<String>() ?? const [];
+    for (final d in docs) {
+      final tags = (d['tags'] as List?)?.whereType<String>() ?? const [];
       set.addAll(tags);
     }
-    return set.toList()..sort((a, b) => a.compareTo(b));
+    final list = set.toList();
+    list.sort((a, b) => a.compareTo(b));
+    return list;
   }
 
   @override
