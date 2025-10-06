@@ -885,11 +885,25 @@ class _RestFirestoreService implements FirestoreService {
 
   @override
   Future<List<Map<String, String>>> listEdges({required String uid}) async {
-    final notes = await listNotes(uid: uid);
+    // Efficient REST query: fetch only 'links' via StructuredQuery select
+    final body = {
+      'parent': _parentForUser(uid),
+      'structuredQuery': {
+        'select': {
+          'fields': [
+            {'fieldPath': 'links'}
+          ]
+        },
+        'from': [
+          {'collectionId': 'notes'}
+        ],
+      },
+    };
+    final docs = await _runQueryAndDecode(body);
     final edges = <Map<String, String>>[];
-    for (final n in notes) {
-      final from = n['id']?.toString() ?? '';
-      final links = (n['links'] as List?)?.whereType<String>() ?? const [];
+    for (final d in docs) {
+      final from = d['id']?.toString() ?? '';
+      final links = (d['links'] as List?)?.whereType<String>() ?? const [];
       for (final to in links) {
         edges.add({'from': from, 'to': to});
       }
