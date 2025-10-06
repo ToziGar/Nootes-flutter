@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../widgets/glass.dart';
-import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 
@@ -247,3 +246,4 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 }
+

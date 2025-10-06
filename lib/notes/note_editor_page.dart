@@ -143,7 +143,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String?>(
-                        value: _collectionId,
+                        initialValue: _collectionId,
                         decoration: const InputDecoration(
                           labelText: 'Colección',
                           prefixIcon: Icon(Icons.folder_outlined),
@@ -224,5 +224,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     );
   }
 }
+
+
 
 

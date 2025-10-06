@@ -55,7 +55,7 @@ class _GraphPageState extends State<GraphPage> {
               child: Column(
                 children: [
                   DropdownButtonFormField<String?>(
-                    value: _selected,
+                        initialValue: _selected,
                     decoration: const InputDecoration(
                       labelText: 'Filtrar por nota',
                       prefixIcon: Icon(Icons.filter_alt_outlined),
@@ -97,6 +97,7 @@ class _GraphPageState extends State<GraphPage> {
     );
   }
 }
+
 
 
 

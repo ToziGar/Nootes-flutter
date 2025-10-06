@@ -247,7 +247,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           second: Padding(
                             padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
                             child: DropdownButtonFormField<String>(
-                              value: _role,
+                        initialValue: _role,
                               decoration: const InputDecoration(
                                 labelText: 'Rol',
                                 prefixIcon: Icon(Icons.badge_outlined),
@@ -266,7 +266,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String>(
-                          value: _experience,
+                        initialValue: _experience,
                           decoration: const InputDecoration(
                             labelText: 'Experiencia con toma de notas',
                             prefixIcon: Icon(Icons.insights_outlined),
@@ -317,7 +317,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           first: Padding(
                             padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
                             child: DropdownButtonFormField<String>(
-                              value: _language,
+                        initialValue: _language,
                               decoration: const InputDecoration(
                                 labelText: 'Idioma',
                                 prefixIcon: Icon(Icons.language_rounded),
@@ -332,7 +332,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           second: Padding(
                             padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
                             child: DropdownButtonFormField<String>(
-                              value: _preferredTheme,
+                        initialValue: _preferredTheme,
                               decoration: const InputDecoration(
                                 labelText: 'Tema preferido',
                                 prefixIcon: Icon(Icons.dark_mode_outlined),
@@ -497,4 +497,5 @@ class _PasswordStrength extends StatelessWidget {
     );
   }
 }
+
 

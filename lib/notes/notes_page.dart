@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../widgets/glass.dart';
-import '../theme/app_theme.dart';
+import '../widgets/glass.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import 'note_editor_page.dart';
@@ -123,7 +122,7 @@ class _NotesPageState extends State<NotesPage> {
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String?>(
-                            value: _selectedCollection,
+                        initialValue: _selectedCollection,
                             decoration: const InputDecoration(
                               labelText: 'Colección',
                               prefixIcon: Icon(Icons.folder_outlined),
@@ -142,7 +141,7 @@ class _NotesPageState extends State<NotesPage> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: DropdownButtonFormField<String?>(
-                            value: _selectedTag,
+                        initialValue: _selectedTag,
                             decoration: const InputDecoration(
                               labelText: 'Etiqueta',
                               prefixIcon: Icon(Icons.sell_outlined),
@@ -209,5 +208,8 @@ class _NotesPageState extends State<NotesPage> {
     );
   }
 }
+
+
+
 
 
