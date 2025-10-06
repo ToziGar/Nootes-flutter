@@ -63,7 +63,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: 'REPLACE_WITH_MACOS_SENDER_ID',
     projectId: 'smartnotes-d0bdd',
     storageBucket: 'smartnotes-d0bdd.appspot.com',
-    iosBundleId: 'REPLACE_WITH_MACOS_BUNDLE_ID',
+    iosBundleId: 'Nootes-IOS',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

@@ -1,0 +1,162 @@
+name: Build iOS and macOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  ios-simulator:
+    name: iOS (Simulator, unsigned)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+
+      - name: Build iOS (Simulator)
+        run: |
+          flutter build ios --simulator --debug --no-codesign
+
+      - name: Package Runner.app (Simulator)
+        run: |
+          APP_PATH=$(ls -d build/ios/iphonesimulator/*.app | head -n 1)
+          if [ -z "$APP_PATH" ]; then echo "Simulator app not found"; exit 1; fi
+          mkdir -p build/ios/artifacts
+          ditto -ck --sequesterRsrc --keepParent "$APP_PATH" build/ios/artifacts/Runner-simulator.app.zip
+
+      - name: Upload artifact (Simulator .app.zip)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-app
+          path: build/ios/artifacts/Runner-simulator.app.zip
+
+  macos:
+    name: macOS (Release)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build macOS (Release)
+        run: flutter build macos --release
+
+      - name: Package .app
+        run: |
+          APP_PATH=$(ls -d build/macos/Build/Products/Release/*.app | head -n 1)
+          if [ -z "$APP_PATH" ]; then echo "macOS app not found"; ls -R build/macos/Build/Products/Release || true; exit 1; fi
+          mkdir -p build/macos/artifacts
+          ditto -ck --sequesterRsrc --keepParent "$APP_PATH" build/macos/artifacts/macos-app.zip
+
+      - name: Upload artifact (macOS .app.zip)
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-app
+          path: build/macos/artifacts/macos-app.zip
+
+  ios-ipa:
+    name: iOS (.ipa signed)
+    runs-on: macos-latest
+    # Runs only if required signing secrets are present
+    if: ${{ secrets.CERTIFICATE_P12 && secrets.P12_PASSWORD && secrets.PROVISIONING_PROFILE && secrets.DEVELOPMENT_TEAM_ID && secrets.PROVISIONING_PROFILE_NAME }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+
+      - name: Import signing certificates and profile
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.CERTIFICATE_P12 }}
+          p12-password: ${{ secrets.P12_PASSWORD }}
+          profile-base64: ${{ secrets.PROVISIONING_PROFILE }}
+
+      - name: Archive (Xcode)
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          cd ios
+          xcodebuild \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath "$GITHUB_WORKSPACE/build/ios/archive/Runner.xcarchive" \
+            DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM_ID }}" \
+            -allowProvisioningUpdates \
+            clean archive
+
+      - name: Export .ipa
+        run: |
+          set -euo pipefail
+          cat > exportOptions.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>${{ secrets.EXPORT_METHOD || 'app-store' }}</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>destination</key>
+            <string>export</string>
+            <key>compileBitcode</key>
+            <false/>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>Nootes-IOS</key>
+              <string>${{ secrets.PROVISIONING_PROFILE_NAME }}</string>
+            </dict>
+            <key>teamID</key>
+            <string>${{ secrets.DEVELOPMENT_TEAM_ID }}</string>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$GITHUB_WORKSPACE/build/ios/archive/Runner.xcarchive" \
+            -exportOptionsPlist exportOptions.plist \
+            -exportPath "$GITHUB_WORKSPACE/build/ios/ipa" \
+            -allowProvisioningUpdates
+
+      - name: Upload artifact (.ipa)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/ios/ipa/*.ipa
+
