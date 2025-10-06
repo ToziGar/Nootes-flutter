@@ -945,15 +945,22 @@ class _RestFirestoreService implements FirestoreService {
 
   Map<String, dynamic> _decodeFields(Map<String, dynamic>? fields) {
     final result = <String, dynamic>{};
-    if (fields == null) return result;
+    if (fields == null) {
+      return result;
+    }
     fields.forEach((key, value) {
       if (value is Map<String, dynamic>) {
-        if (value.containsKey('stringValue')) result[key] = value['stringValue'];
-        else if (value.containsKey('booleanValue')) result[key] = value['booleanValue'];
-        else if (value.containsKey('doubleValue')) result[key] = value['doubleValue'];
-        else if (value.containsKey('integerValue')) result[key] = int.tryParse(value['integerValue'].toString());
-        else if (value.containsKey('timestampValue')) result[key] = value['timestampValue'];
-        else if (value.containsKey('arrayValue')) {
+        if (value.containsKey('stringValue')) {
+          result[key] = value['stringValue'];
+        } else if (value.containsKey('booleanValue')) {
+          result[key] = value['booleanValue'];
+        } else if (value.containsKey('doubleValue')) {
+          result[key] = value['doubleValue'];
+        } else if (value.containsKey('integerValue')) {
+          result[key] = int.tryParse(value['integerValue'].toString());
+        } else if (value.containsKey('timestampValue')) {
+          result[key] = value['timestampValue'];
+        } else if (value.containsKey('arrayValue')) {
           final arr = value['arrayValue'] as Map<String, dynamic>?;
           final vals = arr?['values'] as List? ?? [];
           result[key] = vals.map((e) => (e as Map<String, dynamic>)['stringValue'] ?? e.toString()).toList();

@@ -17,17 +17,17 @@ class GlassBackground extends StatelessWidget {
           Positioned(
             top: -120,
             left: -60,
-            child: _GlowCircle(color: AppColors.accent.withOpacity(.22), size: 280),
+            child: _GlowCircle(color: AppColors.accent.withValues(alpha: 0.22), size: 280),
           ),
           Positioned(
             bottom: -160,
             right: -80,
-            child: _GlowCircle(color: AppColors.note.withOpacity(.16), size: 340),
+            child: _GlowCircle(color: AppColors.note.withValues(alpha: 0.16), size: 340),
           ),
           Positioned(
             top: 180,
             right: -100,
-            child: _GlowCircle(color: Colors.white.withOpacity(.05), size: 220),
+            child: _GlowCircle(color: Colors.white.withValues(alpha: 0.05), size: 220),
           ),
           child,
         ],
@@ -56,8 +56,8 @@ class GlassCard extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.white.withOpacity(0.06),
-                Colors.white.withOpacity(0.03),
+                Colors.white.withValues(alpha: 0.06),
+                Colors.white.withValues(alpha: 0.03),
               ],
             ),
             boxShadow: const [
@@ -90,4 +90,3 @@ class _GlowCircle extends StatelessWidget {
     );
   }
 }
-

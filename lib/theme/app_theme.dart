@@ -30,7 +30,6 @@ class AppTheme {
       seedColor: AppColors.accent,
       brightness: Brightness.dark,
       primary: AppColors.accent,
-      background: AppColors.bg,
       surface: AppColors.panel,
     );
 
@@ -69,7 +68,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(10),
         ),
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: AppColors.accent.withOpacity(.9), width: 1.2),
+          borderSide: BorderSide(color: AppColors.accent.withValues(alpha: 0.9), width: 1.2),
           borderRadius: BorderRadius.circular(10),
         ),
         hintStyle: const TextStyle(color: AppColors.textMuted),
@@ -98,4 +97,3 @@ class AppTheme {
     );
   }
 }
-
