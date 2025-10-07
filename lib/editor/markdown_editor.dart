@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
-import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'markdown_toolbar.dart';
@@ -18,6 +17,7 @@ class MarkdownEditor extends StatefulWidget {
     this.onPickWiki,
     this.wikiIndex,
     this.onOpenNote,
+    this.splitEnabled = true,
   });
 
   final TextEditingController controller;
@@ -27,6 +27,7 @@ class MarkdownEditor extends StatefulWidget {
   final Future<String?> Function(BuildContext context)? onPickWiki;
   final Map<String, String>? wikiIndex; // title -> id
   final void Function(String noteId)? onOpenNote;
+  final bool splitEnabled;
 
   @override
   State<MarkdownEditor> createState() => _MarkdownEditorState();
@@ -162,14 +163,16 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
           onInsertAtLineStart: _insertAtLineStart,
           onInsertBlock: _insertBlock,
           onToggleSplit: () => setState(() => _split = !_split),
-          isSplit: _split,
+          isSplit: widget.splitEnabled && _split,
           onPickImage: widget.onPickImage,
           onPickWiki: widget.onPickWiki,
+          showSplitToggle: widget.splitEnabled,
         ),
         const SizedBox(height: 8),
         LayoutBuilder(
           builder: (context, c) {
-            if (!_split || c.maxWidth < 720) {
+            final useSplit = widget.splitEnabled && _split && c.maxWidth >= 720;
+            if (!useSplit) {
               return editor;
             }
             return Row(
@@ -268,13 +271,15 @@ class TexElementBuilder extends MarkdownElementBuilder {
   Widget visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     final tex = element.textContent;
     final mode = element.attributes['mode'] ?? 'inline';
-    if (mode == 'block') {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Math.tex(tex, textStyle: const TextStyle(fontSize: 15)),
-      );
-    }
-    return Math.tex(tex, textStyle: const TextStyle(fontSize: 14));
+    final style = TextStyle(
+      fontFamily: 'monospace',
+      fontSize: mode == 'block' ? 15 : 14,
+      color: Colors.amberAccent,
+    );
+    return Padding(
+      padding: mode == 'block' ? const EdgeInsets.symmetric(vertical: 6) : EdgeInsets.zero,
+      child: Text('[TeX] $tex', style: style),
+    );
   }
 }
 

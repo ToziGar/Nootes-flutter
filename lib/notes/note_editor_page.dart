@@ -31,6 +31,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   List<String> _incoming = [];
   List<Map<String, dynamic>> _otherNotes = [];
   Map<String, String> _wikiIndex = {};
+  Map<String, String> _idToTitle = {};
 
   String get _uid => AuthService.instance.currentUser!.uid;
 
@@ -75,9 +76,30 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       _outgoing = outgoing;
       _incoming = incoming;
       _otherNotes = allNotes.where((x) => x['id'].toString() != widget.noteId).toList();
-      _wikiIndex = {for (final m in allNotes) (m['title']?.toString() ?? m['id'].toString()): m['id'].toString()};
+      // Index for wikilinks: use title if non-empty, otherwise use ID so [[...]] always resolves
+      _wikiIndex = {
+        for (final m in allNotes)
+          ((m['title']?.toString() ?? '').isEmpty ? m['id'].toString() : m['title'].toString()): m['id'].toString(),
+      };
+      // Map for labels: keep the raw title (may be empty) so we can render "Title (ID)" cleanly
+      _idToTitle = {
+        for (final m in allNotes) m['id'].toString(): (m['title']?.toString() ?? ''),
+      };
       _loading = false;
     });
+  }
+
+  // Human-friendly label for a note reference
+  String _labelFor(String id) {
+    final t = _idToTitle[id]?.trim() ?? '';
+    if (t.isEmpty) return id;
+    final short = _shortId(id);
+    return '$t ($short)';
+  }
+
+  String _shortId(String id) {
+    // Keep IDs compact for UI elements like chips
+    return id.length <= 8 ? id : id.substring(0, 8);
   }
 
   Future<void> _save({bool autosave = false}) async {
@@ -122,8 +144,12 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
             itemCount: _otherNotes.length,
             itemBuilder: (context, i) {
               final n = _otherNotes[i];
-              final title = (n['title']?.toString() ?? '').isEmpty ? n['id'].toString() : n['title'].toString();
-              return ListTile(title: Text(title), onTap: () => Navigator.pop(context, title));
+              final rawTitle = (n['title']?.toString() ?? '');
+              final id = n['id'].toString();
+              final display = rawTitle.trim().isEmpty ? id : '${rawTitle.trim()} (${_shortId(id)})';
+              // Important: return a key that exists in _wikiIndex (raw title if not empty, otherwise the ID)
+              final returnKey = rawTitle.trim().isEmpty ? id : rawTitle.trim();
+              return ListTile(title: Text(display), onTap: () => Navigator.pop(context, returnKey));
             },
           ),
         ),
@@ -228,6 +254,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                           );
                           await _load();
                         },
+                        splitEnabled: true,
                       ),
                       const SizedBox(height: 12),
                       Text('Etiquetas', style: Theme.of(context).textTheme.titleMedium),
@@ -254,10 +281,13 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                                 prefixIcon: Icon(Icons.link_rounded),
                               ),
                               items: _otherNotes
-                                  .map((n) => DropdownMenuItem<String?>(
-                                        value: n['id'].toString(),
-                                        child: Text((n['title']?.toString() ?? '').isEmpty ? n['id'].toString() : n['title'].toString()),
-                                      ))
+                                  .map((n) {
+                                    final id = n['id'].toString();
+                                    return DropdownMenuItem<String?>(
+                                      value: id,
+                                      child: Text(_labelFor(id)),
+                                    );
+                                  })
                                   .toList(),
                               onChanged: (v) async {
                                 if (v == null || v.isEmpty) return;
@@ -273,16 +303,16 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                       _outgoing.isEmpty
                           ? const Text('Sin enlaces')
                           : Wrap(
-                              spacing: 6,
-                              runSpacing: -6,
-                              children: _outgoing
-                                  .map((to) => InputChip(
-                                        label: Text(to),
-                                        onDeleted: () => _removeLink(to),
-                                        onPressed: () async {
-                                          await Navigator.of(context).push(
-                                            MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: to, onChanged: widget.onChanged)),
-                                          );
+                            spacing: 6,
+                            runSpacing: -6,
+                            children: _outgoing
+                                .map((to) => InputChip(
+                                      label: Text(_labelFor(to)),
+                                      onDeleted: () => _removeLink(to),
+                                      onPressed: () async {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: to, onChanged: widget.onChanged)),
+                                        );
                                           await _load();
                                         },
                                       ))
@@ -294,20 +324,20 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                       _incoming.isEmpty
                           ? const Text('Sin enlaces hacia esta nota')
                           : Wrap(
-                              spacing: 6,
-                              runSpacing: -6,
-                              children: _incoming
-                                  .map((from) => ActionChip(
-                                        label: Text(from),
-                                        onPressed: () async {
-                                          await Navigator.of(context).push(
-                                            MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: from, onChanged: widget.onChanged)),
-                                          );
-                                          await _load();
-                                        },
-                                      ))
-                                  .toList(),
-                            ),
+                            spacing: 6,
+                            runSpacing: -6,
+                            children: _incoming
+                                .map((from) => ActionChip(
+                                      label: Text(_labelFor(from)),
+                                      onPressed: () async {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: from, onChanged: widget.onChanged)),
+                                        );
+                                        await _load();
+                                      },
+                                    ))
+                                .toList(),
+                          ),
                     ],
                   ),
                 ),

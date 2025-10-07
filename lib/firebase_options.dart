@@ -41,7 +41,7 @@ class DefaultFirebaseOptions {
   // Reemplázalos con el archivo generado por: flutterfire configure
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCY-b8ZGui_HzonzP4Yhmc8xNjfdmZLmG0',
-    appId: '1:479471329501:android:c9142d7dae1f5e75a43b34',
+    appId: '1:479471329501:android:4088bdf2ea84de74a43b34',
     messagingSenderId: '479471329501',
     projectId: 'smartnotes-d0bdd',
     storageBucket: 'smartnotes-d0bdd.firebasestorage.app',

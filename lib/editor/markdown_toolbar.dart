@@ -14,6 +14,7 @@ class MarkdownToolbar extends StatelessWidget {
     required this.isSplit,
     this.onPickImage,
     this.onPickWiki,
+    this.showSplitToggle = true,
   });
 
   final InsertPattern onWrapSelection;
@@ -23,6 +24,7 @@ class MarkdownToolbar extends StatelessWidget {
   final bool isSplit;
   final Future<String?> Function(BuildContext context)? onPickImage;
   final Future<String?> Function(BuildContext context)? onPickWiki;
+  final bool showSplitToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -61,11 +63,12 @@ class MarkdownToolbar extends StatelessWidget {
         const SizedBox(width: 8),
         _btn(context, Icons.table_chart, 'Tabla', () => _insertTable(context)),
         const Spacer(),
-        IconButton(
-          tooltip: isSplit ? 'Vista editor' : 'Vista dividida',
-          onPressed: onToggleSplit,
-          icon: Icon(isSplit ? Icons.view_compact_alt_rounded : Icons.vertical_split_rounded),
-        ),
+        if (showSplitToggle)
+          IconButton(
+            tooltip: isSplit ? 'Vista editor' : 'Vista dividida',
+            onPressed: onToggleSplit,
+            icon: Icon(isSplit ? Icons.view_compact_alt_rounded : Icons.vertical_split_rounded),
+          ),
       ],
     );
   }
