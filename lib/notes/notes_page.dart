@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../widgets/glass.dart';
+import '../widgets/glass.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import 'note_editor_page.dart';
 import 'collections_page.dart';
 import 'graph_page.dart';
+import 'trash_page.dart';
 
 class NotesPage extends StatefulWidget {
   const NotesPage({super.key});
@@ -22,6 +24,8 @@ class _NotesPageState extends State<NotesPage> {
   String? _selectedCollection;
   String? _selectedTag;
   bool _loading = false;
+  final _search = TextEditingController();
+  Timer? _debounce;
 
   String get _uid => AuthService.instance.currentUser!.uid;
 
@@ -31,10 +35,20 @@ class _NotesPageState extends State<NotesPage> {
     _init = _reloadAll();
   }
 
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _search.dispose();
+    super.dispose();
+  }
+
   Future<void> _reloadAll() async {
     final svc = FirestoreService.instance;
     final uid = _uid;
-    final notes = await svc.listNotes(uid: uid);
+    final s = _search.text.trim();
+    final notes = s.isEmpty
+        ? await svc.listNotesSummary(uid: uid)
+        : await svc.searchNotesSummary(uid: uid, query: s);
     final cols = await svc.listCollections(uid: uid);
     final tags = await svc.listTags(uid: uid);
     setState(() {
@@ -59,6 +73,10 @@ class _NotesPageState extends State<NotesPage> {
         builder: (_) => NoteEditorPage(noteId: id, onChanged: _reloadAll),
       ));
       await _reloadAll();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo crear la nota: $e')));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -78,12 +96,32 @@ class _NotesPageState extends State<NotesPage> {
     return list.toList();
   }
 
+  Future<void> _togglePin(Map<String, dynamic> n) async {
+    final id = n['id'].toString();
+    final pinned = n['pinned'] == true;
+    await FirestoreService.instance.setPinned(uid: _uid, noteId: id, pinned: !pinned);
+    await _reloadAll();
+  }
+
+  Future<void> _moveToTrash(Map<String, dynamic> n) async {
+    await FirestoreService.instance.softDeleteNote(uid: _uid, noteId: n['id'].toString());
+    await _reloadAll();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notas'),
         actions: [
+          IconButton(
+            tooltip: 'Papelera',
+            onPressed: () async {
+              await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrashPage()));
+              await _reloadAll();
+            },
+            icon: const Icon(Icons.delete_outline_rounded),
+          ),
           IconButton(
             tooltip: 'Grafo',
             onPressed: () async {
@@ -118,18 +156,30 @@ class _NotesPageState extends State<NotesPage> {
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
                   children: [
+                    TextField(
+                      controller: _search,
+                      decoration: const InputDecoration(
+                        labelText: 'Buscar por título',
+                        prefixIcon: Icon(Icons.search_rounded),
+                      ),
+                      onChanged: (_) {
+                        _debounce?.cancel();
+                        _debounce = Timer(const Duration(milliseconds: 450), _reloadAll);
+                      },
+                    ),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String?>(
-                        initialValue: _selectedCollection,
+                            initialValue: _selectedCollection,
                             decoration: const InputDecoration(
                               labelText: 'Colección',
                               prefixIcon: Icon(Icons.folder_outlined),
                             ),
                             items: [
-                              DropdownMenuItem<String?>(value: null, child: Text('Todas')),
-                              DropdownMenuItem<String?>(value: '', child: Text('Sin colección')),
+                              DropdownMenuItem<String?>(value: null, child: const Text('Todas')),
+                              DropdownMenuItem<String?>(value: '', child: const Text('Sin colección')),
                               ..._collections.map((c) => DropdownMenuItem<String?>(
                                     value: c['id'].toString(),
                                     child: Text(c['name']?.toString() ?? c['id'].toString()),
@@ -141,13 +191,13 @@ class _NotesPageState extends State<NotesPage> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: DropdownButtonFormField<String?>(
-                        initialValue: _selectedTag,
+                            initialValue: _selectedTag,
                             decoration: const InputDecoration(
                               labelText: 'Etiqueta',
                               prefixIcon: Icon(Icons.sell_outlined),
                             ),
                             items: [
-                              DropdownMenuItem<String?>(value: null, child: Text('Todas')),
+                              DropdownMenuItem<String?>(value: null, child: const Text('Todas')),
                               ..._tags.map((t) => DropdownMenuItem<String?>(value: t, child: Text('#$t'))),
                             ],
                             onChanged: (v) => setState(() => _selectedTag = v),
@@ -166,6 +216,7 @@ class _NotesPageState extends State<NotesPage> {
                                 final n = _filteredNotes[i];
                                 final title = (n['title']?.toString() ?? '').isEmpty ? 'Sin título' : n['title'].toString();
                                 final tags = (n['tags'] as List?)?.whereType<String>().toList() ?? const [];
+                                final pinned = n['pinned'] == true;
                                 return ListTile(
                                   title: Text(title),
                                   subtitle: tags.isEmpty
@@ -173,7 +224,13 @@ class _NotesPageState extends State<NotesPage> {
                                       : Wrap(
                                           spacing: 6,
                                           runSpacing: -6,
-                                          children: tags.take(6).map((t) => Chip(label: Text(t))).toList(),
+                                          children: tags
+                                              .take(6)
+                                              .map((t) => ActionChip(
+                                                    label: Text(t),
+                                                    onPressed: () => setState(() => _selectedTag = t),
+                                                  ))
+                                              .toList(),
                                         ),
                                   onTap: () async {
                                     await Navigator.of(context).push(
@@ -183,15 +240,45 @@ class _NotesPageState extends State<NotesPage> {
                                     );
                                     await _reloadAll();
                                   },
-                                  trailing: PopupMenuButton<String>(
-                                    onSelected: (v) async {
-                                      if (v == 'delete') {
-                                        await FirestoreService.instance.deleteNote(uid: _uid, noteId: n['id'].toString());
-                                        await _reloadAll();
-                                      }
-                                    },
-                                    itemBuilder: (context) => const [
-                                      PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        tooltip: pinned ? 'Desfijar' : 'Fijar',
+                                        onPressed: () => _togglePin(n),
+                                        icon: Icon(pinned ? Icons.star_rounded : Icons.star_border_rounded),
+                                        color: pinned ? Colors.amber : null,
+                                      ),
+                                      PopupMenuButton<String>(
+                                        onSelected: (v) async {
+                                          if (v == 'trash') {
+                                            await _moveToTrash(n);
+                                          } else if (v == 'purge') {
+                                            await FirestoreService.instance.purgeNote(uid: _uid, noteId: n['id'].toString());
+                                            await _reloadAll();
+                                          } else if (v == 'duplicate') {
+                                            final src = n;
+                                            final newId = await FirestoreService.instance.createNote(uid: _uid, data: {
+                                              'title': src['title'] ?? '',
+                                              'content': src['content'] ?? '',
+                                              'tags': (src['tags'] as List?)?.whereType<String>().toList() ?? <String>[],
+                                              'links': (src['links'] as List?)?.whereType<String>().toList() ?? <String>[],
+                                              if ((src['collectionId']?.toString().isNotEmpty ?? false)) 'collectionId': src['collectionId'].toString(),
+                                            });
+                                            if (context.mounted) {
+                                              await Navigator.of(context).push(
+                                                MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: newId, onChanged: _reloadAll)),
+                                              );
+                                            }
+                                            await _reloadAll();
+                                          }
+                                        },
+                                        itemBuilder: (context) => const [
+                                          PopupMenuItem(value: 'duplicate', child: Text('Duplicar')),
+                                          PopupMenuItem(value: 'trash', child: Text('Mover a papelera')),
+                                          PopupMenuItem(value: 'purge', child: Text('Eliminar permanentemente')),
+                                        ],
+                                      ),
                                     ],
                                   ),
                                 );
@@ -208,8 +295,3 @@ class _NotesPageState extends State<NotesPage> {
     );
   }
 }
-
-
-
-
-

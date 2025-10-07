@@ -31,7 +31,8 @@ abstract class AuthService {
     final isMobileOrWeb = kIsWeb ||
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.macOS;
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows;
     if (isMobileOrWeb) return _FirebaseAuthService();
     return _RestAuthService();
   }
@@ -100,6 +101,7 @@ class _RestAuthService implements AuthService {
   final _storage = const FlutterSecureStorage();
 
   String? _idToken;
+  String? _accessToken;
   String? _refreshToken;
   String? _uid;
   String? _email;
@@ -117,10 +119,11 @@ class _RestAuthService implements AuthService {
 
   @override
   Future<String?> getIdToken() async {
-    if (_idToken == null || _isExpired) {
+    // For REST usage we return an OAuth2 access token suitable for Google APIs (e.g., Firestore REST)
+    if (_accessToken == null || _isExpired) {
       await _refreshIdToken();
     }
-    return _idToken;
+    return _accessToken;
   }
 
   @override
@@ -155,6 +158,8 @@ class _RestAuthService implements AuthService {
     _handleError(resp);
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     _applyAuth(data);
+    // Ensure we obtain an access token for Google APIs
+    await _refreshIdToken();
     await _persist();
     _emitUser();
     return AuthUser(uid: _uid!, email: _email);
@@ -181,6 +186,7 @@ class _RestAuthService implements AuthService {
     _handleError(resp);
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     _applyAuth(data);
+    await _refreshIdToken();
     await _persist();
     _emitUser();
     return AuthUser(uid: _uid!, email: _email);
@@ -209,6 +215,7 @@ class _RestAuthService implements AuthService {
     _handleError(resp);
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     _idToken = data['id_token'] as String?;
+    _accessToken = data['access_token'] as String? ?? _accessToken;
     _refreshToken = data['refresh_token'] as String? ?? _refreshToken;
     _uid = data['user_id'] as String? ?? _uid;
     _email = data['email'] as String? ?? _email;

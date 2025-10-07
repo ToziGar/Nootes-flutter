@@ -10,7 +10,6 @@ import 'auth/register_page.dart';
 import 'auth/forgot_password_page.dart';
 import 'home_page.dart';
 import 'theme/app_theme.dart';
-import 'services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,13 +18,12 @@ Future<void> main() async {
     final isMobileOrWeb = kIsWeb ||
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.macOS;
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows;
     if (isMobileOrWeb) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-    } else if (defaultTargetPlatform == TargetPlatform.windows) {
-      await AuthService.instance.init();
     }
   } catch (e) {
     initError = e;
@@ -61,24 +59,10 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Windows usa AuthService (REST)
-    if (defaultTargetPlatform == TargetPlatform.windows && !kIsWeb) {
-      final svc = AuthService.instance;
-      return StreamBuilder<AuthUser?>(
-        stream: svc.authStateChanges(),
-        initialData: svc.currentUser,
-        builder: (context, snapshot) {
-          final user = snapshot.data;
-          if (user != null) return const HomePage();
-          return const LoginPage();
-        },
-      );
-    }
-    // Linux sin soporte: mostrar redirección Web
     if (defaultTargetPlatform == TargetPlatform.linux && !kIsWeb) {
       return const UnsupportedAuthPage();
     }
-    return StreamBuilder<User?> (
+    return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -102,7 +86,7 @@ class UnsupportedAuthPage extends StatelessWidget {
   Widget build(BuildContext context) {
     const webUrl = String.fromEnvironment('WEB_APP_URL');
     return Scaffold(
-      appBar: AppBar(title: const Text('Abrir versi�n Web')),
+      appBar: AppBar(title: const Text('Abrir versión Web')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -174,3 +158,4 @@ class SetupHelpPage extends StatelessWidget {
     );
   }
 }
+

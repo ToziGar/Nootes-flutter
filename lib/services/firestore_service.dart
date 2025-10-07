@@ -11,10 +11,16 @@ abstract class FirestoreService {
   static FirestoreService get instance => _instance ??= _resolve();
 
   static FirestoreService _resolve() {
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
-      return _RestFirestoreService();
+    // Prefer SDK on all supported platforms; fallback to REST only where SDK is unavailable
+    final isSdkSupported = kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows;
+    if (isSdkSupported) {
+      return _FirebaseFirestoreService();
     }
-    return _FirebaseFirestoreService();
+    return _RestFirestoreService();
   }
 
   Future<void> reserveHandle({required String username, required String uid});
@@ -35,10 +41,18 @@ abstract class FirestoreService {
 
   // Notes APIs (subcollection users/{uid}/notes)
   Future<List<Map<String, dynamic>>> listNotes({required String uid});
+  // Minimal payload for list view (may be same as listNotes on SDK)
+  Future<List<Map<String, dynamic>>> listNotesSummary({required String uid});
+  Future<List<Map<String, dynamic>>> searchNotesSummary({required String uid, required String query});
+  Future<List<Map<String, dynamic>>> listTrashedNotesSummary({required String uid});
   Future<Map<String, dynamic>?> getNote({required String uid, required String noteId});
   Future<String> createNote({required String uid, required Map<String, dynamic> data});
   Future<void> updateNote({required String uid, required String noteId, required Map<String, dynamic> data});
   Future<void> deleteNote({required String uid, required String noteId});
+  Future<void> softDeleteNote({required String uid, required String noteId});
+  Future<void> restoreNote({required String uid, required String noteId});
+  Future<void> purgeNote({required String uid, required String noteId});
+  Future<void> setPinned({required String uid, required String noteId, required bool pinned});
 
   // Advanced Notes: Collections
   Future<List<Map<String, dynamic>>> listCollections({required String uid});
@@ -184,6 +198,88 @@ class _FirebaseFirestoreService implements FirestoreService {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> listNotesSummary({required String uid}) async {
+    // Try to order pinned first, then updatedAt; fallback gracefully.
+    final col = _db.collection('users').doc(uid).collection('notes');
+    try {
+      final q = await col.orderBy('pinned', descending: true).orderBy('updatedAt', descending: true).get();
+      return q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    } catch (_) {
+      final q = await col.orderBy('updatedAt', descending: true).get();
+      final items = q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      items.sort((a, b) => ((b['pinned'] == true) ? 1 : 0).compareTo((a['pinned'] == true) ? 1 : 0));
+      return items;
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> searchNotesSummary({required String uid, required String query}) async {
+    final s = query.trim();
+    if (s.isEmpty) {
+      return listNotesSummary(uid: uid);
+    }
+    try {
+      final q = await _db
+          .collection('users').doc(uid).collection('notes')
+          .orderBy('title')
+          .startAt([s])
+          .endAt([s + '\uf8ff'])
+          .get();
+      final items = q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      items.sort((a, b) {
+        final ap = (a['pinned'] == true) ? 1 : 0;
+        final bp = (b['pinned'] == true) ? 1 : 0;
+        if (ap != bp) return bp.compareTo(ap);
+        final au = a['updatedAt'];
+        final bu = b['updatedAt'];
+        return bu.toString().compareTo(au.toString());
+      });
+      return items;
+    } catch (_) {
+      // Fallback: client-side contains
+      final all = await listNotesSummary(uid: uid);
+      final lower = s.toLowerCase();
+      return all.where((n) => (n['title']?.toString().toLowerCase() ?? '').contains(lower)).toList();
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listTrashedNotesSummary({required String uid}) async {
+    // SDK: filter client-side by deletedAt != null
+    final all = await listNotesSummary(uid: uid);
+    return all.where((n) => n['deletedAt'] != null).toList();
+  }
+
+  @override
+  Future<void> softDeleteNote({required String uid, required String noteId}) async {
+    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({
+      'deletedAt': fs.FieldValue.serverTimestamp(),
+      'updatedAt': fs.FieldValue.serverTimestamp(),
+    }, fs.SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> restoreNote({required String uid, required String noteId}) async {
+    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({
+      'deletedAt': fs.FieldValue.delete(),
+      'updatedAt': fs.FieldValue.serverTimestamp(),
+    }, fs.SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> purgeNote({required String uid, required String noteId}) async {
+    await deleteNote(uid: uid, noteId: noteId);
+  }
+
+  @override
+  Future<void> setPinned({required String uid, required String noteId, required bool pinned}) async {
+    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({
+      'pinned': pinned,
+      'updatedAt': fs.FieldValue.serverTimestamp(),
+    }, fs.SetOptions(merge: true));
+  }
+
+  @override
   Future<Map<String, dynamic>?> getNote({required String uid, required String noteId}) async {
     final d = await _db.collection('users').doc(uid).collection('notes').doc(noteId).get();
     if (!d.exists) return null;
@@ -212,7 +308,19 @@ class _FirebaseFirestoreService implements FirestoreService {
 
   @override
   Future<void> deleteNote({required String uid, required String noteId}) async {
-    await _db.collection('users').doc(uid).collection('notes').doc(noteId).delete();
+    final userNotes = _db.collection('users').doc(uid).collection('notes');
+    // Remove incoming links referencing this note
+    final incoming = await userNotes.where('links', arrayContains: noteId).get();
+    final batch = _db.batch();
+    for (final d in incoming.docs) {
+      batch.set(d.reference, {
+        'links': fs.FieldValue.arrayRemove([noteId]),
+        'updatedAt': fs.FieldValue.serverTimestamp(),
+      }, fs.SetOptions(merge: true));
+    }
+    // Delete the note itself
+    batch.delete(userNotes.doc(noteId));
+    await batch.commit();
   }
 
   // Collections (users/{uid}/collections)
@@ -568,6 +676,168 @@ class _RestFirestoreService implements FirestoreService {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> listNotesSummary({required String uid}) async {
+    // Use runQuery with projection to get minimal fields (pinned first)
+    final body = {
+      'parent': _parentForUser(uid),
+      'structuredQuery': {
+        'select': {
+          'fields': [
+            {'fieldPath': 'title'},
+            {'fieldPath': 'tags'},
+            {'fieldPath': 'collectionId'},
+            {'fieldPath': 'updatedAt'},
+            {'fieldPath': 'pinned'},
+          ]
+        },
+        'from': [
+          {'collectionId': 'notes'}
+        ],
+        'orderBy': [
+          {
+            'field': {'fieldPath': 'pinned'},
+            'direction': 'DESCENDING',
+          },
+          {
+            'field': {'fieldPath': 'updatedAt'},
+            'direction': 'DESCENDING',
+          }
+        ],
+      },
+    };
+    return _runQueryAndDecode(body);
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> searchNotesSummary({required String uid, required String query}) async {
+    final s = query.trim();
+    if (s.isEmpty) return listNotesSummary(uid: uid);
+    final body = {
+      'parent': _parentForUser(uid),
+      'structuredQuery': {
+        'select': {
+          'fields': [
+            {'fieldPath': 'title'},
+            {'fieldPath': 'tags'},
+            {'fieldPath': 'collectionId'},
+            {'fieldPath': 'updatedAt'},
+            {'fieldPath': 'pinned'},
+          ]
+        },
+        'from': [
+          {'collectionId': 'notes'}
+        ],
+        'orderBy': [
+          {'field': {'fieldPath': 'title'}},
+        ],
+        'startAt': {
+          'values': [ {'stringValue': s} ],
+        },
+        'endAt': {
+          'values': [ {'stringValue': s + '\\uf8ff'} ],
+        },
+      },
+    };
+    final docs = await _runQueryAndDecode(body);
+    // Sort pinned first then updatedAt desc
+    docs.sort((a, b) {
+      final ap = (a['pinned'] == true) ? 1 : 0;
+      final bp = (b['pinned'] == true) ? 1 : 0;
+      if (ap != bp) return bp.compareTo(ap);
+      return (b['updatedAt']?.toString() ?? '').compareTo(a['updatedAt']?.toString() ?? '');
+    });
+    return docs;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listTrashedNotesSummary({required String uid}) async {
+    // Try unaryFilter IS_NOT_NULL on deletedAt; fallback to client filter
+    final body = {
+      'parent': _parentForUser(uid),
+      'structuredQuery': {
+        'select': {
+          'fields': [
+            {'fieldPath': 'title'},
+            {'fieldPath': 'updatedAt'},
+            {'fieldPath': 'deletedAt'},
+          ]
+        },
+        'from': [
+          {'collectionId': 'notes'}
+        ],
+        'where': {
+          'unaryFilter': {
+            'op': 'IS_NOT_NULL',
+            'field': {'fieldPath': 'deletedAt'}
+          }
+        },
+        'orderBy': [
+          {
+            'field': {'fieldPath': 'updatedAt'},
+            'direction': 'DESCENDING',
+          }
+        ],
+      },
+    };
+    try {
+      return await _runQueryAndDecode(body);
+    } catch (_) {
+      final all = await listNotesSummary(uid: uid);
+      return all.where((n) => n['deletedAt'] != null).toList();
+    }
+  }
+
+  @override
+  Future<void> softDeleteNote({required String uid, required String noteId}) async {
+    final uri = Uri.parse('$_base/users/$uid/notes/$noteId?updateMask.fieldPaths=deletedAt&updateMask.fieldPaths=updatedAt');
+    final body = jsonEncode({
+      'fields': {
+        'deletedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
+        'updatedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
+      }
+    });
+    final resp = await http.patch(uri, headers: await _authHeader(), body: body);
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      throw Exception('firestore-soft-delete-${resp.statusCode}');
+    }
+  }
+
+  @override
+  Future<void> restoreNote({required String uid, required String noteId}) async {
+    // To delete a field: include it in updateMask but omit from fields
+    final uri = Uri.parse('$_base/users/$uid/notes/$noteId?updateMask.fieldPaths=deletedAt&updateMask.fieldPaths=updatedAt');
+    final body = jsonEncode({
+      'fields': {
+        'updatedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
+      }
+    });
+    final resp = await http.patch(uri, headers: await _authHeader(), body: body);
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      throw Exception('firestore-restore-note-${resp.statusCode}');
+    }
+  }
+
+  @override
+  Future<void> purgeNote({required String uid, required String noteId}) async {
+    await deleteNote(uid: uid, noteId: noteId);
+  }
+
+  @override
+  Future<void> setPinned({required String uid, required String noteId, required bool pinned}) async {
+    final uri = Uri.parse('$_base/users/$uid/notes/$noteId?updateMask.fieldPaths=pinned&updateMask.fieldPaths=updatedAt');
+    final body = jsonEncode({
+      'fields': {
+        'pinned': {'booleanValue': pinned},
+        'updatedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
+      }
+    });
+    final resp = await http.patch(uri, headers: await _authHeader(), body: body);
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      throw Exception('firestore-set-pinned-${resp.statusCode}');
+    }
+  }
+
+  @override
   Future<Map<String, dynamic>?> getNote({required String uid, required String noteId}) async {
     final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
     final resp = await http.get(uri, headers: await _authHeader());
@@ -582,6 +852,8 @@ class _RestFirestoreService implements FirestoreService {
     final uri = Uri.parse('$_base/users/$uid/notes');
     final fields = <String, dynamic>{};
     data.forEach((k, v) => fields[k] = _encodeValue(v));
+    fields['createdAt'] = {'timestampValue': DateTime.now().toUtc().toIso8601String()};
+    fields['updatedAt'] = {'timestampValue': DateTime.now().toUtc().toIso8601String()};
     final body = jsonEncode({'fields': fields});
     final resp = await http.post(uri, headers: await _authHeader(), body: body);
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
@@ -596,9 +868,17 @@ class _RestFirestoreService implements FirestoreService {
   Future<void> updateNote({required String uid, required String noteId, required Map<String, dynamic> data}) async {
     final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
     final fields = <String, dynamic>{};
-    data.forEach((k, v) => fields[k] = _encodeValue(v));
+    final updateMask = <String>[];
+    data.forEach((k, v) {
+      fields[k] = _encodeValue(v);
+      updateMask.add(k);
+    });
+    fields['updatedAt'] = {'timestampValue': DateTime.now().toUtc().toIso8601String()};
+    updateMask.add('updatedAt');
+    final qs = updateMask.map((f) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(f)}').join('&');
+    final patchUri = Uri.parse('$uri?$qs');
     final body = jsonEncode({'fields': fields});
-    final resp = await http.patch(uri, headers: await _authHeader(), body: body);
+    final resp = await http.patch(patchUri, headers: await _authHeader(), body: body);
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-update-note-${resp.statusCode}');
     }
@@ -606,10 +886,49 @@ class _RestFirestoreService implements FirestoreService {
 
   @override
   Future<void> deleteNote({required String uid, required String noteId}) async {
-    final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
-    final resp = await http.delete(uri, headers: await _authHeader());
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-delete-note-${resp.statusCode}');
+    // Remove incoming links (documents where links array contains noteId)
+    final runBody = {
+      'parent': _parentForUser(uid),
+      'structuredQuery': {
+        'select': {
+          'fields': [
+            {'fieldPath': 'links'}
+          ]
+        },
+        'from': [
+          {'collectionId': 'notes'}
+        ],
+        'where': {
+          'fieldFilter': {
+            'field': {'fieldPath': 'links'},
+            'op': 'ARRAY_CONTAINS',
+            'value': {'stringValue': noteId},
+          }
+        },
+      },
+    };
+    final incoming = await _runQueryAndDecode(runBody);
+    for (final d in incoming) {
+      final id = d['id']?.toString();
+      if (id == null || id.isEmpty) continue;
+      final patch = Uri.parse('$_base/users/$uid/notes/$id?updateMask.fieldPaths=links&updateMask.fieldPaths=updatedAt');
+      final body = jsonEncode({
+        'fields': {
+          'links': {
+            'arrayValue': {
+              'values': ((d['links'] as List?)?.whereType<String>() ?? const []).where((e) => e != noteId).map((e) => _encodeValue(e)).toList(),
+            }
+          },
+          'updatedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
+        }
+      });
+      await http.patch(patch, headers: await _authHeader(), body: body);
+    }
+    // Delete the note
+    final delUri = Uri.parse('$_base/users/$uid/notes/$noteId');
+    final delResp = await http.delete(delUri, headers: await _authHeader());
+    if (delResp.statusCode < 200 || delResp.statusCode >= 300) {
+      throw Exception('firestore-delete-note-${delResp.statusCode}');
     }
   }
 

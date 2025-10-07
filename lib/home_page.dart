@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'widgets/glass.dart';
 import 'services/auth_service.dart';
+import 'services/firestore_service.dart';
 import 'profile/profile_page.dart';
 import 'profile/profiles_list_page.dart';
 import 'profile/handles_list_page.dart';
 import 'notes/notes_page.dart';
+import 'notes/note_editor_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -39,7 +41,32 @@ class HomePage extends StatelessWidget {
                         runSpacing: 8,
                         children: [
                           FilledButton.icon(
-                            onPressed: () {},
+                            onPressed: () async {
+                              final uid = AuthService.instance.currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+                              if (uid == null) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Inicia sesión para crear notas')));
+                                }
+                                return;
+                              }
+                              try {
+                                final id = await FirestoreService.instance.createNote(uid: uid, data: {
+                                  'title': '',
+                                  'content': '',
+                                  'tags': <String>[],
+                                  'links': <String>[],
+                                });
+                                if (context.mounted) {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: id)),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo crear la nota: $e')));
+                                }
+                              }
+                            },
                             icon: const Icon(Icons.note_add_rounded),
                             label: const Text('Crear nota'),
                           ),

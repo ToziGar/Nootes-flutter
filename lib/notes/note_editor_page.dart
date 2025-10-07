@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../widgets/glass.dart';
-import '../theme/app_theme.dart';
 import '../widgets/tag_input.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../editor/markdown_editor.dart';
+import '../services/storage_service.dart';
 
 class NoteEditorPage extends StatefulWidget {
   const NoteEditorPage({super.key, required this.noteId, this.onChanged});
@@ -19,11 +21,14 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   final _content = TextEditingController();
   bool _loading = true;
   bool _saving = false;
+  bool _autoSaving = false;
+  Timer? _auto;
 
   List<String> _tags = [];
   List<Map<String, dynamic>> _collections = [];
   String? _collectionId;
   List<String> _outgoing = [];
+  List<String> _incoming = [];
   List<Map<String, dynamic>> _otherNotes = [];
 
   String get _uid => AuthService.instance.currentUser!.uid;
@@ -32,6 +37,8 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   void initState() {
     super.initState();
     _load();
+    _title.addListener(_scheduleAutoSave);
+    _content.addListener(_scheduleAutoSave);
   }
 
   @override
@@ -41,6 +48,15 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     super.dispose();
   }
 
+  void _scheduleAutoSave() {
+    _auto?.cancel();
+    setState(() => _autoSaving = true);
+    _auto = Timer(const Duration(milliseconds: 800), () async {
+      await _save(autosave: true);
+      if (mounted) setState(() => _autoSaving = false);
+    });
+  }
+
   Future<void> _load() async {
     final svc = FirestoreService.instance;
     final uid = _uid;
@@ -48,6 +64,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     final cols = await svc.listCollections(uid: uid);
     final allNotes = await svc.listNotes(uid: uid);
     final outgoing = await svc.listOutgoingLinks(uid: uid, noteId: widget.noteId);
+    final incoming = await svc.listIncomingLinks(uid: uid, noteId: widget.noteId);
     setState(() {
       _title.text = (n?['title']?.toString() ?? '');
       _content.text = (n?['content']?.toString() ?? '');
@@ -55,12 +72,13 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       _collectionId = n?['collectionId']?.toString();
       _collections = cols;
       _outgoing = outgoing;
+      _incoming = incoming;
       _otherNotes = allNotes.where((x) => x['id'].toString() != widget.noteId).toList();
       _loading = false;
     });
   }
 
-  Future<void> _save() async {
+  Future<void> _save({bool autosave = false}) async {
     setState(() => _saving = true);
     try {
       await FirestoreService.instance.updateNote(uid: _uid, noteId: widget.noteId, data: {
@@ -68,11 +86,25 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         'content': _content.text,
       });
       if (widget.onChanged != null) await widget.onChanged!();
-      if (mounted) {
+      if (mounted && !autosave) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<String?> _pickAndUploadImage(BuildContext context) async {
+    try {
+      final url = await StorageService.pickAndUploadImage(uid: _uid);
+      if (url == null) return null;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Imagen subida')));
+      return url;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo subir la imagen: $e')));
+      }
+      return null;
     }
   }
 
@@ -118,7 +150,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         title: const Text('Editar nota'),
         actions: [
           IconButton(
-            onPressed: _saving ? null : _save,
+            onPressed: _saving ? null : () => _save(),
             icon: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save_rounded),
             tooltip: 'Guardar',
           ),
@@ -159,18 +191,13 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         onChanged: (v) => _setCollection(v),
                       ),
                       const SizedBox(height: 8),
-                      TextField(
+                      MarkdownEditor(
                         controller: _content,
-                        decoration: const InputDecoration(
-                          labelText: 'Contenido',
-                          alignLabelWithHint: true,
-                          prefixIcon: Icon(Icons.notes_rounded),
-                        ),
-                        minLines: 6,
-                        maxLines: 20,
+                        onChanged: (_) => _scheduleAutoSave(),
+                        onPickImage: _pickAndUploadImage,
                       ),
                       const SizedBox(height: 12),
-                      Text('Etiquetas', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.textMuted)),
+                      Text('Etiquetas', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 6),
                       TagInput(
                         initialTags: _tags,
@@ -178,7 +205,12 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         onRemove: (t) => _removeTag(t),
                       ),
                       const SizedBox(height: 12),
-                      Text('Enlaces (grafo)', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.textMuted)),
+                      Text('Enlaces (grafo)', style: Theme.of(context).textTheme.titleMedium),
+                      if (_autoSaving)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4, bottom: 4),
+                          child: Text('Guardando...', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                        ),
                       const SizedBox(height: 6),
                       Row(
                         children: [
@@ -203,19 +235,46 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      if (_outgoing.isEmpty)
-                        const Text('Sin enlaces')
-                      else
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: -6,
-                          children: _outgoing
-                              .map((to) => InputChip(
-                                    label: Text(to),
-                                    onDeleted: () => _removeLink(to),
-                                  ))
-                              .toList(),
-                        ),
+                      Text('Enlaces salientes', style: Theme.of(context).textTheme.titleSmall),
+                      const SizedBox(height: 4),
+                      _outgoing.isEmpty
+                          ? const Text('Sin enlaces')
+                          : Wrap(
+                              spacing: 6,
+                              runSpacing: -6,
+                              children: _outgoing
+                                  .map((to) => InputChip(
+                                        label: Text(to),
+                                        onDeleted: () => _removeLink(to),
+                                        onPressed: () async {
+                                          await Navigator.of(context).push(
+                                            MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: to, onChanged: widget.onChanged)),
+                                          );
+                                          await _load();
+                                        },
+                                      ))
+                                  .toList(),
+                            ),
+                      const SizedBox(height: 12),
+                      Text('Enlaces entrantes', style: Theme.of(context).textTheme.titleSmall),
+                      const SizedBox(height: 4),
+                      _incoming.isEmpty
+                          ? const Text('Sin enlaces hacia esta nota')
+                          : Wrap(
+                              spacing: 6,
+                              runSpacing: -6,
+                              children: _incoming
+                                  .map((from) => ActionChip(
+                                        label: Text(from),
+                                        onPressed: () async {
+                                          await Navigator.of(context).push(
+                                            MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: from, onChanged: widget.onChanged)),
+                                          );
+                                          await _load();
+                                        },
+                                      ))
+                                  .toList(),
+                            ),
                     ],
                   ),
                 ),

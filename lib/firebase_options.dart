@@ -67,11 +67,11 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_WINDOWS_API_KEY',
-    appId: 'REPLACE_WITH_WINDOWS_APP_ID',
-    messagingSenderId: 'REPLACE_WITH_WINDOWS_SENDER_ID',
+    apiKey: 'AIzaSyC5J4Bqc32E6qUATwQYLdGX8TYL8FcKzrI',
+    appId: '1:479471329501:web:8e420233a1edab3ba43b34',
+    messagingSenderId: '479471329501',
     projectId: 'smartnotes-d0bdd',
-    storageBucket: 'smartnotes-d0bdd.appspot.com',
+    storageBucket: 'smartnotes-d0bdd.firebasestorage.app',
   );
 
   static const FirebaseOptions linux = FirebaseOptions(
