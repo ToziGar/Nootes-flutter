@@ -15,12 +15,18 @@ class MarkdownEditor extends StatefulWidget {
     this.onChanged,
     this.minLines = 18,
     this.onPickImage,
+    this.onPickWiki,
+    this.wikiIndex,
+    this.onOpenNote,
   });
 
   final TextEditingController controller;
   final ValueChanged<String>? onChanged;
   final int minLines;
   final Future<String?> Function(BuildContext context)? onPickImage;
+  final Future<String?> Function(BuildContext context)? onPickWiki;
+  final Map<String, String>? wikiIndex; // title -> id
+  final void Function(String noteId)? onOpenNote;
 
   @override
   State<MarkdownEditor> createState() => _MarkdownEditorState();
@@ -95,25 +101,26 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
     );
   }
 
-  KeyEventResult _handleShortcuts(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final isCtrl = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
+  void _onKey(RawKeyEvent event) {
+    if (event is! RawKeyDownEvent) return;
+    final keys = RawKeyboard.instance.keysPressed;
+    final isCtrl = keys.contains(LogicalKeyboardKey.controlLeft) ||
+        keys.contains(LogicalKeyboardKey.controlRight) ||
+        keys.contains(LogicalKeyboardKey.metaLeft) ||
+        keys.contains(LogicalKeyboardKey.metaRight);
     if (isCtrl && event.logicalKey == LogicalKeyboardKey.keyB) {
       _wrapSelection('**', '**');
-      return KeyEventResult.handled;
+      return;
     }
     if (isCtrl && event.logicalKey == LogicalKeyboardKey.keyI) {
       _wrapSelection('*', '*');
-      return KeyEventResult.handled;
+      return;
     }
-    return KeyEventResult.ignored;
-  }
-
-  @override
+  }@override
   Widget build(BuildContext context) {
     final editor = RawKeyboardListener(
       focusNode: _focus,
-      onKey: (e) => _handleShortcuts(_focus, e),
+      onKey: _onKey,
       child: TextField(
         controller: widget.controller,
         maxLines: null,
@@ -135,6 +142,7 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
       builders: {
         'code': CodeElementBuilder(),
         'tex': TexElementBuilder(),
+        'wikilink': WikiLinkBuilder(index: widget.wikiIndex, onOpen: widget.onOpenNote),
       },
       inlineSyntaxes: [InlineMathSyntax()],
       blockSyntaxes: [BlockMathSyntax()],
@@ -156,6 +164,7 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
           onToggleSplit: () => setState(() => _split = !_split),
           isSplit: _split,
           onPickImage: widget.onPickImage,
+          onPickWiki: widget.onPickWiki,
         ),
         const SizedBox(height: 8),
         LayoutBuilder(
@@ -225,18 +234,31 @@ class InlineMathSyntax extends md.InlineSyntax {
 class BlockMathSyntax extends md.BlockSyntax {
   const BlockMathSyntax();
   @override
-  RegExp get pattern => RegExp(r'^\$\$(.+)\$\$\s*$', multiLine: true);
+  RegExp get pattern => RegExp(r'^\$\$(.+)\$\$\s*$');
   @override
   bool canEndBlock(md.BlockParser parser) => true;
   @override
-  bool parse(md.BlockParser parser) {
-    final match = pattern.firstMatch(parser.current);
-    if (match == null) return false;
+  bool canParse(md.BlockParser parser) => pattern.hasMatch(parser.current.content);
+  @override
+  md.Node? parse(md.BlockParser parser) {
+    final line = parser.current.content;
+    final match = pattern.firstMatch(line);
+    if (match == null) return null;
     final content = match.group(1) ?? '';
     final el = md.Element.text('tex', content);
     el.attributes['mode'] = 'block';
-    parser.addNode(el);
     parser.advance();
+    return el;
+  }
+}
+
+class WikiLinkSyntax extends md.InlineSyntax {
+  WikiLinkSyntax() : super(r'\[\[([^\]]+)\]\]');
+  @override
+  bool onMatch(md.InlineParser parser, Match match) {
+    final title = match.group(1) ?? '';
+    final el = md.Element.text('wikilink', title);
+    parser.addNode(el);
     return true;
   }
 }
@@ -253,5 +275,23 @@ class TexElementBuilder extends MarkdownElementBuilder {
       );
     }
     return Math.tex(tex, textStyle: const TextStyle(fontSize: 14));
+  }
+}
+
+class WikiLinkBuilder extends MarkdownElementBuilder {
+  WikiLinkBuilder({this.index, this.onOpen});
+  final Map<String, String>? index;
+  final void Function(String noteId)? onOpen;
+  @override
+  Widget visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    final title = element.textContent;
+    final id = index?[title] ?? '';
+    final style = const TextStyle(color: Colors.lightBlueAccent, decoration: TextDecoration.underline);
+    return GestureDetector(
+      onTap: () {
+        if (id.isNotEmpty && onOpen != null) onOpen!(id);
+      },
+      child: Text(title, style: style),
+    );
   }
 }

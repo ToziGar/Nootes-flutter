@@ -13,6 +13,7 @@ class MarkdownToolbar extends StatelessWidget {
     required this.onToggleSplit,
     required this.isSplit,
     this.onPickImage,
+    this.onPickWiki,
   });
 
   final InsertPattern onWrapSelection;
@@ -21,6 +22,7 @@ class MarkdownToolbar extends StatelessWidget {
   final VoidCallback onToggleSplit;
   final bool isSplit;
   final Future<String?> Function(BuildContext context)? onPickImage;
+  final Future<String?> Function(BuildContext context)? onPickWiki;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +46,14 @@ class MarkdownToolbar extends StatelessWidget {
             }
           } else {
             onInsertBlock('![', '](https://)');
+          }
+        }),
+        _btn(context, Icons.bookmarks, 'Enlace interno', () async {
+          if (onPickWiki != null) {
+            final title = await onPickWiki!(context);
+            if (title != null && title.isNotEmpty) {
+              onInsertBlock('[[', '$title]]');
+            }
           }
         }),
         const SizedBox(width: 8),

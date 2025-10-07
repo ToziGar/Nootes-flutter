@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "479471329501",
+    "project_id": "smartnotes-d0bdd",
+    "storage_bucket": "smartnotes-d0bdd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:479471329501:android:c9142d7dae1f5e75a43b34",
+        "android_client_info": {
+          "package_name": "com.luisgarciamenendez.nootes"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "479471329501-rmfloqbte04pd94q9vcfi7tbjn94sg9b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCY-b8ZGui_HzonzP4Yhmc8xNjfdmZLmG0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "479471329501-rmfloqbte04pd94q9vcfi7tbjn94sg9b.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "479471329501-misbtbm73ag6pcd7hm7hb0n3q8br3u5c.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "Nootes-IOS"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+
+

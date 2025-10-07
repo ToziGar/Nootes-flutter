@@ -30,6 +30,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   List<String> _outgoing = [];
   List<String> _incoming = [];
   List<Map<String, dynamic>> _otherNotes = [];
+  Map<String, String> _wikiIndex = {};
 
   String get _uid => AuthService.instance.currentUser!.uid;
 
@@ -74,6 +75,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       _outgoing = outgoing;
       _incoming = incoming;
       _otherNotes = allNotes.where((x) => x['id'].toString() != widget.noteId).toList();
+      _wikiIndex = {for (final m in allNotes) (m['title']?.toString() ?? m['id'].toString()): m['id'].toString()};
       _loading = false;
     });
   }
@@ -106,6 +108,28 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       }
       return null;
     }
+  }
+
+  Future<String?> _pickWiki(BuildContext context) async {
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enlace interno'),
+        content: SizedBox(
+          width: 420,
+          height: 360,
+          child: ListView.builder(
+            itemCount: _otherNotes.length,
+            itemBuilder: (context, i) {
+              final n = _otherNotes[i];
+              final title = (n['title']?.toString() ?? '').isEmpty ? n['id'].toString() : n['title'].toString();
+              return ListTile(title: Text(title), onTap: () => Navigator.pop(context, title));
+            },
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar'))],
+      ),
+    );
   }
 
   Future<void> _setCollection(String? v) async {
@@ -195,6 +219,15 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         controller: _content,
                         onChanged: (_) => _scheduleAutoSave(),
                         onPickImage: _pickAndUploadImage,
+                        onPickWiki: _pickWiki,
+                        wikiIndex: _wikiIndex,
+                        onOpenNote: (id) async {
+                          if (id == widget.noteId) return;
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: id, onChanged: widget.onChanged)),
+                          );
+                          await _load();
+                        },
                       ),
                       const SizedBox(height: 12),
                       Text('Etiquetas', style: Theme.of(context).textTheme.titleMedium),
