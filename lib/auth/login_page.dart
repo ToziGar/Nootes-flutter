@@ -93,8 +93,22 @@ class _LoginPageState extends State<LoginPage> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // Logo
+                      Center(
+                        child: Image.asset(
+                          'LOGO.webp',
+                          height: 80,
+                          width: 80,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(Icons.note_alt_rounded, size: 80, color: AppColors.primary);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       Text(
                         'Nootes',
+                        textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
