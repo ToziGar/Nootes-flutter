@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 /// Menú FAB expandible con múltiples acciones
 class UnifiedFABMenu extends StatefulWidget {
   final VoidCallback onNewNote;
+  final VoidCallback onNewFolder;
   final VoidCallback onNewFromTemplate;
   final VoidCallback onInsertImage;
   final VoidCallback onToggleRecording;
@@ -14,6 +15,7 @@ class UnifiedFABMenu extends StatefulWidget {
   const UnifiedFABMenu({
     super.key,
     required this.onNewNote,
+    required this.onNewFolder,
     required this.onNewFromTemplate,
     required this.onInsertImage,
     required this.onToggleRecording,
@@ -139,6 +141,17 @@ class _UnifiedFABMenuState extends State<UnifiedFABMenu>
         index: 3,
       ),
       _FabMenuItem(
+        icon: Icons.folder_outlined,
+        label: 'Carpeta',
+        color: const Color(0xFFEC4899),
+        onPressed: () {
+          _toggle();
+          widget.onNewFolder();
+        },
+        animation: _expandAnimation,
+        index: 4,
+      ),
+      _FabMenuItem(
         icon: Icons.note_add_rounded,
         label: 'Nota',
         color: AppColors.primary,
@@ -147,7 +160,7 @@ class _UnifiedFABMenuState extends State<UnifiedFABMenu>
           widget.onNewNote();
         },
         animation: _expandAnimation,
-        index: 4,
+        index: 5,
       ),
     ];
 

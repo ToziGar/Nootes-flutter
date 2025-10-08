@@ -1492,6 +1492,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                 ),
                 child: UnifiedFABMenu(
                   onNewNote: _create,
+                  onNewFolder: _showCreateFolderDialog,
                   onNewFromTemplate: _createFromTemplate,
                   onInsertImage: _insertImage,
                   onToggleRecording: _toggleRecording,
