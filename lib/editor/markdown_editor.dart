@@ -169,7 +169,7 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
         'tex': TexElementBuilder(),
         'wikilink': WikiLinkBuilder(index: widget.wikiIndex, onOpen: widget.onOpenNote),
       },
-      inlineSyntaxes: [InlineMathSyntax()],
+      inlineSyntaxes: [InlineMathSyntax(), WikiLinkSyntax()],
       blockSyntaxes: [BlockMathSyntax()],
       styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
         codeblockDecoration: BoxDecoration(

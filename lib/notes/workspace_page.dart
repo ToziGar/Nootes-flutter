@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
-import '../editor/markdown_editor.dart';
+import '../editor/markdown_editor_with_links.dart';
 import '../editor/rich_text_editor.dart';
+import '../services/note_links_parser.dart';
 import '../widgets/tag_input.dart';
 import '../services/storage_service.dart';
 import '../services/audio_service.dart';
@@ -13,6 +14,7 @@ import '../widgets/workspace_widgets.dart';
 import '../theme/app_theme.dart';
 import '../profile/settings_page.dart';
 import '../widgets/folders_panel.dart';
+import '../widgets/backlinks_panel.dart';
 import '../widgets/advanced_search_dialog.dart';
 import '../widgets/recent_searches.dart';
 import '../widgets/workspace_stats.dart';
@@ -54,7 +56,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   // Carpetas y filtros
   List<Folder> _folders = [];
   String? _selectedFolderId; // null = "Todas las notas"
-  Set<String> _expandedFolders = {}; // IDs de carpetas expandidas (tipo árbol)
+  final Set<String> _expandedFolders = {}; // IDs de carpetas expandidas (tipo árbol)
   List<String> _filterTags = [];
   DateTimeRange? _filterDateRange;
   SortOption _sortOption = SortOption.dateDesc;
@@ -64,6 +66,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   bool _showSidebar = true;
   bool _showStats = false;
   bool _showRecentSearches = false;
+  bool _showBacklinks = false;
   
   // Animaciones de transición
   late final AnimationController _savePulseCtrl;
@@ -138,9 +141,24 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       final foldersData = await FirestoreService.instance.listFolders(uid: _uid);
       debugPrint('📁 Carpetas cargadas: ${foldersData.length}');
       if (!mounted) return;
+      
+      // Eliminar duplicados por ID
+      final seen = <String>{};
+      final uniqueFolders = <Folder>[];
+      
+      for (var data in foldersData) {
+        final folder = Folder.fromJson(data);
+        if (!seen.contains(folder.id)) {
+          seen.add(folder.id);
+          uniqueFolders.add(folder);
+        } else {
+          debugPrint('⚠️ Carpeta duplicada ignorada: ${folder.name} (${folder.id})');
+        }
+      }
+      
       setState(() {
-        _folders = foldersData.map((data) => Folder.fromJson(data)).toList();
-        debugPrint('✅ Carpetas parseadas: ${_folders.length}');
+        _folders = uniqueFolders;
+        debugPrint('✅ Carpetas únicas: ${_folders.length}');
         for (var folder in _folders) {
           debugPrint('  - ${folder.name} (${folder.noteIds.length} notas)');
         }
@@ -758,6 +776,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
               ...notesInFolder.map((note) {
                 final id = note['id'].toString();
                 return Padding(
+                  key: ValueKey('folder_note_${folder.id}_$id'), // Key única para notas en carpetas
                   padding: const EdgeInsets.only(left: 32, bottom: 2),
                   child: NotesSidebarCard(
                     note: note,
@@ -772,7 +791,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                       await _loadNotes();
                     },
                     onDelete: () => _delete(id),
-                    enableDrag: true,
+                    enableDrag: false, // Desactivar drag para notas dentro de carpetas
                     compact: true,
                   ),
                 );
@@ -1151,9 +1170,30 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                                 await _save();
                                               },
                                             )
-                                          : MarkdownEditor(
+                                          : MarkdownEditorWithLinks(
                                               controller: _content,
+                                              uid: _uid,
                                               onChanged: (_) => _debouncedSave(),
+                                              onLinksChanged: (linkedIds) async {
+                                                // Actualizar links en Firestore
+                                                if (_selectedId != null) {
+                                                  try {
+                                                    await FirestoreService.instance.updateNoteLinks(
+                                                      uid: _uid,
+                                                      noteId: _selectedId!,
+                                                      linkedNoteIds: linkedIds,
+                                                    );
+                                                    debugPrint('🔗 Links actualizados: ${linkedIds.length}');
+                                                  } catch (e) {
+                                                    debugPrint('❌ Error actualizando links: $e');
+                                                  }
+                                                }
+                                              },
+                                              onNoteOpen: (noteId) async {
+                                                // Abrir nota enlazada
+                                                await _select(noteId);
+                                                debugPrint('🔗 Abriendo nota enlazada: $noteId');
+                                              },
                                               splitEnabled: true,
                                             ),
                                     ),
@@ -1192,6 +1232,68 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                         ],
                                       ),
                                     ),
+                                    
+                                    // Panel de backlinks colapsable
+                                    if (_selectedId != null)
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surface,
+                                          border: Border(top: BorderSide(color: AppColors.borderColor, width: 1)),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            InkWell(
+                                              onTap: () => setState(() => _showBacklinks = !_showBacklinks),
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: AppColors.space16,
+                                                  vertical: AppColors.space8,
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.link_rounded,
+                                                      size: 16,
+                                                      color: AppColors.textMuted,
+                                                    ),
+                                                    const SizedBox(width: AppColors.space8),
+                                                    Text(
+                                                      'Backlinks',
+                                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                            fontWeight: FontWeight.w600,
+                                                            color: AppColors.textSecondary,
+                                                          ),
+                                                    ),
+                                                    const Spacer(),
+                                                    Icon(
+                                                      _showBacklinks 
+                                                          ? Icons.keyboard_arrow_up_rounded 
+                                                          : Icons.keyboard_arrow_down_rounded,
+                                                      size: 20,
+                                                      color: AppColors.textMuted,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                            if (_showBacklinks)
+                                              Container(
+                                                height: 200,
+                                                decoration: BoxDecoration(
+                                                  border: Border(top: BorderSide(color: AppColors.borderColor)),
+                                                ),
+                                                child: BacklinksPanel(
+                                                  uid: _uid,
+                                                  noteId: _selectedId!,
+                                                  onNoteOpen: (noteId) async {
+                                                    await _select(noteId);
+                                                  },
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
                                   ],
                                 ),
                                 if (_isRecording)

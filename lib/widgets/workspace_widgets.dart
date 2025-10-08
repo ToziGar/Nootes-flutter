@@ -180,6 +180,7 @@ class NotesSidebarCard extends StatelessWidget {
             opacity: 0.8,
             child: Container(
               width: 250,
+              constraints: const BoxConstraints(maxWidth: 250), // Restricción de ancho
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(AppColors.radiusMd),
@@ -188,10 +189,11 @@ class NotesSidebarCard extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(AppColors.space12),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min, // Evitar overflow
                   children: [
                     const Icon(Icons.drag_indicator_rounded, color: AppColors.primary, size: 20),
                     const SizedBox(width: AppColors.space8),
-                    Expanded(
+                    Flexible( // Cambio de Expanded a Flexible
                       child: Text(
                         title,
                         style: const TextStyle(

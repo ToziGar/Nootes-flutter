@@ -67,6 +67,7 @@ abstract class FirestoreService {
   Future<List<String>> listIncomingLinks({required String uid, required String noteId});
   Future<void> addLink({required String uid, required String fromNoteId, required String toNoteId});
   Future<void> removeLink({required String uid, required String fromNoteId, required String toNoteId});
+  Future<void> updateNoteLinks({required String uid, required String noteId, required List<String> linkedNoteIds});
   Future<void> moveNoteToCollection({required String uid, required String noteId, String? collectionId});
   Future<List<Map<String, String>>> listEdges({required String uid});
   
@@ -326,6 +327,12 @@ class _FirebaseFirestoreService implements FirestoreService {
   Future<void> removeLink({required String uid, required String fromNoteId, required String toNoteId}) async {
     final ref = _db.collection('users').doc(uid).collection('notes').doc(fromNoteId);
     await ref.set({'links': fs.FieldValue.arrayRemove([toNoteId]), 'updatedAt': fs.FieldValue.serverTimestamp()}, fs.SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> updateNoteLinks({required String uid, required String noteId, required List<String> linkedNoteIds}) async {
+    final ref = _db.collection('users').doc(uid).collection('notes').doc(noteId);
+    await ref.set({'links': linkedNoteIds, 'updatedAt': fs.FieldValue.serverTimestamp()}, fs.SetOptions(merge: true));
   }
 
   @override
@@ -828,6 +835,13 @@ class _RestFirestoreService implements FirestoreService {
   @override
   Future<void> removeLink({required String uid, required String fromNoteId, required String toNoteId}) async {
     await _arrayOp(uid, fromNoteId, 'links', [toNoteId], add: false);
+  }
+
+  @override
+  Future<void> updateNoteLinks({required String uid, required String noteId, required List<String> linkedNoteIds}) async {
+    final fields = <String, dynamic>{'links': _encodeValue(linkedNoteIds)};
+    fields['updatedAt'] = _encodeValue(DateTime.now().toUtc());
+    await _patchNoteFields(uid, noteId, fields);
   }
 
   @override
