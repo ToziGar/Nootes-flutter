@@ -439,14 +439,18 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   
   Future<void> _onNoteDroppedInFolder(String noteId, String folderId) async {
     try {
+      debugPrint('📁 Agregando nota $noteId a carpeta $folderId');
       await FirestoreService.instance.addNoteToFolder(
         uid: _uid,
         noteId: noteId,
         folderId: folderId,
       );
       
-      // Recargar carpetas para actualizar la UI
+      debugPrint('✅ Nota agregada correctamente a Firestore');
+      
+      // Recargar carpetas Y notas para actualizar la UI
       await _loadFolders();
+      await _loadNotes();
       
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -454,15 +458,18 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           content: const Text('Nota agregada a la carpeta'),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 2),
         ),
       );
     } catch (e) {
+      debugPrint('❌ Error al agregar nota a carpeta: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.danger,
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -639,6 +646,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     final notesInFolder = _notes.where((n) => folder.noteIds.contains(n['id'].toString())).toList();
     
     return DragTarget<String>(
+      key: ValueKey('folder_${folder.id}'), // Key única para evitar duplicados
       onWillAcceptWithDetails: (details) => true,
       onAcceptWithDetails: (details) => _onNoteDroppedInFolder(details.data, folder.id),
       builder: (context, candidateData, rejectedData) {
@@ -1104,86 +1112,72 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                             position: _editorOffset,
                             child: Stack(
                               children: [
-                                SingleChildScrollView(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      // Título con estilo mejorado
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surface,
-                                          borderRadius: BorderRadius.circular(AppColors.radiusMd),
-                                          border: Border.all(color: AppColors.borderColor),
-                                        ),
-                                        child: TextField(
-                                          controller: _title,
-                                          style: Theme.of(context).textTheme.headlineMedium,
-                                          decoration: const InputDecoration(
-                                            hintText: 'Título de la nota',
-                                            border: InputBorder.none,
-                                            contentPadding: EdgeInsets.all(AppColors.space20),
-                                          ),
-                                          onChanged: (_) => _debouncedSave(),
+                                // EDITOR PROFESIONAL A TIEMPO REAL
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Título minimalista sin bordes
+                                    TextField(
+                                      controller: _title,
+                                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      decoration: const InputDecoration(
+                                        hintText: 'Sin título',
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: AppColors.space16,
+                                          vertical: AppColors.space12,
                                         ),
                                       ),
-                                      const SizedBox(height: AppColors.space20),
-                                      
-                                      // Editor con contenedor
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surface,
-                                          borderRadius: BorderRadius.circular(AppColors.radiusMd),
-                                          border: Border.all(color: AppColors.borderColor),
-                                        ),
-                                        padding: const EdgeInsets.all(AppColors.space16),
-                                        child: _richMode
-                                            ? RichTextEditor(
-                                                uid: _uid,
-                                                initialDeltaJson: _richJson.isEmpty ? null : _richJson,
-                                                onChanged: (deltaJson) {
-                                                  _richJson = deltaJson;
-                                                  _debouncedSave();
-                                                },
-                                                onSave: (deltaJson) async {
-                                                  _richJson = deltaJson;
-                                                  await _save();
-                                                },
-                                              )
-                                            : MarkdownEditor(
-                                                controller: _content,
-                                                onChanged: (_) => _debouncedSave(),
-                                                splitEnabled: true,
-                                              ),
-                                      ),
-                                      const SizedBox(height: AppColors.space20),
-                                      
-                                      // Tags con diseño mejorado
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surface,
-                                          borderRadius: BorderRadius.circular(AppColors.radiusMd),
-                                          border: Border.all(color: AppColors.borderColor),
-                                        ),
-                                        padding: const EdgeInsets.all(AppColors.space16),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.label_outline_rounded,
-                                                  size: 18,
-                                                  color: AppColors.textSecondary,
-                                                ),
-                                                const SizedBox(width: AppColors.space8),
-                                                Text(
-                                                  'Etiquetas',
-                                                  style: Theme.of(context).textTheme.titleSmall,
-                                                ),
-                                              ],
+                                      onChanged: (_) => _debouncedSave(),
+                                    ),
+                                    Divider(height: 1, thickness: 1, color: AppColors.borderColor),
+                                    
+                                    // Editor expandido al máximo
+                                    Expanded(
+                                      child: _richMode
+                                          ? RichTextEditor(
+                                              uid: _uid,
+                                              initialDeltaJson: _richJson.isEmpty ? null : _richJson,
+                                              onChanged: (deltaJson) {
+                                                _richJson = deltaJson;
+                                                _debouncedSave();
+                                              },
+                                              onSave: (deltaJson) async {
+                                                _richJson = deltaJson;
+                                                await _save();
+                                              },
+                                            )
+                                          : MarkdownEditor(
+                                              controller: _content,
+                                              onChanged: (_) => _debouncedSave(),
+                                              splitEnabled: true,
                                             ),
-                                            const SizedBox(height: AppColors.space12),
-                                            TagInput(
+                                    ),
+                                    
+                                    // Tags compactos en la parte inferior
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surface,
+                                        border: Border(top: BorderSide(color: AppColors.borderColor, width: 1)),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppColors.space16,
+                                        vertical: AppColors.space8,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.label_outline_rounded,
+                                            size: 16,
+                                            color: AppColors.textMuted,
+                                          ),
+                                          const SizedBox(width: AppColors.space8),
+                                          Expanded(
+                                            child: TagInput(
                                               initialTags: _tags,
                                               onAdd: (t) async {
                                                 setState(() => _tags = [..._tags, t]);
@@ -1194,12 +1188,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                                 await _save();
                                               },
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: AppColors.space48),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                                 if (_isRecording)
                                   Positioned(
