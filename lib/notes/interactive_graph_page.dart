@@ -464,7 +464,9 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
     const attractionStrength = 0.1;
     const damping = 0.9;
     for (int iter = 0; iter < iterations; iter++) {
-      for (var node in nodes) node.velocity = Offset.zero;
+      for (var node in nodes) {
+        node.velocity = Offset.zero;
+      }
       for (int i = 0; i < nodes.length; i++) {
         for (int j = i + 1; j < nodes.length; j++) {
           final node1 = nodes[i];
@@ -1388,7 +1390,10 @@ class AIGraphPainter extends CustomPainter {
   paint.color = Colors.white.withOpacityCompat(0.3 * edge.strength);
         paint.strokeWidth = 2 * edge.strength;
       }
-  if (isHighlighted) { paint.strokeWidth *= 1.5; paint.color = paint.color.withOpacityCompat(math.min(1.0, paint.color.opacity * 2)); }
+      if (isHighlighted) {
+        paint.strokeWidth *= 1.5;
+        paint.color = paint.color.withOpacityCompat(math.min(1.0, paint.color.a * 2));
+      }
       final controlPoint = _calculateControlPoint(fromNode.position, toNode.position);
       final path = Path()..moveTo(fromNode.position.dx, fromNode.position.dy)..quadraticBezierTo(controlPoint.dx, controlPoint.dy, toNode.position.dx, toNode.position.dy);
       canvas.drawPath(path, paint);
@@ -1476,7 +1481,11 @@ class AIGraphPainter extends CustomPainter {
     for (int i = 0; i < points; i++) {
       final x = center.dx + size * math.cos(i * angle - math.pi / 2);
       final y = center.dy + size * math.sin(i * angle - math.pi / 2);
-      if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
       final innerX = center.dx + (size * 0.4) * math.cos((i + 0.5) * angle - math.pi / 2);
       final innerY = center.dy + (size * 0.4) * math.sin((i + 0.5) * angle - math.pi / 2);
       path.lineTo(innerX, innerY);

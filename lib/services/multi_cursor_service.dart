@@ -7,7 +7,7 @@ class MultiCursorService {
   factory MultiCursorService() => _instance;
   MultiCursorService._internal();
 
-  List<TextSelection> _cursors = [];
+  final List<TextSelection> _cursors = [];
   bool _isMultiCursorMode = false;
   TextEditingController? _controller;
 

@@ -32,8 +32,6 @@ class SmartIndentationService {
     if (!selection.isValid || selection.start != selection.end) return;
 
     final cursorPosition = selection.start;
-    final currentLine = _getCurrentLine(text, cursorPosition);
-    final currentIndent = _getIndentation(currentLine);
     
     // Calcular nueva indentación
     final newIndent = _calculateNewIndentation(text, cursorPosition);
@@ -332,7 +330,6 @@ class SmartIndentationService {
     final lines = text.split('\n');
     final newLines = <String>[];
     
-    String currentIndent = '';
     ContentType currentType = ContentType.text;
     
     for (int i = 0; i < lines.length; i++) {

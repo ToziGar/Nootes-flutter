@@ -29,7 +29,7 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
   late Future<void> _init;
   List<AIGraphNode> _nodes = [];
   List<AIGraphEdge> _edges = [];
-  List<ParticleConnection> _particles = [];
+  final List<ParticleConnection> _particles = [];
   String? _selectedNodeId;
   String? _hoveredNodeId;
   
@@ -41,7 +41,7 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
   bool _autoLayout = true;
   
   // 🤖 Configuración IA
-  NodeClusteringMode _clusteringMode = NodeClusteringMode.semantic;
+  final NodeClusteringMode _clusteringMode = NodeClusteringMode.semantic;
   VisualizationStyle _visualStyle = VisualizationStyle.galaxy;
   double _connectionThreshold = 0.3;
   
@@ -58,7 +58,7 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
   
   // 🎨 Efectos visuales
   Timer? _layoutTimer;
-  List<FloatingParticle> _floatingParticles = [];
+  final List<FloatingParticle> _floatingParticles = [];
   
   String get _uid => AuthService.instance.currentUser!.uid;
 
@@ -67,7 +67,12 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
     super.initState();
     _initAnimations();
     _init = _loadGraphWithAI();
-    _startParticleSystem();
+    // Iniciar sistema de partículas después del primer frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _startParticleSystem();
+      }
+    });
   }
 
   void _initAnimations() {
@@ -96,7 +101,7 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
   }
 
   void _startParticleSystem() {
-    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    _layoutTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
@@ -147,6 +152,7 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
     final existingEdges = await svc.listEdges(uid: _uid);
     
     // 📝 Procesar notas y crear nodos inteligentes
+    if (!mounted) return;
     final nodes = <AIGraphNode>[];
     final size = Size(
       MediaQuery.of(context).size.width,
@@ -769,26 +775,33 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
           _selectedNodeId = tappedNodeId;
         });
       },
-      child: AnimatedBuilder(
-        animation: Listenable.merge([_pulseAnimation, _rotationAnimation]),
-        builder: (context, child) {
-          return CustomPaint(
-            size: Size.infinite,
-            painter: AIGraphPainter(
-              nodes: _nodes,
-              edges: _edges,
-              particles: _showParticles ? _particles : [],
-              floatingParticles: _showParticles ? _floatingParticles : [],
-              selectedNodeId: _selectedNodeId,
-              hoveredNodeId: _hoveredNodeId,
-              scale: _scale,
-              offset: _offset,
-              is3DMode: _is3DMode,
-              pulseValue: _pulseAnimation.value,
-              rotationValue: _rotationAnimation.value,
-              clusters: _clusters,
-              centrality: _centrality,
-            ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return AnimatedBuilder(
+            animation: Listenable.merge([_pulseAnimation, _rotationAnimation]),
+            builder: (context, child) {
+              return CustomPaint(
+                size: Size(
+                  constraints.maxWidth.isFinite ? constraints.maxWidth : 800,
+                  constraints.maxHeight.isFinite ? constraints.maxHeight : 600,
+                ),
+                painter: AIGraphPainter(
+                  nodes: _nodes,
+                  edges: _edges,
+                  particles: _showParticles ? _particles : [],
+                  floatingParticles: _showParticles ? _floatingParticles : [],
+                  selectedNodeId: _selectedNodeId,
+                  hoveredNodeId: _hoveredNodeId,
+                  scale: _scale,
+                  offset: _offset,
+                  is3DMode: _is3DMode,
+                  pulseValue: _pulseAnimation.value,
+                  rotationValue: _rotationAnimation.value,
+                  clusters: _clusters,
+                  centrality: _centrality,
+                ),
+              );
+            },
           );
         },
       ),
@@ -1145,14 +1158,14 @@ class AIGraphPainter extends CustomPainter {
 
   void _drawFloatingParticles(Canvas canvas) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.1)
+      ..color = Colors.white.withOpacityCompat(0.1)
       ..style = PaintingStyle.fill;
 
     for (var particle in floatingParticles) {
       canvas.drawCircle(
         particle.position,
         particle.size * particle.life,
-        paint..color = Colors.white.withOpacity(0.1 * particle.life),
+        paint..color = Colors.white.withOpacityCompat(0.1 * particle.life),
       );
     }
   }
@@ -1167,11 +1180,11 @@ class AIGraphPainter extends CustomPainter {
       final bounds = _calculateBounds(positions);
       
       final paint = Paint()
-        ..color = cluster.color.withOpacity(0.1)
+        ..color = cluster.color.withOpacityCompat(0.1)
         ..style = PaintingStyle.fill;
       
       final strokePaint = Paint()
-        ..color = cluster.color.withOpacity(0.3)
+        ..color = cluster.color.withOpacityCompat(0.3)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2;
 
@@ -1222,16 +1235,16 @@ class AIGraphPainter extends CustomPainter {
         );
         paint.strokeWidth = 4 * edge.strength;
       } else if (edge.type == EdgeType.semantic) {
-        paint.color = Colors.purple.withOpacity(0.6 * edge.strength);
+        paint.color = Colors.purple.withOpacityCompat(0.6 * edge.strength);
         paint.strokeWidth = 3 * edge.strength;
       } else {
-        paint.color = Colors.white.withOpacity(0.3 * edge.strength);
+        paint.color = Colors.white.withOpacityCompat(0.3 * edge.strength);
         paint.strokeWidth = 2 * edge.strength;
       }
       
       if (isHighlighted) {
         paint.strokeWidth *= 1.5;
-        paint.color = paint.color.withOpacity(math.min(1.0, paint.color.opacity * 2));
+        paint.color = paint.color.withOpacityCompat(math.min(1.0, paint.color.a * 2));
       }
       
       // Dibujar línea con curvatura suave
@@ -1270,14 +1283,14 @@ class AIGraphPainter extends CustomPainter {
       final position = Offset.lerp(fromNode.position, toNode.position, t)!;
       
       final paint = Paint()
-        ..color = Colors.cyan.withOpacity(0.8 * particle.strength)
+        ..color = Colors.cyan.withOpacityCompat(0.8 * particle.strength)
         ..style = PaintingStyle.fill;
       
       canvas.drawCircle(position, 3 * particle.strength, paint);
       
       // Efecto de estela
       final trailPaint = Paint()
-        ..color = Colors.cyan.withOpacity(0.3 * particle.strength)
+        ..color = Colors.cyan.withOpacityCompat(0.3 * particle.strength)
         ..style = PaintingStyle.fill;
       
       for (int i = 1; i <= 3; i++) {
@@ -1307,11 +1320,11 @@ class AIGraphPainter extends CustomPainter {
       
       // Configurar paints
       final shadowPaint = Paint()
-        ..color = Colors.black.withOpacity(0.3)
+        ..color = Colors.black.withOpacityCompat(0.3)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
       
       final glowPaint = Paint()
-        ..color = node.color.withOpacity(0.6)
+        ..color = node.color.withOpacityCompat(0.6)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, finalSize * 0.5);
       
       final nodePaint = Paint()
@@ -1323,9 +1336,9 @@ class AIGraphPainter extends CustomPainter {
           node.position,
           finalSize,
           [
-            node.color.withOpacity(1.0),
-            node.color.withOpacity(0.7),
-            node.color.withOpacity(0.3),
+            node.color.withOpacityCompat(1.0),
+            node.color.withOpacityCompat(0.7),
+            node.color.withOpacityCompat(0.3),
           ],
           [0.0, 0.7, 1.0],
         );
@@ -1334,7 +1347,7 @@ class AIGraphPainter extends CustomPainter {
       }
       
       final strokePaint = Paint()
-        ..color = isSelected ? Colors.white : Colors.white.withOpacity(0.5)
+        ..color = isSelected ? Colors.white : Colors.white.withOpacityCompat(0.5)
         ..style = PaintingStyle.stroke
         ..strokeWidth = isSelected ? 4 : 2;
       

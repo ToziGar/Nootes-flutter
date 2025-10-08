@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auto_complete_service.dart';
 import '../services/syntax_highlight_service.dart';
-import '../services/editor_config_service.dart';
 import '../services/multi_cursor_service.dart' as multi_cursor;
 import '../services/bracket_matching_service.dart' as bracket;
 import '../services/search_replace_service.dart' as search;
@@ -76,7 +75,6 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
 
   // Estados para funcionalidades avanzadas
   bool _showSearchPanel = false;
-  bool _showFoldingPanel = false;
   bool _isInZenMode = false;
 
   @override

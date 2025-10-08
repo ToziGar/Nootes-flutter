@@ -12,7 +12,7 @@ class AutoCompleteService {
   final AuthService _authService = AuthService.instance;
 
   // Cache de sugerencias
-  Map<String, List<String>> _suggestionsCache = {};
+  final Map<String, List<String>> _suggestionsCache = {};
   List<String> _commonWords = [];
   List<String> _userWords = [];
   Map<String, int> _wordFrequency = {};

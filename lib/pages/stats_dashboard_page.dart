@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/analytics_service.dart';
 import '../theme/app_theme.dart';
+import '../theme/color_utils.dart';
 
 /// Página del dashboard de estadísticas
 class StatsDashboardPage extends StatefulWidget {
@@ -238,7 +239,7 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
                       margin: const EdgeInsets.symmetric(horizontal: 1),
                       height: 60 * intensity,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.3 + (intensity * 0.7)),
+                        color: AppColors.primary.withOpacityCompat(0.3 + (intensity * 0.7)),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -354,10 +355,10 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withOpacityCompat(0.1),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: AppColors.primary.withOpacity(0.3),
+                        color: AppColors.primary.withOpacityCompat(0.3),
                       ),
                     ),
                     child: Text(
