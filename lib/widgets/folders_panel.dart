@@ -29,32 +29,73 @@ class FoldersPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Header
+        // Header con botón mejorado
         Padding(
-          padding: const EdgeInsets.all(AppColors.space16),
-          child: Row(
+          padding: const EdgeInsets.all(AppColors.space12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.folder_rounded, color: AppColors.primary, size: 20),
-              const SizedBox(width: AppColors.space8),
-              const Text(
-                'Carpetas',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(AppColors.space8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                    ),
+                    child: const Icon(Icons.folder_rounded, color: AppColors.primary, size: 20),
+                  ),
+                  const SizedBox(width: AppColors.space12),
+                  const Expanded(
+                    child: Text(
+                      'Carpetas',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppColors.space12),
+              // Botón de crear carpeta más visible
+              FilledButton.icon(
+                onPressed: () => _showFolderDialog(context),
+                icon: const Icon(Icons.create_new_folder_rounded, size: 18),
+                label: const Text('Nueva carpeta'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppColors.space12,
+                    vertical: AppColors.space8,
+                  ),
                 ),
               ),
-              const Spacer(),
-              IconButton(
-                onPressed: () => _showFolderDialog(context),
-                icon: const Icon(Icons.add_rounded, size: 20),
-                style: IconButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                  padding: const EdgeInsets.all(AppColors.space8),
-                  minimumSize: const Size(32, 32),
+              const SizedBox(height: AppColors.space8),
+              // Hint de drag & drop
+              Container(
+                padding: const EdgeInsets.all(AppColors.space8),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
                 ),
-                tooltip: 'Nueva carpeta',
+                child: Row(
+                  children: [
+                    const Icon(Icons.touch_app_rounded, size: 14, color: AppColors.accent),
+                    const SizedBox(width: AppColors.space8),
+                    const Expanded(
+                      child: Text(
+                        'Mantén presionada una nota para arrastrarla',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -153,7 +194,9 @@ class FoldersPanel extends StatelessWidget {
       },
       builder: (context, candidateData, rejectedData) {
         final isHovering = candidateData.isNotEmpty;
-        return Container(
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
           margin: const EdgeInsets.symmetric(
             horizontal: AppColors.space8,
             vertical: AppColors.space4,
@@ -162,14 +205,27 @@ class FoldersPanel extends StatelessWidget {
             color: isSelected
                 ? AppColors.primary.withValues(alpha: 0.15)
                 : isHovering
-                    ? AppColors.surfaceHover
+                    ? AppColors.success.withValues(alpha: 0.15)
                     : Colors.transparent,
             borderRadius: BorderRadius.circular(AppColors.radiusMd),
             border: isHovering
-                ? Border.all(color: AppColors.primary, width: 2)
+                ? Border.all(
+                    color: AppColors.success,
+                    width: 2,
+                    strokeAlign: BorderSide.strokeAlignInside,
+                  )
                 : isSelected
                     ? Border.all(color: AppColors.primary.withValues(alpha: 0.3))
                     : null,
+            boxShadow: isHovering
+                ? [
+                    BoxShadow(
+                      color: AppColors.success.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      spreadRadius: 0,
+                    )
+                  ]
+                : null,
           ),
           child: Material(
             color: Colors.transparent,
@@ -201,7 +257,11 @@ class FoldersPanel extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                              color: isHovering 
+                                  ? AppColors.success
+                                  : isSelected 
+                                      ? AppColors.primary 
+                                      : AppColors.textPrimary,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -209,16 +269,37 @@ class FoldersPanel extends StatelessWidget {
                           if (folder != null) ...[
                             const SizedBox(height: AppColors.space4),
                             Text(
-                              '$count nota${count != 1 ? "s" : ""}',
-                              style: const TextStyle(
+                              isHovering 
+                                  ? '¡Suelta aquí!' 
+                                  : '$count nota${count != 1 ? "s" : ""}',
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textMuted,
+                                color: isHovering 
+                                    ? AppColors.success 
+                                    : AppColors.textMuted,
+                                fontWeight: isHovering 
+                                    ? FontWeight.w600 
+                                    : FontWeight.normal,
                               ),
                             ),
                           ],
                         ],
                       ),
                     ),
+                    // Mostrar icono de drop cuando se arrastra
+                    if (isHovering)
+                      Container(
+                        padding: const EdgeInsets.all(AppColors.space8),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                        ),
+                        child: const Icon(
+                          Icons.add_circle_rounded, 
+                          size: 20, 
+                          color: AppColors.success,
+                        ),
+                      ),
                     if (folder != null && !isHovering)
                       PopupMenuButton(
                         icon: const Icon(Icons.more_vert_rounded, size: 18, color: AppColors.textSecondary),
