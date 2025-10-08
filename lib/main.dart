@@ -15,6 +15,8 @@ import 'notes/tasks_page.dart';
 import 'notes/export_page.dart';
 import 'notes/interactive_graph_page.dart';
 import 'notes/advanced_search_page.dart';
+import 'services/preferences_service.dart';
+import 'services/app_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,10 +38,58 @@ Future<void> main() async {
   runApp(MyApp(initError: initError));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key, this.initError});
 
   final Object? initError;
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+  Locale _locale = const Locale('es', '');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+    
+    // Inicializar AppService con las funciones de cambio
+    AppService.initialize(
+      onChangeTheme: changeTheme,
+      onChangeLocale: changeLocale,
+    );
+  }
+
+  Future<void> _loadPreferences() async {
+    final themeMode = await PreferencesService.getThemeMode();
+    final locale = await PreferencesService.getLocale();
+    
+    if (mounted) {
+      setState(() {
+        _themeMode = themeMode;
+        _locale = locale;
+      });
+    }
+  }
+
+  /// Método para cambiar el tema desde otras pantallas
+  void changeTheme(ThemeMode themeMode) {
+    setState(() {
+      _themeMode = themeMode;
+    });
+    PreferencesService.setThemeMode(themeMode);
+  }
+
+  /// Método para cambiar el idioma desde otras pantallas
+  void changeLocale(Locale locale) {
+    setState(() {
+      _locale = locale;
+    });
+    PreferencesService.setLocale(locale);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +97,8 @@ class MyApp extends StatelessWidget {
       title: 'Nootes',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system, // Usa el tema del sistema (claro/oscuro)
+      themeMode: _themeMode,
+      locale: _locale,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -67,7 +118,7 @@ class MyApp extends StatelessWidget {
         '/graph': (_) => const InteractiveGraphPage(),
         '/advanced-search': (_) => const AdvancedSearchPage(),
       },
-      home: initError == null ? const AuthGate() : SetupHelpPage(error: initError!),
+      home: widget.initError == null ? const AuthGate() : SetupHelpPage(error: widget.initError!),
     );
   }
 }

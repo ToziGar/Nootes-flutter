@@ -6,6 +6,10 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../editor/markdown_editor.dart';
 import '../services/storage_service.dart';
+import '../widgets/advanced_editor.dart';
+import '../widgets/editor_settings_dialog.dart';
+import '../services/editor_config_service.dart';
+import '../theme/app_colors.dart';
 
 class NoteEditorPage extends StatefulWidget {
   const NoteEditorPage({super.key, required this.noteId, this.onChanged});
@@ -24,6 +28,11 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   bool _autoSaving = false;
   Timer? _auto;
 
+  // Editor avanzado
+  bool _useAdvancedEditor = false;
+  EditorConfig _editorConfig = EditorConfig.defaultConfig();
+  final EditorConfigService _editorConfigService = EditorConfigService();
+
   List<String> _tags = [];
   List<Map<String, dynamic>> _collections = [];
   String? _collectionId;
@@ -39,8 +48,16 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   void initState() {
     super.initState();
     _load();
+    _loadEditorConfig();
     _title.addListener(_scheduleAutoSave);
     _content.addListener(_scheduleAutoSave);
+  }
+
+  Future<void> _loadEditorConfig() async {
+    final config = await _editorConfigService.getEditorConfig();
+    setState(() {
+      _editorConfig = config;
+    });
   }
 
   @override
@@ -193,12 +210,76 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     if (widget.onChanged != null) await widget.onChanged!();
   }
 
+  void _toggleAdvancedEditor() {
+    setState(() {
+      _useAdvancedEditor = !_useAdvancedEditor;
+    });
+  }
+
+  void _showEditorSettings() {
+    showDialog(
+      context: context,
+      builder: (context) => EditorSettingsDialog(
+        initialConfig: _editorConfig,
+        onConfigChanged: (config) {
+          setState(() {
+            _editorConfig = config;
+          });
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar nota'),
         actions: [
+          // Botón para cambiar tipo de editor
+          PopupMenuButton<String>(
+            icon: Icon(
+              _useAdvancedEditor ? Icons.code : Icons.edit,
+              color: _useAdvancedEditor ? AppColors.primary : null,
+            ),
+            tooltip: 'Opciones del editor',
+            onSelected: (value) {
+              switch (value) {
+                case 'toggle':
+                  _toggleAdvancedEditor();
+                  break;
+                case 'settings':
+                  _showEditorSettings();
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'toggle',
+                child: Row(
+                  children: [
+                    Icon(
+                      _useAdvancedEditor ? Icons.edit : Icons.code,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(_useAdvancedEditor ? 'Editor simple' : 'Editor avanzado'),
+                  ],
+                ),
+              ),
+              if (_useAdvancedEditor)
+                const PopupMenuItem(
+                  value: 'settings',
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings, size: 20),
+                      SizedBox(width: 8),
+                      Text('Configuración'),
+                    ],
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             onPressed: _saving ? null : () => _save(),
             icon: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save_rounded),
@@ -241,20 +322,49 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         onChanged: (v) => _setCollection(v),
                       ),
                       const SizedBox(height: 8),
-                      MarkdownEditor(
-                        controller: _content,
-                        onChanged: (_) => _scheduleAutoSave(),
-                        onPickImage: _pickAndUploadImage,
-                        onPickWiki: _pickWiki,
-                        wikiIndex: _wikiIndex,
-                        onOpenNote: (id) async {
-                          if (id == widget.noteId) return;
-                          await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: id, onChanged: widget.onChanged)),
-                          );
-                          await _load();
-                        },
-                        splitEnabled: true,
+                      // Editor de contenido (condicional)
+                      Container(
+                        height: 400, // Altura fija para el editor
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: _useAdvancedEditor
+                            ? AdvancedEditor(
+                                initialText: _content.text,
+                                onTextChanged: (text) {
+                                  if (_content.text != text) {
+                                    _content.text = text;
+                                    _scheduleAutoSave();
+                                  }
+                                },
+                                syntaxHighlighting: _editorConfig.syntaxHighlighting,
+                                autoComplete: _editorConfig.autoComplete,
+                                showLineNumbers: _editorConfig.showLineNumbers,
+                                showMinimap: _editorConfig.showMinimap,
+                                wordWrap: _editorConfig.wordWrap,
+                                fontSize: _editorConfig.fontSize,
+                                themeMode: Theme.of(context).brightness == Brightness.dark 
+                                    ? ThemeMode.dark 
+                                    : ThemeMode.light,
+                              )
+                            : MarkdownEditor(
+                                controller: _content,
+                                onChanged: (_) => _scheduleAutoSave(),
+                                onPickImage: _pickAndUploadImage,
+                                onPickWiki: _pickWiki,
+                                wikiIndex: _wikiIndex,
+                                onOpenNote: (id) async {
+                                  if (id == widget.noteId) return;
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: id, onChanged: widget.onChanged)),
+                                  );
+                                  await _load();
+                                },
+                                splitEnabled: true,
+                              ),
                       ),
                       const SizedBox(height: 12),
                       Text('Etiquetas', style: Theme.of(context).textTheme.titleMedium),

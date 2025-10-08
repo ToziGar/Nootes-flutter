@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/preferences_service.dart';
+import '../services/app_service.dart';
 import '../widgets/export_import_dialog.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -14,7 +16,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _authService = AuthService.instance;
   
-  bool _darkMode = true;
+  String _themeMode = 'Sistema'; // Claro, Oscuro, Sistema
   bool _notifications = true;
   bool _autoSave = true;
   bool _backupEnabled = false;
@@ -28,8 +30,16 @@ class _SettingsPageState extends State<SettingsPage> {
   }
   
   Future<void> _loadSettings() async {
-    // TODO: Cargar configuraciones guardadas de Firestore
-    setState(() {});
+    // Cargar configuraciones reales desde PreferencesService
+    final themeMode = await PreferencesService.getThemeModeString();
+    final language = await PreferencesService.getLanguageString();
+    
+    if (mounted) {
+      setState(() {
+        _themeMode = themeMode;
+        _language = language;
+      });
+    }
   }
   
   Future<void> _saveSettings() async {
@@ -143,14 +153,11 @@ class _SettingsPageState extends State<SettingsPage> {
           _buildSectionHeader('Apariencia', Icons.palette_rounded),
           const SizedBox(height: AppColors.space16),
           _buildSettingCard(
-            title: 'Modo oscuro',
-            subtitle: 'Interfaz con tema oscuro',
-            icon: Icons.dark_mode_rounded,
-            trailing: Switch(
-              value: _darkMode,
-              onChanged: (value) => setState(() => _darkMode = value),
-              activeThumbColor: AppColors.primary,
-            ),
+            title: 'Tema',
+            subtitle: _themeMode,
+            icon: Icons.palette_rounded,
+            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+            onTap: () => _showThemeDialog(),
           ),
           const SizedBox(height: AppColors.space12),
           _buildSettingCard(
@@ -401,6 +408,40 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
   
+  void _showThemeDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Seleccionar tema', style: TextStyle(color: AppColors.textPrimary)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildThemeOption('Claro', ThemeMode.light),
+            _buildThemeOption('Oscuro', ThemeMode.dark),
+            _buildThemeOption('Sistema', ThemeMode.system),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildThemeOption(String name, ThemeMode mode) {
+    return ListTile(
+      title: Text(name, style: const TextStyle(color: AppColors.textPrimary)),
+      trailing: _themeMode == name
+          ? const Icon(Icons.check_rounded, color: AppColors.primary)
+          : null,
+      onTap: () async {
+        setState(() => _themeMode = name);
+        Navigator.pop(context);
+        
+        // Aplicar el cambio de tema inmediatamente
+        AppService.changeTheme(mode);
+      },
+    );
+  }
+  
   void _showLanguageDialog() {
     showDialog(
       context: context,
@@ -412,7 +453,6 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             _buildLanguageOption('Español', 'es'),
             _buildLanguageOption('English', 'en'),
-            _buildLanguageOption('Português', 'pt'),
           ],
         ),
       ),
@@ -425,9 +465,13 @@ class _SettingsPageState extends State<SettingsPage> {
       trailing: _language == name
           ? const Icon(Icons.check_rounded, color: AppColors.primary)
           : null,
-      onTap: () {
+      onTap: () async {
         setState(() => _language = name);
         Navigator.pop(context);
+        
+        // Aplicar el cambio de idioma inmediatamente
+        final locale = Locale(code, '');
+        AppService.changeLocale(locale);
       },
     );
   }

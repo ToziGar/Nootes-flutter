@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/export_import_service.dart';
@@ -11,6 +12,7 @@ import '../services/storage_service.dart';
 import '../services/audio_service.dart';
 import '../widgets/recording_overlay.dart';
 import '../widgets/workspace_widgets.dart';
+import '../widgets/enhanced_context_menu.dart';
 import '../theme/app_theme.dart';
 import '../profile/settings_page.dart';
 import '../widgets/backlinks_panel.dart';
@@ -836,15 +838,15 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
               ),
               child: Material(
                 color: Colors.transparent,
-                child: GestureDetector(
-                  onSecondaryTapDown: (details) async {
-                    final result = await UnifiedContextMenu.show<ContextMenuActionType>(
-                      context: context,
-                      position: details.globalPosition,
-                      actions: ContextMenuBuilder.folder(),
-                    );
-                    _handleContextMenuAction(result, context: context, folderId: folder.id);
-                  },
+                child: EnhancedContextMenuRegion(
+                  actions: (context) => EnhancedContextMenuBuilder.folderMenu(
+                    noteCount: folder.noteIds.length,
+                  ),
+                  onActionSelected: (action) => _handleEnhancedContextMenuAction(
+                    action.value, 
+                    context: context, 
+                    folderId: folder.id,
+                  ),
                   child: InkWell(
                     onTap: () {
                       setState(() {
@@ -934,16 +936,20 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             if (isExpanded && notesInFolder.isNotEmpty)
               ...notesInFolder.map((note) {
                 final id = note['id'].toString();
-                return GestureDetector(
+                return EnhancedContextMenuRegion(
                   key: ValueKey('folder_note_${folder.id}_$id'), // Key única para notas en carpetas
-                  onSecondaryTapDown: (details) async {
-                    final result = await UnifiedContextMenu.show<ContextMenuActionType>(
-                      context: context,
-                      position: details.globalPosition,
-                      actions: ContextMenuBuilder.note(isInFolder: true),
-                    );
-                    _handleContextMenuAction(result, context: context, noteId: id, folderId: folder.id);
-                  },
+                  actions: (context) => EnhancedContextMenuBuilder.noteMenu(
+                    isInFolder: true,
+                    isPinned: note['pinned'] == true,
+                    isFavorite: note['favorite'] == true,
+                    isArchived: note['archived'] == true,
+                  ),
+                  onActionSelected: (action) => _handleEnhancedContextMenuAction(
+                    action.value, 
+                    context: context, 
+                    noteId: id, 
+                    folderId: folder.id,
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.only(left: 32, bottom: 2),
                     child: NotesSidebarCard(
@@ -1182,6 +1188,85 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     }
   }
 
+  // Manejador mejorado de acciones del menú contextual
+  Future<void> _handleEnhancedContextMenuAction(
+    String? action, {
+    required BuildContext context,
+    String? noteId,
+    String? folderId,
+  }) async {
+    if (action == null) return;
+
+    try {
+      switch (action) {
+        case 'open':
+        case 'edit':
+          if (noteId != null) await _select(noteId);
+          break;
+        case 'duplicate':
+          if (noteId != null) await _duplicateNote(noteId);
+          break;
+        case 'removeFromFolder':
+          if (noteId != null && folderId != null) {
+            await FirestoreService.instance.removeNoteFromFolder(
+              uid: _uid,
+              folderId: folderId,
+              noteId: noteId,
+            );
+            await _loadFolders();
+            await _loadNotes();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Nota quitada de la carpeta'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            }
+          }
+          break;
+        case 'export':
+          if (noteId != null) await _exportSingleNote(noteId);
+          break;
+        case 'delete':
+          if (noteId != null) {
+            await _delete(noteId);
+          } else if (folderId != null) {
+            final folder = _folders.firstWhere((f) => f.id == folderId);
+            await _confirmDeleteFolder(folder);
+          }
+          break;
+        case 'newNote':
+          await _create();
+          break;
+        case 'newFolder':
+          await _showCreateFolderDialog();
+          break;
+        case 'newFromTemplate':
+          await _createFromTemplate();
+          break;
+        case 'refresh':
+          await _loadNotes();
+          await _loadFolders();
+          break;
+        case 'openDashboard':
+          _openDashboard();
+          break;
+        default:
+          debugPrint('⚠️ Acción no implementada: $action');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
   // Duplicar nota (nueva función)
   Future<void> _duplicateNote(String noteId) async {
     try {
@@ -1203,183 +1288,184 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-
-      // --- New helper methods for extended context menu actions ---
-
-      Future<void> _togglePinNote(String noteId, bool pin) async {
-        try {
-          final note = notes.firstWhere((n) => n['id'].toString() == noteId);
-          await FirestoreService.instance.updateNote(
-            uid: _uid,
-            noteId: noteId,
-            data: {'pinned': pin, 'updatedAt': fs.FieldValue.serverTimestamp()},
-          );
-          if (mounted) {
-            setState(() => note['pinned'] = pin);
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(pin ? 'Nota fijada' : 'Nota desfijada'), backgroundColor: AppColors.success),
-          );
-        } catch (e) {
-          debugPrint('⚠️ Error toggling pin: $e');
-        }
-      }
-
-      Future<void> _toggleFavoriteNote(String noteId, bool fav) async {
-        try {
-          final note = notes.firstWhere((n) => n['id'].toString() == noteId);
-          await FirestoreService.instance.updateNote(
-            uid: _uid,
-            noteId: noteId,
-            data: {'favorite': fav, 'updatedAt': fs.FieldValue.serverTimestamp()},
-          );
-          if (mounted) setState(() => note['favorite'] = fav);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(fav ? 'Añadido a favoritos' : 'Eliminado de favoritos'), backgroundColor: AppColors.success),
-          );
-        } catch (e) {
-          debugPrint('⚠️ Error toggling favorite: $e');
-        }
-      }
-
-      Future<void> _toggleArchiveNote(String noteId, bool archive) async {
-        try {
-          final note = notes.firstWhere((n) => n['id'].toString() == noteId);
-          await FirestoreService.instance.updateNote(
-            uid: _uid,
-            noteId: noteId,
-            data: {'archived': archive, 'updatedAt': fs.FieldValue.serverTimestamp()},
-          );
-          if (mounted) setState(() => note['archived'] = archive);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(archive ? 'Nota archivada' : 'Nota desarchivada'), backgroundColor: AppColors.success),
-          );
-        } catch (e) {
-          debugPrint('⚠️ Error toggling archive: $e');
-        }
-      }
-
-      Future<void> _showAddTagsDialog(String noteId) async {
-        final note = notes.firstWhere((n) => n['id'].toString() == noteId);
-        final currentTags = List<String>.from((note['tags'] as List?) ?? []);
-        final controller = TextEditingController(text: currentTags.join(', '));
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Añadir etiquetas'),
-            content: TextField(
-              controller: controller,
-              decoration: const InputDecoration(hintText: 'etiqueta1, etiqueta2'),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Guardar')),
-            ],
-          ),
-        );
-        if (confirmed == true) {
-          final tags = controller.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
-          try {
-            await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'tags': tags});
-            if (mounted) setState(() => note['tags'] = tags);
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Etiquetas actualizadas'), backgroundColor: AppColors.success));
-          } catch (e) {
-            debugPrint('⚠️ Error actualizando etiquetas: $e');
-          }
-        }
-      }
-
-      void _copyNoteLink(String noteId) async {
-        try {
-          final url = await FirestoreService.instance.getNoteShareLink(uid: _uid, noteId: noteId);
-          await Clipboard.setData(ClipboardData(text: url));
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enlace copiado'), backgroundColor: AppColors.success));
-        } catch (e) {
-          debugPrint('⚠️ Error copiando enlace: $e');
-        }
-      }
-
-      void _showNoteHistory(String noteId) {
-        // Simple placeholder — open history page or dialog if available
-        showDialog<void>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Historial de la nota'),
-            content: const Text('Historial no disponible en esta versión.'),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar'))],
-          ),
-        );
-      }
-
-      Future<void> _showFolderColorPicker(String folderId) async {
-        final folder = _folders.firstWhere((f) => f.id == folderId);
-        final colors = [Colors.blue, Colors.green, Colors.amber, Colors.pink, Colors.purple, Colors.grey];
-        final chosen = await showDialog<Color?>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Color de carpeta'),
-            content: Wrap(
-              spacing: 8,
-              children: colors.map((c) => GestureDetector(
-                onTap: () => Navigator.pop(ctx, c),
-                child: Container(width: 36, height: 36, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(6))),
-              )).toList(),
-            ),
-          ),
-        );
-        if (chosen != null) {
-          try {
-            await FirestoreService.instance.updateFolder(uid: _uid, folderId: folderId, data: {'color': chosen.value.toRadixString(16)});
-            if (mounted) setState(() => folder.color = chosen);
-          } catch (e) {
-            debugPrint('⚠️ Error cambiando color de carpeta: $e');
-          }
-        }
-      }
-
-      void _showNoteProperties(String noteId) {
-        final note = notes.firstWhere((n) => n['id'].toString() == noteId);
-        showDialog<void>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Propiedades de la nota'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Título: ${note['title'] ?? ''}'),
-                const SizedBox(height: 8),
-                Text('ID: ${noteId}'),
-                const SizedBox(height: 8),
-                Text('Creado: ${note['createdAt'] ?? '—'}'),
-              ],
-            ),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar'))],
-          ),
-        );
-      }
-
-      // Minimal insert helpers for editor
-      void _insertMarkdownTable() {
-        _editorCtrl.text = '${_editorCtrl.text}\n| Col1 | Col2 | Col3 |\n|---|---:|:---:|\n|   |   |   |\n';
-        _editorCtrl.selection = TextSelection.collapsed(offset: _editorCtrl.text.length);
-      }
-
-      void _insertCodeBlock() {
-        _editorCtrl.text = '${_editorCtrl.text}\n```
-    // lenguaje
-    ```\n';
-        _editorCtrl.selection = TextSelection.collapsed(offset: _editorCtrl.text.length - 7);
-      }
-            content: Text('Nota duplicada'),
-            backgroundColor: AppColors.success,
-          ),
+          const SnackBar(content: Text('✅ Nota duplicada'), backgroundColor: AppColors.success),
         );
       }
     } catch (e) {
-      debugPrint('❌ Error duplicando nota: $e');
+      debugPrint('⚠️ Error duplicando nota: $e');
     }
+  }
+
+  // --- New helper methods for extended context menu actions ---
+
+  Future<void> _togglePinNote(String noteId, bool pin) async {
+    try {
+      await FirestoreService.instance.updateNote(
+        uid: _uid,
+        noteId: noteId,
+        data: {'pinned': pin},
+      );
+      if (mounted) setState(() {
+        final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
+        if (idx != -1) _allNotes[idx]['pinned'] = pin;
+        final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
+        if (idx2 != -1) _notes[idx2]['pinned'] = pin;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(pin ? 'Nota fijada' : 'Nota desfijada'), backgroundColor: AppColors.success));
+    } catch (e) {
+      debugPrint('⚠️ Error toggling pin: $e');
+    }
+  }
+
+  Future<void> _toggleFavoriteNote(String noteId, bool fav) async {
+    try {
+      await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'favorite': fav});
+      if (mounted) setState(() {
+        final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
+        if (idx != -1) _allNotes[idx]['favorite'] = fav;
+        final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
+        if (idx2 != -1) _notes[idx2]['favorite'] = fav;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(fav ? 'Añadido a favoritos' : 'Eliminado de favoritos'), backgroundColor: AppColors.success));
+    } catch (e) {
+      debugPrint('⚠️ Error toggling favorite: $e');
+    }
+  }
+
+  Future<void> _toggleArchiveNote(String noteId, bool archive) async {
+    try {
+      await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'archived': archive});
+      if (mounted) setState(() {
+        final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
+        if (idx != -1) _allNotes[idx]['archived'] = archive;
+        final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
+        if (idx2 != -1) _notes[idx2]['archived'] = archive;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(archive ? 'Nota archivada' : 'Nota desarchivada'), backgroundColor: AppColors.success));
+    } catch (e) {
+      debugPrint('⚠️ Error toggling archive: $e');
+    }
+  }
+
+  Future<void> _showAddTagsDialog(String noteId) async {
+    final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId);
+    final currentTags = List<String>.from((note['tags'] as List?) ?? []);
+    final controller = TextEditingController(text: currentTags.join(', '));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Añadir etiquetas'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'etiqueta1, etiqueta2'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Guardar')),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      final tags = controller.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      try {
+        await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'tags': tags});
+        if (mounted) setState(() {
+          final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
+          if (idx != -1) _allNotes[idx]['tags'] = tags;
+          final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
+          if (idx2 != -1) _notes[idx2]['tags'] = tags;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Etiquetas actualizadas'), backgroundColor: AppColors.success));
+      } catch (e) {
+        debugPrint('⚠️ Error actualizando etiquetas: $e');
+      }
+    }
+  }
+
+  Future<void> _copyNoteLink(String noteId) async {
+    try {
+      // Fallback share link — copiar una referencia local segura
+      final url = '${Uri.base.toString()}#note/$noteId';
+      await Clipboard.setData(ClipboardData(text: url));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enlace copiado'), backgroundColor: AppColors.success));
+    } catch (e) {
+      debugPrint('⚠️ Error copiando enlace: $e');
+    }
+  }
+
+  void _showNoteHistory(String noteId) {
+    // Simple placeholder — open history page or dialog if available
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Historial de la nota'),
+        content: const Text('Historial no disponible en esta versión.'),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar'))],
+      ),
+    );
+  }
+
+  Future<void> _showFolderColorPicker(String folderId) async {
+    final colors = [Colors.blue, Colors.green, Colors.amber, Colors.pink, Colors.purple, Colors.grey];
+    final chosen = await showDialog<Color?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Color de carpeta'),
+        content: Wrap(
+          spacing: 8,
+          children: colors.map((c) => GestureDetector(
+            onTap: () => Navigator.pop(ctx, c),
+            child: Container(width: 36, height: 36, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(6))),
+          )).toList(),
+        ),
+      ),
+    );
+        if (chosen != null) {
+      try {
+        await FirestoreService.instance.updateFolder(uid: _uid, folderId: folderId, data: {'color': chosen.value.toRadixString(16)});
+        if (mounted) setState(() {
+          final idx = _folders.indexWhere((f) => f.id == folderId);
+          if (idx != -1) _folders[idx] = _folders[idx].copyWith(color: chosen);
+        });
+      } catch (e) {
+        debugPrint('⚠️ Error cambiando color de carpeta: $e');
+      }
+    }
+  }
+
+  void _showNoteProperties(String noteId) {
+    final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Propiedades de la nota'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Título: ${note['title'] ?? ''}'),
+            const SizedBox(height: 8),
+            Text('ID: ${noteId}'),
+            const SizedBox(height: 8),
+            Text('Creado: ${note['createdAt'] ?? '—'}'),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar'))],
+      ),
+    );
+  }
+
+  // Minimal insert helpers for editor
+  void _insertMarkdownTable() {
+    final before = _content.text;
+    _content.text = '$before\n| Col1 | Col2 | Col3 |\n|---|---:|:---:|\n|   |   |   |\n';
+    _content.selection = TextSelection.collapsed(offset: _content.text.length);
+  }
+
+  void _insertCodeBlock() {
+    final before = _content.text;
+    _content.text = '$before\n```\n// lenguaje\n```\n';
+    _content.selection = TextSelection.collapsed(offset: _content.text.length - 7);
   }
 
   // Exportar una sola nota
@@ -2045,16 +2131,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                           ),
                         ),
                       )
-                    : GestureDetector(
+                    : EnhancedContextMenuRegion(
                         // Click derecho en área vacía
-                        onSecondaryTapDown: (details) async {
-                          final result = await UnifiedContextMenu.show<ContextMenuActionType>(
-                            context: context,
-                            position: details.globalPosition,
-                            actions: ContextMenuBuilder.workspace(),
-                          );
-                          _handleContextMenuAction(result, context: context);
-                        },
+                        actions: (context) => EnhancedContextMenuBuilder.workspaceMenu(),
+                        onActionSelected: (action) => _handleEnhancedContextMenuAction(
+                          action.value, 
+                          context: context,
+                        ),
                         child: Builder(
                           builder: (context) {
                             // Obtener IDs de notas que están en carpetas
@@ -2083,15 +2166,18 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                 final noteIndex = i - _folders.length;
                                 final note = notesWithoutFolder[noteIndex];
                                 final id = note['id'].toString();
-                                return GestureDetector(
-                                  onSecondaryTapDown: (details) async {
-                                    final result = await UnifiedContextMenu.show<ContextMenuActionType>(
-                                      context: context,
-                                      position: details.globalPosition,
-                                      actions: ContextMenuBuilder.note(isInFolder: false),
-                                    );
-                                    _handleContextMenuAction(result, context: context, noteId: id);
-                                  },
+                                return EnhancedContextMenuRegion(
+                                  actions: (context) => EnhancedContextMenuBuilder.noteMenu(
+                                    isInFolder: false,
+                                    isPinned: note['pinned'] == true,
+                                    isFavorite: note['favorite'] == true,
+                                    isArchived: note['archived'] == true,
+                                  ),
+                                  onActionSelected: (action) => _handleEnhancedContextMenuAction(
+                                    action.value, 
+                                    context: context, 
+                                    noteId: id,
+                                  ),
                                   child: NotesSidebarCard(
                                     note: note,
                                     isSelected: id == _selectedId,

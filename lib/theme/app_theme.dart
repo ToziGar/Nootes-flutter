@@ -1,53 +1,53 @@
 import 'package:flutter/material.dart';
 
-/// Sistema de diseño profesional para Nootes
+/// Sistema de diseño profesional y moderno para Nootes
 class AppColors {
-  // Paleta principal - Indigo moderno
-  static const primary = Color(0xFF6366F1);
-  static const primaryDark = Color(0xFF4F46E5);
-  static const primaryLight = Color(0xFF818CF8);
+  // === PALETA PRINCIPAL RENOVADA ===
+  static const primary = Color(0xFF6C5CE7);        // Púrpura vibrante
+  static const primaryDark = Color(0xFF5A4FCF);    // Púrpura oscuro
+  static const primaryLight = Color(0xFF8B7FF8);   // Púrpura claro
   
-  static const secondary = Color(0xFF8B5CF6);
-  static const accent = Color(0xFF06B6D4);
+  static const secondary = Color(0xFF00CEC9);      // Turquesa moderno
+  static const accent = Color(0xFFFF7675);         // Rosa coral
   
-  // Estados
-  static const success = Color(0xFF10B981);
-  static const warning = Color(0xFFF59E0B);
-  static const danger = Color(0xFFEF4444);
-  static const recording = Color(0xFFEF4444);
+  // === ESTADOS CON COLORES MODERNOS ===
+  static const success = Color(0xFF00B894);        // Verde éxito
+  static const warning = Color(0xFFF39C12);        // Naranja advertencia
+  static const danger = Color(0xFFE74C3C);         // Rojo error
+  static const recording = Color(0xFFE74C3C);      // Grabación
+  static const info = Color(0xFF74B9FF);           // Azul información
   
-  // === TEMA OSCURO ===
-  // Superficies con profundidad
-  static const bg = Color(0xFF0F0F17);
-  static const surface = Color(0xFF1A1A27);
-  static const surfaceLight = Color(0xFF242433);
-  static const surfaceHover = Color(0xFF2E2E3F);
-  static const card = Color(0xFF1E1E2E);
-  static const panel = Color(0xFF1A1A27);
+  // === TEMA OSCURO MEJORADO ===
+  static const bg = Color(0xFF0D1117);             // Negro azulado profundo
+  static const surface = Color(0xFF161B22);        // Superficie principal
+  static const surfaceLight = Color(0xFF21262D);   // Superficie elevada
+  static const surfaceHover = Color(0xFF30363D);   // Hover state
+  static const card = Color(0xFF161B22);           // Cards
+  static const panel = Color(0xFF0D1117);          // Paneles
   
-  // Editor
-  static const editorBg = Color(0xFF15151F);
-  static const previewBg = Color(0xFF1A1A24);
+  // Editor tema oscuro
+  static const editorBg = Color(0xFF0D1117);       // Fondo editor
+  static const previewBg = Color(0xFF161B22);      // Vista previa
   
-  // Texto jerárquico
-  static const textPrimary = Color(0xFFE5E7EB);
-  static const textSecondary = Color(0xFF9CA3AF);
-  static const textMuted = Color(0xFF6B7280);
+  // Texto optimizado
+  static const textPrimary = Color(0xFFF0F6FC);    // Texto principal
+  static const textSecondary = Color(0xFFB1BAC4);  // Texto secundario
+  static const textMuted = Color(0xFF7D8590);      // Texto apagado
   
-  // Elementos
-  static const borderColor = Color(0xFF374151);
-  static const divider = Color(0xFF374151);
-  static const glass = Color.fromRGBO(255, 255, 255, 0.05);
+  // Elementos UI
+  static const borderColor = Color(0xFF30363D);    // Bordes
+  static const divider = Color(0xFF21262D);        // Divisores
+  static const glass = Color.fromRGBO(108, 92, 231, 0.1); // Efecto vidrio
   
-  // === TEMA CLARO ===
-  static const bgLight = Color(0xFFFAFAFA);
-  static const surfaceLight2 = Color(0xFFFFFFFF);
-  static const surfaceLight3 = Color(0xFFF5F5F5);
-  static const surfaceHoverLight = Color(0xFFF0F0F0);
-  static const cardLight = Color(0xFFFFFFFF);
-  static const panelLight = Color(0xFFF8F9FA);
+  // === TEMA CLARO RENOVADO ===
+  static const bgLight = Color(0xFFFAFBFC);        // Fondo principal claro
+  static const surfaceLight2 = Color(0xFFFFFFFF);  // Superficie blanca
+  static const surfaceLight3 = Color(0xFFF8F9FA);  // Superficie gris claro
+  static const surfaceHoverLight = Color(0xFFF1F3F4); // Hover claro
+  static const cardLight = Color(0xFFFFFFFF);      // Cards claros
+  static const panelLight = Color(0xFFFAFBFC);     // Paneles claros
   
-  static const editorBgLight = Color(0xFFFFFFFF);
+  static const editorBgLight = Color(0xFFFAFBFC);  // Editor claro
   static const previewBgLight = Color(0xFFFAFAFA);
   
   static const textPrimaryLight = Color(0xFF1F2937);

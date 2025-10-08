@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Servicio para persistir preferencias y estado de la aplicación
@@ -14,6 +15,8 @@ class PreferencesService {
   static const _keyRecentSearches = 'workspace_recent_searches';
   static const _keyCompactMode = 'workspace_compact_mode';
   static const _keyNoteCache = 'workspace_note_cache_';
+  static const _keyThemeMode = 'app_theme_mode';
+  static const _keyLocale = 'app_locale';
   
   // Carpeta seleccionada
   static Future<String?> getSelectedFolder() async {
@@ -183,5 +186,84 @@ class PreferencesService {
   // Limpiar todas las preferencias
   static Future<void> clearAll() async {
     await _storage.deleteAll();
+  }
+  
+  // ==================== TEMA E IDIOMA ====================
+  
+  /// Obtiene el modo de tema guardado (light, dark, system)
+  static Future<ThemeMode> getThemeMode() async {
+    final String? themeModeString = await _storage.read(key: _keyThemeMode);
+    
+    switch (themeModeString) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      case 'system':
+      default:
+        return ThemeMode.system;
+    }
+  }
+  
+  /// Guarda el modo de tema
+  static Future<void> setThemeMode(ThemeMode themeMode) async {
+    String themeModeString;
+    
+    switch (themeMode) {
+      case ThemeMode.light:
+        themeModeString = 'light';
+        break;
+      case ThemeMode.dark:
+        themeModeString = 'dark';
+        break;
+      case ThemeMode.system:
+        themeModeString = 'system';
+        break;
+    }
+    
+    await _storage.write(key: _keyThemeMode, value: themeModeString);
+  }
+  
+  /// Obtiene el idioma guardado
+  static Future<Locale> getLocale() async {
+    final String? localeString = await _storage.read(key: _keyLocale);
+    
+    switch (localeString) {
+      case 'en':
+        return const Locale('en', '');
+      case 'es':
+      default:
+        return const Locale('es', '');
+    }
+  }
+  
+  /// Guarda el idioma
+  static Future<void> setLocale(Locale locale) async {
+    await _storage.write(key: _keyLocale, value: locale.languageCode);
+  }
+  
+  /// Obtiene el modo de tema como string para la UI
+  static Future<String> getThemeModeString() async {
+    final themeMode = await getThemeMode();
+    switch (themeMode) {
+      case ThemeMode.light:
+        return 'Claro';
+      case ThemeMode.dark:
+        return 'Oscuro';
+      case ThemeMode.system:
+        return 'Sistema';
+    }
+  }
+  
+  /// Obtiene el idioma como string para la UI
+  static Future<String> getLanguageString() async {
+    final locale = await getLocale();
+    switch (locale.languageCode) {
+      case 'en':
+        return 'English';
+      case 'es':
+      default:
+        return 'Español';
+    }
   }
 }
