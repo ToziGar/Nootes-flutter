@@ -259,13 +259,25 @@ class WorkspaceHeader extends StatelessWidget {
           // Logo/Title
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(AppColors.space8),
-                decoration: BoxDecoration(
-                  gradient: AppTheme.gradientPrimary,
-                  borderRadius: BorderRadius.circular(AppColors.radiusSm),
+              // Logo
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                child: Image.asset(
+                  'LOGO.webp',
+                  width: 36,
+                  height: 36,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      padding: const EdgeInsets.all(AppColors.space8),
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.gradientPrimary,
+                        borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                      ),
+                      child: const Icon(Icons.edit_note_rounded, color: Colors.white, size: 20),
+                    );
+                  },
                 ),
-                child: const Icon(Icons.edit_note_rounded, color: Colors.white, size: 20),
               ),
               const SizedBox(width: AppColors.space12),
               Text(

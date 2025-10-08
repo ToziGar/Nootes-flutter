@@ -28,10 +28,11 @@ class FoldersPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
         // Header con botón mejorado
         Padding(
-          padding: const EdgeInsets.all(AppColors.space12),
+          padding: const EdgeInsets.all(AppColors.space8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -72,10 +73,13 @@ class FoldersPanel extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: AppColors.space8),
+              const SizedBox(height: AppColors.space4),
               // Hint de drag & drop
               Container(
-                padding: const EdgeInsets.all(AppColors.space8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppColors.space8,
+                  vertical: AppColors.space4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.accent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppColors.radiusSm),
@@ -83,13 +87,13 @@ class FoldersPanel extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.touch_app_rounded, size: 14, color: AppColors.accent),
-                    const SizedBox(width: AppColors.space8),
+                    const Icon(Icons.touch_app_rounded, size: 12, color: AppColors.accent),
+                    const SizedBox(width: AppColors.space4),
                     const Expanded(
                       child: Text(
                         'Mantén presionada una nota para arrastrarla',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: AppColors.textSecondary,
                         ),
                       ),

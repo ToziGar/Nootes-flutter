@@ -1158,18 +1158,17 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
               ),
             ),
           
-          // Panel de carpetas
-          if (_folders.isNotEmpty)
-            Container(
-              constraints: const BoxConstraints(maxHeight: 200),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
-              ),
-              child: FoldersPanel(
-                folders: _folders,
-                selectedFolderId: _selectedFolderId,
-                onFolderSelected: _onFolderSelected,
-                onFolderCreated: (folder) async {
+          // Panel de carpetas (siempre visible para poder crear carpetas)
+          Container(
+            constraints: const BoxConstraints(maxHeight: 200),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
+            ),
+            child: FoldersPanel(
+              folders: _folders,
+              selectedFolderId: _selectedFolderId,
+              onFolderSelected: _onFolderSelected,
+              onFolderCreated: (folder) async {
                   try {
                     await FirestoreService.instance.createFolder(
                       uid: _uid,
