@@ -248,7 +248,7 @@ class AutoCompleteService {
   /// Registra una nueva palabra del usuario
   Future<void> addUserWord(String word) async {
     if (word.length < 3) return;
-    
+
     final cleanWord = word.toLowerCase().trim();
     if (!_userWords.contains(cleanWord)) {
       _userWords.add(cleanWord);

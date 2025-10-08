@@ -191,6 +191,11 @@ class BracketMatchingService {
     return null;
   }
 
+  /// Optional initialize hook for editor compatibility (no-op)
+  /// Some editor components call `initialize(controller)` on services.
+  /// Keep this here to avoid breaking callers; it can be expanded later.
+  void initialize([TextEditingController? controller]) {}
+
   /// Encuentra el bracket de cierre correspondiente
   int _findClosingBracket(String text, int startPos, String openChar, String closeChar) {
     int count = 1;

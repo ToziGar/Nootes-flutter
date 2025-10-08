@@ -15,8 +15,11 @@ import 'notes/tasks_page.dart';
 import 'notes/export_page.dart';
 import 'notes/interactive_graph_page.dart';
 import 'notes/advanced_search_page.dart';
+import 'pages/toast_demo_page.dart';
+import 'pages/shared_notes_page.dart';
 import 'services/preferences_service.dart';
 import 'services/app_service.dart';
+import 'services/toast_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -93,32 +96,36 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Nootes',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: _themeMode,
-      locale: _locale,
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('en', ''), // Inglés
-        Locale('es', ''), // Español
-      ],
-      routes: {
-        '/login': (_) => const LoginPage(),
-        '/register': (_) => const RegisterPage(),
-        '/forgot': (_) => const ForgotPasswordPage(),
-        '/home': (_) => const HomePage(),
-        '/tasks': (_) => const TasksPage(),
-        '/export': (_) => const ExportPage(),
-        '/graph': (_) => const InteractiveGraphPage(),
-        '/advanced-search': (_) => const AdvancedSearchPage(),
-      },
-      home: widget.initError == null ? const AuthGate() : SetupHelpPage(error: widget.initError!),
+    return ToastProvider(
+      child: MaterialApp(
+        title: 'Nootes',
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: _themeMode,
+        locale: _locale,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en', ''), // Inglés
+          Locale('es', ''), // Español
+        ],
+        routes: {
+          '/login': (_) => const LoginPage(),
+          '/register': (_) => const RegisterPage(),
+          '/forgot': (_) => const ForgotPasswordPage(),
+          '/home': (_) => const HomePage(),
+          '/tasks': (_) => const TasksPage(),
+          '/export': (_) => const ExportPage(),
+          '/graph': (_) => const InteractiveGraphPage(),
+          '/advanced-search': (_) => const AdvancedSearchPage(),
+          '/shared-notes': (_) => const SharedNotesPage(),
+          '/toast-demo': (_) => const ToastDemoPage(),
+        },
+        home: widget.initError == null ? const AuthGate() : SetupHelpPage(error: widget.initError!),
+      ),
     );
   }
 }

@@ -4,6 +4,7 @@ import '../widgets/glass.dart';
 import '../widgets/tag_input.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/toast_service.dart';
 import '../editor/markdown_editor.dart';
 import '../services/storage_service.dart';
 import '../widgets/advanced_editor.dart';
@@ -139,11 +140,11 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     try {
       final url = await StorageService.pickAndUploadImage(uid: _uid);
       if (url == null) return null;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Imagen subida')));
+      ToastService.success('Imagen subida');
       return url;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo subir la imagen: $e')));
+        ToastService.error('No se pudo subir la imagen: $e');
       }
       return null;
     }
@@ -403,6 +404,81 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                                 if (v == null || v.isEmpty) return;
                                 await _addLink(v);
                               },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Quick create link button — abre un diálogo de búsqueda
+                          SizedBox(
+                            height: 56,
+                            child: FilledButton.icon(
+                              onPressed: _otherNotes.isEmpty
+                                  ? null
+                                  : () async {
+                                      final selected = await showDialog<String?>(
+                                        context: context,
+                                        builder: (context) {
+                                          List<Map<String, dynamic>> results = List.from(_otherNotes);
+                                          return StatefulBuilder(builder: (context, setState) {
+                                            void doFilter(String q) {
+                                              final qq = q.trim().toLowerCase();
+                                              setState(() {
+                                                results = _otherNotes
+                                                    .where((n) {
+                                                      final title = (n['title']?.toString() ?? '').toLowerCase();
+                                                      final id = n['id'].toString().toLowerCase();
+                                                      return title.contains(qq) || id.contains(qq);
+                                                    })
+                                                    .toList();
+                                              });
+                                            }
+
+                                            return AlertDialog(
+                                              title: const Text('Crear enlace a...'),
+                                              content: SizedBox(
+                                                width: 480,
+                                                height: 380,
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                                  children: [
+                                                    TextField(
+                                                      decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Buscar nota por título o id'),
+                                                      onChanged: doFilter,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Expanded(
+                                                      child: results.isEmpty
+                                                          ? const Center(child: Text('No hay notas que coincidan'))
+                                                          : ListView.separated(
+                                                              itemCount: results.length,
+                                                              separatorBuilder: (_, __) => const Divider(height: 1),
+                                                              itemBuilder: (context, i) {
+                                                                final n = results[i];
+                                                                final id = n['id'].toString();
+                                                                final title = (n['title']?.toString() ?? 'Sin título');
+                                                                return ListTile(
+                                                                  title: Text(title),
+                                                                  subtitle: Text(_shortId(id)),
+                                                                  onTap: () => Navigator.pop(context, id),
+                                                                );
+                                                              },
+                                                            ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              actions: [
+                                                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+                                              ],
+                                            );
+                                          });
+                                        },
+                                      );
+                                      if (selected != null && selected.isNotEmpty) {
+                                        await _addLink(selected);
+                                      }
+                                    },
+                              icon: const Icon(Icons.add_link_rounded),
+                              label: const Text('Crear enlace'),
                             ),
                           ),
                         ],

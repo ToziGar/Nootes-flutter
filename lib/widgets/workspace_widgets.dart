@@ -73,15 +73,6 @@ class NotesSidebarCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          if (compact && isPinned)
-                            Padding(
-                              padding: const EdgeInsets.only(right: AppColors.space4),
-                              child: Icon(
-                                Icons.push_pin_rounded,
-                                size: 12,
-                                color: AppColors.warning,
-                              ),
-                            ),
                           Expanded(
                             child: Text(
                               title,
@@ -395,6 +386,8 @@ class WorkspaceHeader extends StatelessWidget {
                 Navigator.of(context).pushNamed('/tasks');
               } else if (value == 'export') {
                 Navigator.of(context).pushNamed('/export');
+              } else if (value == 'shared') {
+                Navigator.of(context).pushNamed('/shared-notes');
               } else if (value == 'settings' && onSettings != null) {
                 onSettings!();
               }
@@ -420,13 +413,13 @@ class WorkspaceHeader extends StatelessWidget {
                 value: 'graph',
                 child: Row(
                   children: [
-                    Icon(Icons.hub_rounded, size: 18),
+                    Icon(Icons.psychology_rounded, size: 18, color: Color(0xFF8B5CF6)),
                     SizedBox(width: 12),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Mapa Mental', style: TextStyle(fontWeight: FontWeight.w500)),
-                        Text('Vista de grafo interactivo', style: TextStyle(fontSize: 11, color: Colors.white60)),
+                        Text('🧠 Mapa Mental IA', style: TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF8B5CF6))),
+                        Text('Grafo inteligente con conexiones IA', style: TextStyle(fontSize: 11, color: Colors.white60)),
                       ],
                     ),
                   ],
@@ -451,6 +444,16 @@ class WorkspaceHeader extends StatelessWidget {
                   leading: Icon(Icons.file_download_rounded, color: Color(0xFF3B82F6)),
                   title: Text('Exportar'),
                   subtitle: Text('Guardar tus notas', style: TextStyle(fontSize: 11)),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'shared',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.share_rounded, color: Color(0xFFFF8A65)),
+                  title: Text('Notas Compartidas'),
+                  subtitle: Text('Ver contenido compartido', style: TextStyle(fontSize: 11)),
                 ),
               ),
               const PopupMenuDivider(),
@@ -487,7 +490,7 @@ class EmptyNotesState extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppColors.space32),
             decoration: BoxDecoration(
-              gradient: AppTheme.gradientPrimary,
+              color: AppColors.primary,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.note_add_rounded, size: 48, color: Colors.white),

@@ -70,6 +70,11 @@ abstract class FirestoreService {
   Future<void> updateNoteLinks({required String uid, required String noteId, required List<String> linkedNoteIds});
   Future<void> moveNoteToCollection({required String uid, required String noteId, String? collectionId});
   Future<List<Map<String, String>>> listEdges({required String uid});
+  // Edge documents with metadata (new): stored under users/{uid}/edges
+  Future<List<Map<String, dynamic>>> listEdgeDocs({required String uid});
+  Future<String> createEdgeDoc({required String uid, required Map<String, dynamic> data});
+  Future<void> updateEdgeDoc({required String uid, required String edgeId, required Map<String, dynamic> data});
+  Future<void> deleteEdgeDoc({required String uid, required String edgeId});
   
   // Folders (users/{uid}/folders)
   Future<List<Map<String, dynamic>>> listFolders({required String uid});
@@ -356,6 +361,30 @@ class _FirebaseFirestoreService implements FirestoreService {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> listEdgeDocs({required String uid}) async {
+    final q = await _db.collection('users').doc(uid).collection('edges').orderBy('createdAt', descending: true).get();
+    return q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+  }
+
+  @override
+  Future<String> createEdgeDoc({required String uid, required Map<String, dynamic> data}) async {
+    final col = _db.collection('users').doc(uid).collection('edges');
+    final now = fs.FieldValue.serverTimestamp();
+    final ref = await col.add({...data, 'createdAt': now, 'updatedAt': now});
+    return ref.id;
+  }
+
+  @override
+  Future<void> updateEdgeDoc({required String uid, required String edgeId, required Map<String, dynamic> data}) async {
+    await _db.collection('users').doc(uid).collection('edges').doc(edgeId).set({...data, 'updatedAt': fs.FieldValue.serverTimestamp()}, fs.SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> deleteEdgeDoc({required String uid, required String edgeId}) async {
+    await _db.collection('users').doc(uid).collection('edges').doc(edgeId).delete();
+  }
+
+  @override
   Future<Map<String, dynamic>?> getNote({required String uid, required String noteId}) async {
     final d = await _db.collection('users').doc(uid).collection('notes').doc(noteId).get();
     if (!d.exists) return null;
@@ -391,7 +420,12 @@ class _FirebaseFirestoreService implements FirestoreService {
   @override
   Future<List<Map<String, dynamic>>> listFolders({required String uid}) async {
     final snap = await _db.collection('users').doc(uid).collection('folders').orderBy('order').get();
-    return snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    return snap.docs.map((d) => {
+      'id': d.id,           // Document ID (para eliminar)
+      'docId': d.id,        // Document ID explícito  
+      'folderId': d.data()['id'] ?? d.id, // ID de la carpeta (puede ser diferente)
+      ...d.data()
+    }).toList();
   }
   
   @override
@@ -1023,5 +1057,66 @@ class _RestFirestoreService implements FirestoreService {
     final noteIds = List<String>.from((folder['noteIds'] as List?)?.cast<String>() ?? []);
     noteIds.remove(noteId);
     await updateFolder(uid: uid, folderId: folderId, data: {'noteIds': noteIds});
+  }
+  
+  // Edge documents - REST API implementation
+  @override
+  Future<List<Map<String, dynamic>>> listEdgeDocs({required String uid}) async {
+    final headers = await _authHeader();
+    final url = '$_base/users/$uid/edges?orderBy=createdAt';
+    final resp = await http.get(Uri.parse(url), headers: headers);
+    if (resp.statusCode != 200) return [];
+    final data = jsonDecode(resp.body) as Map<String, dynamic>;
+    final docs = (data['documents'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    return docs.map((d) {
+      final id = (d['name'] as String).split('/').last;
+      final fields = _decodeFields(d['fields'] as Map<String, dynamic>?);
+      return {'id': id, ...fields};
+    }).toList();
+  }
+
+  @override
+  Future<String> createEdgeDoc({required String uid, required Map<String, dynamic> data}) async {
+    final headers = await _authHeader();
+    final url = '$_base/users/$uid/edges';
+    final now = DateTime.now().toUtc();
+    final fields = <String, dynamic>{};
+    data.forEach((k, v) => fields[k] = _encodeValue(v));
+    fields['createdAt'] = _encodeValue(now);
+    fields['updatedAt'] = _encodeValue(now);
+    final payload = {'fields': fields};
+    final resp = await http.post(Uri.parse(url), headers: headers, body: jsonEncode(payload));
+    if (resp.statusCode != 200) throw Exception('Failed to create edge doc');
+    final respData = jsonDecode(resp.body) as Map<String, dynamic>;
+    final id = (respData['name'] as String).split('/').last;
+    return id;
+  }
+
+  @override
+  Future<void> updateEdgeDoc({required String uid, required String edgeId, required Map<String, dynamic> data}) async {
+    final headers = await _authHeader();
+    final url = '$_base/users/$uid/edges/$edgeId';
+    final now = DateTime.now().toUtc();
+    final fields = <String, dynamic>{};
+    for (final entry in data.entries) {
+      fields[entry.key] = _encodeValue(entry.value);
+    }
+    fields['updatedAt'] = _encodeValue(now);
+    
+    final updateMask = [...data.keys, 'updatedAt'];
+    final qs = updateMask.map((f) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(f)}').join('&');
+    final urlWithMask = '$url?$qs';
+    
+    final payload = {'fields': fields};
+    final resp = await http.patch(Uri.parse(urlWithMask), headers: headers, body: jsonEncode(payload));
+    if (resp.statusCode != 200) throw Exception('Failed to update edge doc');
+  }
+
+  @override
+  Future<void> deleteEdgeDoc({required String uid, required String edgeId}) async {
+    final headers = await _authHeader();
+    final url = '$_base/users/$uid/edges/$edgeId';
+    final resp = await http.delete(Uri.parse(url), headers: headers);
+    if (resp.statusCode != 200) throw Exception('Failed to delete edge doc');
   }
 }

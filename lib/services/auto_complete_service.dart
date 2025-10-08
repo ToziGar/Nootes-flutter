@@ -39,8 +39,22 @@ class AutoCompleteService {
   }
 
   /// Añade una palabra del usuario
-  void addUserWord(AutoCompleteSuggestion suggestion) {
-    // Implementar
+  void addUserWord(dynamic suggestion) {
+    // Accept either an AutoCompleteSuggestion or a plain String
+    String? word;
+    if (suggestion == null) return;
+    if (suggestion is AutoCompleteSuggestion) {
+      word = suggestion.text;
+    } else if (suggestion is String) {
+      word = suggestion;
+    }
+
+    if (word == null) return;
+
+    // Currently this simple implementation delegates to the other AutoCompleteService
+    // if present (there is a richer autocomplete service in another file). For now
+    // just print or store locally if needed.
+    // TODO: Integrate with user-word persistence.
   }
 }
 

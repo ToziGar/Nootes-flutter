@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/export_import_service.dart';
+import '../services/toast_service.dart';
 import '../editor/markdown_editor_with_links.dart';
 import '../editor/rich_text_editor.dart';
 import '../widgets/tag_input.dart';
@@ -23,6 +24,8 @@ import '../widgets/workspace_stats.dart';
 import '../widgets/unified_fab_menu.dart';
 import '../services/preferences_service.dart';
 import '../services/keyboard_shortcuts_service.dart';
+import '../services/sharing_service.dart';
+import '../widgets/share_dialog.dart';
 import 'folder_model.dart';
 import 'folder_dialog.dart';
 import 'template_picker_dialog.dart';
@@ -145,17 +148,22 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       debugPrint('📁 Carpetas cargadas: ${foldersData.length}');
       if (!mounted) return;
       
-      // Eliminar duplicados por ID
+      // Eliminar duplicados por ID lógico de carpeta
       final seen = <String>{};
       final uniqueFolders = <Folder>[];
       
       for (var data in foldersData) {
-        final folder = Folder.fromJson(data);
-        if (!seen.contains(folder.id)) {
-          seen.add(folder.id);
+        // Usar folderId si existe, sino usar id
+        final logicalId = data['folderId']?.toString() ?? data['id'].toString();
+        if (!seen.contains(logicalId)) {
+          seen.add(logicalId);
+          // Crear folder usando el ID lógico
+          final folderData = Map<String, dynamic>.from(data);
+          folderData['id'] = logicalId; // Usar el ID lógico
+          final folder = Folder.fromJson(folderData);
           uniqueFolders.add(folder);
         } else {
-          debugPrint('⚠️ Carpeta duplicada ignorada: ${folder.name} (${folder.id})');
+          debugPrint('⚠️ Carpeta duplicada ignorada: ${data['name']} ($logicalId)');
         }
       }
       
@@ -169,6 +177,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       
       // 🧹 LIMPIEZA AUTOMÁTICA: Verificar y limpiar referencias a notas inexistentes
       await _cleanOrphanedNoteReferences();
+      
+      // 🧹 LIMPIEZA ADICIONAL: Eliminar carpetas duplicadas en Firestore
+      await _cleanDuplicateFoldersInFirestore();
     } catch (e) {
       debugPrint('❌ Error loading folders: $e');
       if (!mounted) return;
@@ -219,6 +230,118 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       }
     } catch (e) {
       debugPrint('⚠️ Error al limpiar referencias huérfanas: $e');
+    }
+  }
+
+  /// Verifica la integridad de las carpetas después de operaciones críticas
+  Future<void> _verifyFolderIntegrity(String deletedFolderId) async {
+    try {
+      debugPrint('🔍 Verificando integridad de carpetas...');
+      
+      // Obtener carpetas desde Firestore para comparar
+      final remoteFolders = await FirestoreService.instance.listFolders(uid: _uid);
+      final remoteFolderIds = remoteFolders.map((f) => f['id'].toString()).toSet();
+      
+      // Verificar que la carpeta eliminada NO está en Firestore
+      if (remoteFolderIds.contains(deletedFolderId)) {
+        debugPrint('❌ ERROR: La carpeta $deletedFolderId todavía existe en Firestore');
+        throw Exception('La carpeta no se eliminó correctamente de Firestore');
+      }
+      
+      // Verificar que el estado local coincide con Firestore
+      final localFolderIds = _folders.map((f) => f.id).toSet();
+      final phantomFolders = localFolderIds.difference(remoteFolderIds);
+      
+      if (phantomFolders.isNotEmpty) {
+        debugPrint('👻 Carpetas fantasma detectadas en estado local: $phantomFolders');
+        // Limpiar carpetas fantasma del estado local
+        setState(() {
+          _folders.removeWhere((f) => phantomFolders.contains(f.id));
+        });
+        debugPrint('✅ Carpetas fantasma eliminadas del estado local');
+      }
+      
+      debugPrint('✅ Verificación de integridad completada');
+    } catch (e) {
+      debugPrint('⚠️ Error en verificación de integridad: $e');
+      // En caso de error, forzar recarga completa
+      await _loadFolders();
+    }
+  }
+
+  /// Limpia carpetas duplicadas directamente en Firestore
+  Future<void> _cleanDuplicateFoldersInFirestore() async {
+    try {
+      debugPrint('🧹 Iniciando limpieza automática de duplicados...');
+      
+      final foldersData = await FirestoreService.instance.listFolders(uid: _uid);
+      
+      // Agrupar por folderId (el ID lógico de la carpeta)
+      final folderGroups = <String, List<Map<String, dynamic>>>{};
+      for (var data in foldersData) {
+        final folderId = (data['folderId'] ?? data['id']).toString();
+        if (!folderGroups.containsKey(folderId)) {
+          folderGroups[folderId] = [];
+        }
+        folderGroups[folderId]!.add(data);
+      }
+      
+      // Eliminar duplicados automáticamente
+      int deletedCount = 0;
+      for (var entry in folderGroups.entries) {
+        final folderId = entry.key;
+        final documents = entry.value;
+        
+        if (documents.length > 1) {
+          debugPrint('📁 Eliminando ${documents.length - 1} duplicados de carpeta $folderId');
+          
+          // Mantener solo el primer documento (más reciente)
+          documents.sort((a, b) {
+            final aDate = a['updatedAt']?.toDate() ?? DateTime.now();
+            final bDate = b['updatedAt']?.toDate() ?? DateTime.now();
+            return bDate.compareTo(aDate); // Más reciente primero
+          });
+          
+          // Eliminar todos excepto el primero
+          for (int i = 1; i < documents.length; i++) {
+            final docId = documents[i]['docId'] ?? documents[i]['id'];
+            try {
+              await FirestoreService.instance.deleteFolder(
+                uid: _uid,
+                folderId: docId.toString(),
+              );
+              deletedCount++;
+              debugPrint('✅ Duplicado eliminado: $docId');
+            } catch (e) {
+              debugPrint('❌ Error eliminando duplicado $docId: $e');
+            }
+          }
+        }
+      }
+      
+      if (deletedCount > 0) {
+        debugPrint('🎉 Limpieza automática completada: $deletedCount duplicados eliminados');
+        
+        // Esperar para que Firestore se sincronice
+        await Future.delayed(const Duration(milliseconds: 1500));
+        
+        // Forzar recarga después de limpiar duplicados
+        await _loadFolders();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('🧹 Limpieza automática: $deletedCount duplicados eliminados'),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        debugPrint('✅ No se detectaron duplicados para eliminar');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error en limpieza automática: $e');
     }
   }
 
@@ -785,11 +908,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     } else {
       final path = await AudioService.startRecording();
       if (path == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No permission to record audio')));
+        ToastService.error('No permission to record audio');
         return;
       }
       setState(() => _isRecording = true);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Grabando... pulsa otra vez para detener')));
+      ToastService.info('Grabando... pulsa otra vez para detener');
     }
   }
 
@@ -1094,6 +1217,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       case ContextMenuActionType.exportNote:
         if (noteId != null) await _exportSingleNote(noteId);
         break;
+      case ContextMenuActionType.shareNote:
+        if (noteId != null) await _shareNote(noteId);
+        break;
       case ContextMenuActionType.removeFromFolder:
         if (noteId != null && folderId != null) {
           await FirestoreService.instance.removeNoteFromFolder(
@@ -1130,6 +1256,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           final folder = _folders.firstWhere((f) => f.id == folderId);
           await _confirmDeleteFolder(folder);
         }
+        break;
+      case ContextMenuActionType.shareFolder:
+        if (folderId != null) await _shareFolder(folderId);
         break;
       case ContextMenuActionType.openDashboard:
         _openDashboard();
@@ -1311,7 +1440,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
         if (idx2 != -1) _notes[idx2]['pinned'] = pin;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(pin ? 'Nota fijada' : 'Nota desfijada'), backgroundColor: AppColors.success));
+      ToastService.success(pin ? 'Nota fijada' : 'Nota desfijada');
     } catch (e) {
       debugPrint('⚠️ Error toggling pin: $e');
     }
@@ -1326,7 +1455,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
         if (idx2 != -1) _notes[idx2]['favorite'] = fav;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(fav ? 'Añadido a favoritos' : 'Eliminado de favoritos'), backgroundColor: AppColors.success));
+      ToastService.success(fav ? 'Añadido a favoritos' : 'Eliminado de favoritos');
     } catch (e) {
       debugPrint('⚠️ Error toggling favorite: $e');
     }
@@ -1341,7 +1470,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
         if (idx2 != -1) _notes[idx2]['archived'] = archive;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(archive ? 'Nota archivada' : 'Nota desarchivada'), backgroundColor: AppColors.success));
+      ToastService.success(archive ? 'Nota archivada' : 'Nota desarchivada');
     } catch (e) {
       debugPrint('⚠️ Error toggling archive: $e');
     }
@@ -1375,7 +1504,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
           if (idx2 != -1) _notes[idx2]['tags'] = tags;
         });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Etiquetas actualizadas'), backgroundColor: AppColors.success));
+        ToastService.success('Etiquetas actualizadas');
       } catch (e) {
         debugPrint('⚠️ Error actualizando etiquetas: $e');
       }
@@ -1387,7 +1516,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       // Fallback share link — copiar una referencia local segura
       final url = '${Uri.base.toString()}#note/$noteId';
       await Clipboard.setData(ClipboardData(text: url));
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enlace copiado'), backgroundColor: AppColors.success));
+      if (mounted) ToastService.success('Enlace copiado');
     } catch (e) {
       debugPrint('⚠️ Error copiando enlace: $e');
     }
@@ -1489,6 +1618,63 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     }
   }
 
+  // Compartir una nota
+  Future<void> _shareNote(String noteId) async {
+    try {
+      final notes = await FirestoreService.instance.listNotes(uid: _uid);
+      final note = notes.firstWhere((n) => n['id'].toString() == noteId);
+      
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => ShareDialog(
+            itemId: noteId,
+            itemType: SharedItemType.note,
+            itemTitle: note['title']?.toString() ?? 'Sin título',
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error compartiendo nota: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al compartir: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  // Compartir una carpeta
+  Future<void> _shareFolder(String folderId) async {
+    try {
+      final folder = _folders.firstWhere((f) => f.id == folderId);
+      
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => ShareDialog(
+            itemId: folderId,
+            itemType: SharedItemType.folder,
+            itemTitle: folder.name,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error compartiendo carpeta: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al compartir carpeta: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
   // Confirmar eliminación de carpeta
   Future<void> _confirmDeleteFolder(Folder folder) async {
     final confirmed = await showDialog<bool>(
@@ -1525,7 +1711,19 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         );
         debugPrint('✅ Carpeta eliminada de Firestore');
         
-        // 2. Actualizar estado local inmediatamente (UI optimista)
+        // 2. Verificar que realmente se eliminó
+        await Future.delayed(const Duration(milliseconds: 500));
+        final deletedFolder = await FirestoreService.instance.getFolder(
+          uid: _uid, 
+          folderId: folder.id,
+        );
+        
+        if (deletedFolder != null) {
+          throw Exception('La carpeta no se eliminó correctamente de Firestore');
+        }
+        debugPrint('✅ Verificación: Carpeta realmente eliminada de Firestore');
+        
+        // 3. Actualizar estado local inmediatamente (UI optimista)
         setState(() {
           _folders.removeWhere((f) => f.id == folder.id);
           _expandedFolders.remove(folder.id);
@@ -1538,8 +1736,14 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         // 3. Esperar un poco para que Firestore propague el cambio
         await Future.delayed(const Duration(milliseconds: 300));
         
-        // 4. NO recargar carpetas inmediatamente - solo actualizar notas
+        // 4. Verificar integridad y hacer limpieza final
+        await _verifyFolderIntegrity(folder.id);
+        
+        // 5. Recargar carpetas Y notas para sincronizar con Firestore
+        await _loadFolders();
         await _loadNotes();
+        
+        debugPrint('✅ Eliminación y verificación completa');
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

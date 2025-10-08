@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/notification_service.dart';
+import '../services/toast_service.dart';
 import '../theme/app_theme.dart';
 
 /// Widget para programar recordatorios para una nota
@@ -261,21 +262,11 @@ class _ReminderDialogState extends State<ReminderDialog> {
       
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✓ Recordatorio programado'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        ToastService.success('✓ Recordatorio programado');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al programar recordatorio: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
+        ToastService.error('Error al programar recordatorio: $e');
       }
     }
   }

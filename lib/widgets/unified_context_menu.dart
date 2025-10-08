@@ -142,6 +142,7 @@ enum ContextMenuActionType {
   editFolder,
   deleteFolder,
   exportFolder,
+  shareFolder,
   colorFolder,
   
   // Acciones de plantilla
@@ -245,6 +246,11 @@ class ContextMenuBuilder {
         value: ContextMenuActionType.exportNote,
       ),
       ContextMenuAction(
+        label: 'Compartir',
+        icon: Icons.share_rounded,
+        value: ContextMenuActionType.shareNote,
+      ),
+      ContextMenuAction(
         label: 'Copiar enlace',
         icon: Icons.link_rounded,
         value: ContextMenuActionType.copyNoteLink,
@@ -288,6 +294,11 @@ class ContextMenuBuilder {
         label: 'Exportar carpeta',
         icon: Icons.download_rounded,
         value: ContextMenuActionType.exportFolder,
+      ),
+      ContextMenuAction(
+        label: 'Compartir carpeta',
+        icon: Icons.share_rounded,
+        value: ContextMenuActionType.shareFolder,
       ),
       ContextMenuAction.divider,
       ContextMenuAction(
