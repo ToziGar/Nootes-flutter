@@ -7,6 +7,7 @@ import 'note_editor_page.dart';
 import 'collections_page.dart';
 import 'graph_page.dart';
 import 'trash_page.dart';
+import '../widgets/expandable_fab.dart';
 
 class NotesPage extends StatefulWidget {
   const NotesPage({super.key});
@@ -139,10 +140,28 @@ class _NotesPageState extends State<NotesPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _loading ? null : _createNote,
-        icon: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.note_add_rounded),
-        label: const Text('Nueva nota'),
+      floatingActionButton: ExpandableFab(
+        actions: [
+          FloatingActionButton.small(
+            onPressed: _loading ? null : _createNote,
+            tooltip: 'Nueva nota',
+            child: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.note_add_rounded),
+          ),
+          FloatingActionButton.small(
+            onPressed: () async {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Agregar imagen (pendiente)')));
+            },
+            tooltip: 'Imagen',
+            child: const Icon(Icons.photo_camera),
+          ),
+          FloatingActionButton.small(
+            onPressed: () async {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Grabar audio (pendiente)')));
+            },
+            tooltip: 'Audio',
+            child: const Icon(Icons.mic_rounded),
+          ),
+        ],
       ),
       body: GlassBackground(
         child: SafeArea(
