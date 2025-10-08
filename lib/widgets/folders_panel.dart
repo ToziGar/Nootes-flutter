@@ -26,16 +26,17 @@ class FoldersPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Header con botón mejorado
-        Padding(
-          padding: const EdgeInsets.all(AppColors.space8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header con botón mejorado
+          Padding(
+            padding: const EdgeInsets.all(AppColors.space8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               Row(
                 children: [
                   Container(
@@ -116,61 +117,50 @@ class FoldersPanel extends StatelessWidget {
         const Divider(color: AppColors.borderColor, height: 1),
         
         // Folders list
-        Expanded(
-          child: folders.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppColors.space24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.folder_open_rounded,
-                          size: 48,
-                          color: AppColors.textMuted,
-                        ),
-                        const SizedBox(height: AppColors.space12),
-                        Text(
-                          'No hay carpetas',
-                          style: TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: AppColors.space8),
-                        Text(
-                          'Crea una carpeta para organizar tus notas',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : ReorderableListView.builder(
-                  padding: const EdgeInsets.only(bottom: AppColors.space16),
-                  itemCount: folders.length,
-                  onReorder: (oldIndex, newIndex) {
-                    // TODO: Implementar reordenamiento
-                  },
-                  itemBuilder: (context, index) {
-                    final folder = folders[index];
-                    return _buildFolderTile(
-                      key: ValueKey(folder.id),
-                      context: context,
-                      folder: folder,
-                      isSelected: folder.id == selectedFolderId,
-                      onTap: () => onFolderSelected(folder.id),
-                      onEdit: () => _showFolderDialog(context, folder: folder),
-                      onDelete: () => _confirmDelete(context, folder),
-                    );
-                  },
+        if (folders.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(AppColors.space24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.folder_open_rounded,
+                  size: 48,
+                  color: AppColors.textMuted,
                 ),
-        ),
+                const SizedBox(height: AppColors.space12),
+                Text(
+                  'No hay carpetas',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: AppColors.space8),
+                Text(
+                  'Crea una carpeta para organizar tus notas',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ...folders.map((folder) => _buildFolderTile(
+            key: ValueKey(folder.id),
+            context: context,
+            folder: folder,
+            isSelected: folder.id == selectedFolderId,
+            onTap: () => onFolderSelected(folder.id),
+            onEdit: () => _showFolderDialog(context, folder: folder),
+            onDelete: () => _confirmDelete(context, folder),
+          )),
+        const SizedBox(height: AppColors.space16),
       ],
+      ),
     );
   }
 

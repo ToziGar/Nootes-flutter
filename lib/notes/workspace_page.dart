@@ -19,6 +19,7 @@ import '../widgets/workspace_stats.dart';
 import '../services/preferences_service.dart';
 import '../services/keyboard_shortcuts_service.dart';
 import 'folder_model.dart';
+import 'folder_dialog.dart';
 import 'template_picker_dialog.dart';
 import 'productivity_dashboard.dart';
 
@@ -53,6 +54,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   // Carpetas y filtros
   List<Folder> _folders = [];
   String? _selectedFolderId; // null = "Todas las notas"
+  Set<String> _expandedFolders = {}; // IDs de carpetas expandidas (tipo árbol)
   List<String> _filterTags = [];
   DateTimeRange? _filterDateRange;
   SortOption _sortOption = SortOption.dateDesc;
@@ -134,12 +136,17 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   Future<void> _loadFolders() async {
     try {
       final foldersData = await FirestoreService.instance.listFolders(uid: _uid);
+      debugPrint('📁 Carpetas cargadas: ${foldersData.length}');
       if (!mounted) return;
       setState(() {
         _folders = foldersData.map((data) => Folder.fromJson(data)).toList();
+        debugPrint('✅ Carpetas parseadas: ${_folders.length}');
+        for (var folder in _folders) {
+          debugPrint('  - ${folder.name} (${folder.noteIds.length} notas)');
+        }
       });
     } catch (e) {
-      debugPrint('Error loading folders: $e');
+      debugPrint('❌ Error loading folders: $e');
       if (!mounted) return;
       setState(() => _folders = []);
     }
@@ -624,6 +631,342 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   void _onSearchChanged(String _) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), _loadNotes);
+  }
+
+  // Construir carpeta desplegable estilo árbol
+  Widget _buildFolderCard(Folder folder, int noteCount) {
+    final isExpanded = _expandedFolders.contains(folder.id);
+    final notesInFolder = _notes.where((n) => folder.noteIds.contains(n['id'].toString())).toList();
+    
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (details) => true,
+      onAcceptWithDetails: (details) => _onNoteDroppedInFolder(details.data, folder.id),
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Carpeta principal
+            Container(
+              margin: const EdgeInsets.only(bottom: 2),
+              decoration: BoxDecoration(
+                color: isHovering 
+                    ? AppColors.success.withValues(alpha: 0.1) 
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                border: isHovering 
+                    ? Border.all(color: AppColors.success, width: 2)
+                    : null,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (isExpanded) {
+                        _expandedFolders.remove(folder.id);
+                      } else {
+                        _expandedFolders.add(folder.id);
+                      }
+                    });
+                  },
+                  onLongPress: () => _confirmDeleteFolder(folder),
+                  borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppColors.space8,
+                      vertical: AppColors.space8,
+                    ),
+                    child: Row(
+                      children: [
+                        // Flecha expandir/colapsar
+                        Icon(
+                          isExpanded ? Icons.arrow_drop_down : Icons.arrow_right,
+                          size: 24,
+                          color: AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        
+                        // Icono de carpeta
+                        Icon(
+                          isExpanded ? Icons.folder_open_rounded : Icons.folder_rounded,
+                          color: folder.color,
+                          size: 18,
+                        ),
+                        const SizedBox(width: AppColors.space8),
+                        
+                        // Nombre y contador
+                        Expanded(
+                          child: Text(
+                            folder.name,
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        
+                        // Contador de notas
+                        if (noteCount > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: folder.color.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$noteCount',
+                              style: TextStyle(
+                                color: folder.color,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        
+                        // Botón editar
+                        IconButton(
+                          icon: Icon(Icons.edit, size: 16, color: AppColors.textMuted),
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(),
+                          onPressed: () => _showEditFolderDialog(folder),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            // Notas dentro de la carpeta (cuando está expandida)
+            if (isExpanded && notesInFolder.isNotEmpty)
+              ...notesInFolder.map((note) {
+                final id = note['id'].toString();
+                return Padding(
+                  padding: const EdgeInsets.only(left: 32, bottom: 2),
+                  child: NotesSidebarCard(
+                    note: note,
+                    isSelected: id == _selectedId,
+                    onTap: () => _select(id),
+                    onPin: () async {
+                      await FirestoreService.instance.setPinned(
+                        uid: _uid,
+                        noteId: id,
+                        pinned: !(note['pinned'] == true),
+                      );
+                      await _loadNotes();
+                    },
+                    onDelete: () => _delete(id),
+                    enableDrag: true,
+                    compact: true,
+                  ),
+                );
+              }),
+            
+            // Mensaje si la carpeta está vacía y expandida
+            if (isExpanded && notesInFolder.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 48, top: 4, bottom: 8),
+                child: Text(
+                  'Arrastra notas aquí',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Construir botón de crear carpeta
+  Widget _buildCreateFolderButton() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppColors.space16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _showCreateFolderDialog,
+          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+          child: Container(
+            padding: const EdgeInsets.all(AppColors.space12),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
+              borderRadius: BorderRadius.circular(AppColors.radiusMd),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.create_new_folder_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: AppColors.space8),
+                Text(
+                  'Nueva carpeta',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Mostrar diálogo de crear carpeta
+  Future<void> _showCreateFolderDialog() async {
+    final result = await showDialog<Folder>(
+      context: context,
+      builder: (context) => FolderDialog(),
+    );
+
+    if (result != null) {
+      try {
+        await FirestoreService.instance.createFolder(
+          uid: _uid,
+          data: result.toJson(),
+        );
+        await _loadFolders();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Carpeta "${result.name}" creada'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al crear carpeta: $e'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  // Mostrar diálogo de editar carpeta
+  Future<void> _showEditFolderDialog(Folder folder) async {
+    final result = await showDialog<Folder>(
+      context: context,
+      builder: (context) => FolderDialog(folder: folder),
+    );
+
+    if (result != null) {
+      try {
+        await FirestoreService.instance.updateFolder(
+          uid: _uid,
+          folderId: result.id,
+          data: result.toJson(),
+        );
+        await _loadFolders();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Carpeta actualizada'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al actualizar carpeta: $e'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  // Confirmar eliminación de carpeta
+  Future<void> _confirmDeleteFolder(Folder folder) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Eliminar carpeta', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text(
+          '¿Estás seguro que deseas eliminar "${folder.name}"?\n\nLas notas no se eliminarán, solo se quitarán de la carpeta.',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        debugPrint('🗑️ Eliminando carpeta: ${folder.id}');
+        await FirestoreService.instance.deleteFolder(
+          uid: _uid,
+          folderId: folder.id,
+        );
+        
+        setState(() {
+          // Limpiar estado relacionado con esta carpeta
+          _folders.removeWhere((f) => f.id == folder.id);
+          _expandedFolders.remove(folder.id);
+          if (_selectedFolderId == folder.id) {
+            _selectedFolderId = null;
+          }
+        });
+        
+        debugPrint('✅ Carpeta eliminada del estado local');
+        await _loadFolders(); // Recargar desde Firestore
+        await _loadNotes();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Carpeta "${folder.name}" eliminada'),
+              backgroundColor: AppColors.success,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('❌ Error eliminando carpeta: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al eliminar carpeta: $e'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -1264,9 +1607,23 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.all(AppColors.space12),
-                        itemCount: _notes.length,
+                        itemCount: _folders.length + 1 + _notes.length, // carpetas + botón crear + notas
                         itemBuilder: (context, i) {
-                          final note = _notes[i];
+                          // Sección de carpetas
+                          if (i < _folders.length) {
+                            final folder = _folders[i];
+                            final noteCount = folder.noteIds.length;
+                            return _buildFolderCard(folder, noteCount);
+                          }
+                          
+                          // Botón crear carpeta
+                          if (i == _folders.length) {
+                            return _buildCreateFolderButton();
+                          }
+                          
+                          // Notas
+                          final noteIndex = i - _folders.length - 1;
+                          final note = _notes[noteIndex];
                           final id = note['id'].toString();
                           return NotesSidebarCard(
                             note: note,

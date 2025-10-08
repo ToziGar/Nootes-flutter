@@ -24,14 +24,26 @@ class Folder {
   
   /// Crear carpeta desde JSON de Firestore
   factory Folder.fromJson(Map<String, dynamic> json) {
+    // Helper para convertir tanto Timestamp como String a DateTime
+    DateTime parseDateTime(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is DateTime) return value;
+      if (value is String) return DateTime.parse(value);
+      // Firestore Timestamp tiene toDate()
+      if (value.runtimeType.toString() == 'Timestamp') {
+        return (value as dynamic).toDate() as DateTime;
+      }
+      return DateTime.now();
+    }
+    
     return Folder(
       id: json['id'] as String,
       name: json['name'] as String,
       icon: _iconFromString(json['icon'] as String? ?? 'folder_rounded'),
       color: Color(json['color'] as int? ?? 0xFFF59E0B),
       noteIds: List<String>.from(json['noteIds'] as List? ?? []),
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: parseDateTime(json['createdAt']),
+      updatedAt: parseDateTime(json['updatedAt']),
       order: json['order'] as int? ?? 0,
     );
   }
