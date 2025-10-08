@@ -140,6 +140,21 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
       data: _rendered,
       shrinkWrap: true,
       selectable: true,
+      imageBuilder: (uri, title, alt) {
+        // Use a network image with an errorBuilder so a failed load doesn't throw (esp. on web/CORS)
+        return Image.network(
+          uri.toString(),
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stack) => Container(
+            padding: const EdgeInsets.all(8),
+            color: Colors.black12,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [Icon(Icons.broken_image_rounded), SizedBox(width: 8), Text('Imagen no disponible')],
+            ),
+          ),
+        );
+      },
       builders: {
         'code': CodeElementBuilder(),
         'tex': TexElementBuilder(),

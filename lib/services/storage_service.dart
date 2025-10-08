@@ -20,5 +20,13 @@ class StorageService {
     final ct = file.extension != null && file.extension!.toLowerCase() == 'png' ? 'image/png' : 'image/jpeg';
     return uploadBytes(uid: uid, bytes: file.bytes!, filename: file.name, contentType: ct);
   }
+
+  static Future<String?> pickAndUploadFile({required String uid}) async {
+    final result = await FilePicker.platform.pickFiles(withData: true);
+    final file = result?.files.single;
+    if (file == null || file.bytes == null) return null;
+    final ct = 'application/octet-stream';
+    return uploadBytes(uid: uid, bytes: file.bytes!, filename: file.name, contentType: ct);
+  }
 }
 

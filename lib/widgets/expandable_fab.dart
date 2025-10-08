@@ -53,10 +53,23 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
               ),
             ),
           ...List.generate(actions.length, (i) {
+            final start = i / (actions.length + 1);
+            final end = (i + 1) / (actions.length + 1);
+            final anim = CurvedAnimation(parent: _ctrl, curve: Interval(start, end, curve: Curves.easeOut));
             return Positioned(
               right: 4 + (i * 56),
               bottom: 4,
-              child: ScaleTransition(scale: _anim, child: actions[i]),
+              child: ScaleTransition(
+                scale: anim,
+                child: FadeTransition(
+                  opacity: anim,
+                  // Disable Hero animations for action buttons to avoid duplicate hero tags
+                  child: HeroMode(
+                    enabled: false,
+                    child: actions[i],
+                  ),
+                ),
+              ),
             );
           }),
           FloatingActionButton(
