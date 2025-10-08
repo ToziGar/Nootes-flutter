@@ -64,9 +64,6 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   bool _showRecentSearches = false;
   
   // Animaciones de transición
-  late final AnimationController _folderTransitionCtrl;
-  late final Animation<double> _folderFade;
-
   late final AnimationController _savePulseCtrl;
   late final Animation<double> _saveScale;
 
@@ -81,9 +78,6 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
 
     _savePulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 180));
     _saveScale = Tween<double>(begin: 1.0, end: 1.08).animate(CurvedAnimation(parent: _savePulseCtrl, curve: Curves.easeOut));
-    
-    _folderTransitionCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
-    _folderFade = CurvedAnimation(parent: _folderTransitionCtrl, curve: Curves.easeInOut);
 
     _loadPreferences();
     _loadLastAndNotes();
@@ -159,85 +153,98 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     _debounce?.cancel();
     _editorCtrl.dispose();
     _savePulseCtrl.dispose();
-    _folderTransitionCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _loadNotes() async {
     final svc = FirestoreService.instance;
     
-    // Cargar directamente desde Firestore (caché deshabilitado temporalmente por problema de serialización)
-    List<Map<String, dynamic>> allNotes = await svc.listNotesSummary(uid: _uid);
-    
-    if (!mounted) return;
-    
-    // Aplicar filtros
-    var filteredNotes = List<Map<String, dynamic>>.from(allNotes);
-    
-    // Filtro por carpeta
-    if (_selectedFolderId != null) {
-      try {
-        final folder = _folders.firstWhere((f) => f.id == _selectedFolderId);
-        filteredNotes = filteredNotes.where((note) {
-          final noteId = note['id'].toString();
-          return folder.noteIds.contains(noteId);
-        }).toList();
-      } catch (e) {
-        // Si no se encuentra la carpeta, mostrar todas las notas
-        _selectedFolderId = null;
-      }
-    }
-    
-    // Filtro por búsqueda de texto
-    final q = _search.text.trim();
-    if (q.isNotEmpty) {
-      filteredNotes = filteredNotes.where((note) {
-        final title = (note['title'] ?? '').toString().toLowerCase();
-        final content = (note['content'] ?? '').toString().toLowerCase();
-        final searchLower = q.toLowerCase();
-        return title.contains(searchLower) || content.contains(searchLower);
-      }).toList();
-    }
-    
-    // Filtro por tags
-    if (_filterTags.isNotEmpty) {
-      filteredNotes = filteredNotes.where((note) {
-        final noteTags = List<String>.from((note['tags'] as List?)?.whereType<String>() ?? []);
-        return _filterTags.every((tag) => noteTags.contains(tag));
-      }).toList();
-    }
-    
-    // Filtro por rango de fechas
-    if (_filterDateRange != null) {
-      filteredNotes = filteredNotes.where((note) {
-        final createdAt = note['createdAt'];
-        if (createdAt == null) return false;
-        
-        DateTime noteDate;
-        if (createdAt is DateTime) {
-          noteDate = createdAt;
-        } else if (createdAt is int) {
-          noteDate = DateTime.fromMillisecondsSinceEpoch(createdAt);
-        } else {
-          return false;
+    try {
+      // Cargar directamente desde Firestore (caché deshabilitado temporalmente por problema de serialización)
+      List<Map<String, dynamic>> allNotes = await svc.listNotesSummary(uid: _uid);
+      
+      if (!mounted) return;
+      
+      debugPrint('📝 Notas cargadas: ${allNotes.length}');
+      
+      // Aplicar filtros
+      var filteredNotes = List<Map<String, dynamic>>.from(allNotes);
+      
+      // Filtro por carpeta
+      if (_selectedFolderId != null) {
+        try {
+          final folder = _folders.firstWhere((f) => f.id == _selectedFolderId);
+          filteredNotes = filteredNotes.where((note) {
+            final noteId = note['id'].toString();
+            return folder.noteIds.contains(noteId);
+          }).toList();
+        } catch (e) {
+          // Si no se encuentra la carpeta, mostrar todas las notas
+          _selectedFolderId = null;
         }
-        
-        return !noteDate.isBefore(_filterDateRange!.start) &&
-               !noteDate.isAfter(_filterDateRange!.end.add(const Duration(days: 1)));
-      }).toList();
-    }
-    
-    // Aplicar ordenamiento
-    _sortNotes(filteredNotes);
-    
-    setState(() {
-      _allNotes = allNotes;
-      _notes = filteredNotes;
-      _loading = false;
-    });
-    
-    if (_selectedId == null && filteredNotes.isNotEmpty) {
-      await _select(filteredNotes.first['id'].toString());
+      }
+      
+      // Filtro por búsqueda de texto
+      final q = _search.text.trim();
+      if (q.isNotEmpty) {
+        filteredNotes = filteredNotes.where((note) {
+          final title = (note['title'] ?? '').toString().toLowerCase();
+          final content = (note['content'] ?? '').toString().toLowerCase();
+          final searchLower = q.toLowerCase();
+          return title.contains(searchLower) || content.contains(searchLower);
+        }).toList();
+      }
+      
+      // Filtro por tags
+      if (_filterTags.isNotEmpty) {
+        filteredNotes = filteredNotes.where((note) {
+          final noteTags = List<String>.from((note['tags'] as List?)?.whereType<String>() ?? []);
+          return _filterTags.every((tag) => noteTags.contains(tag));
+        }).toList();
+      }
+      
+      // Filtro por rango de fechas
+      if (_filterDateRange != null) {
+        filteredNotes = filteredNotes.where((note) {
+          final createdAt = note['createdAt'];
+          if (createdAt == null) return false;
+          
+          DateTime noteDate;
+          if (createdAt is DateTime) {
+            noteDate = createdAt;
+          } else if (createdAt is int) {
+            noteDate = DateTime.fromMillisecondsSinceEpoch(createdAt);
+          } else {
+            return false;
+          }
+          
+          return !noteDate.isBefore(_filterDateRange!.start) &&
+                 !noteDate.isAfter(_filterDateRange!.end.add(const Duration(days: 1)));
+        }).toList();
+      }
+      
+      // Aplicar ordenamiento
+      _sortNotes(filteredNotes);
+      
+      debugPrint('✅ Notas filtradas: ${filteredNotes.length}');
+      
+      setState(() {
+        _allNotes = allNotes;
+        _notes = filteredNotes;
+        _loading = false;
+      });
+      
+      if (_selectedId == null && filteredNotes.isNotEmpty) {
+        await _select(filteredNotes.first['id'].toString());
+      }
+    } catch (e) {
+      debugPrint('❌ Error cargando notas: $e');
+      if (!mounted) return;
+      setState(() {
+        _allNotes = [];
+        _notes = [];
+        _loading = false;
+      });
     }
   }
   
@@ -366,9 +373,6 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   }
   
   void _onFolderSelected(String? folderId) {
-    // Animar transición
-    _folderTransitionCtrl.forward(from: 0);
-    
     setState(() => _selectedFolderId = folderId);
     PreferencesService.setSelectedFolder(folderId);
     _loadNotes();
@@ -1265,24 +1269,21 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         itemBuilder: (context, i) {
                           final note = _notes[i];
                           final id = note['id'].toString();
-                          return FadeTransition(
-                            opacity: _folderFade,
-                            child: NotesSidebarCard(
-                              note: note,
-                              isSelected: id == _selectedId,
-                              onTap: () => _select(id),
-                              onPin: () async {
-                                await FirestoreService.instance.setPinned(
-                                  uid: _uid,
-                                  noteId: id,
-                                  pinned: !(note['pinned'] == true),
-                                );
-                                await _loadNotes();
-                              },
-                              onDelete: () => _delete(id),
-                              enableDrag: true,
-                              compact: _compactMode,
-                            ),
+                          return NotesSidebarCard(
+                            note: note,
+                            isSelected: id == _selectedId,
+                            onTap: () => _select(id),
+                            onPin: () async {
+                              await FirestoreService.instance.setPinned(
+                                uid: _uid,
+                                noteId: id,
+                                pinned: !(note['pinned'] == true),
+                              );
+                              await _loadNotes();
+                            },
+                            onDelete: () => _delete(id),
+                            enableDrag: true,
+                            compact: _compactMode,
                           );
                         },
                       ),
