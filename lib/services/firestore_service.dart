@@ -69,6 +69,15 @@ abstract class FirestoreService {
   Future<void> removeLink({required String uid, required String fromNoteId, required String toNoteId});
   Future<void> moveNoteToCollection({required String uid, required String noteId, String? collectionId});
   Future<List<Map<String, String>>> listEdges({required String uid});
+  
+  // Folders (users/{uid}/folders)
+  Future<List<Map<String, dynamic>>> listFolders({required String uid});
+  Future<Map<String, dynamic>?> getFolder({required String uid, required String folderId});
+  Future<String> createFolder({required String uid, required Map<String, dynamic> data});
+  Future<void> updateFolder({required String uid, required String folderId, required Map<String, dynamic> data});
+  Future<void> deleteFolder({required String uid, required String folderId});
+  Future<void> addNoteToFolder({required String uid, required String noteId, required String folderId});
+  Future<void> removeNoteFromFolder({required String uid, required String noteId, required String folderId});
 }
 
 class _FirebaseFirestoreService implements FirestoreService {
@@ -369,6 +378,64 @@ class _FirebaseFirestoreService implements FirestoreService {
   @override
   Future<void> deleteNote({required String uid, required String noteId}) async {
     await _db.collection('users').doc(uid).collection('notes').doc(noteId).delete();
+  }
+  
+  // Folders
+  @override
+  Future<List<Map<String, dynamic>>> listFolders({required String uid}) async {
+    final snap = await _db.collection('users').doc(uid).collection('folders').orderBy('order').get();
+    return snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+  }
+  
+  @override
+  Future<Map<String, dynamic>?> getFolder({required String uid, required String folderId}) async {
+    final d = await _db.collection('users').doc(uid).collection('folders').doc(folderId).get();
+    if (!d.exists) return null;
+    return {'id': d.id, ...d.data()!};
+  }
+  
+  @override
+  Future<String> createFolder({required String uid, required Map<String, dynamic> data}) async {
+    final col = _db.collection('users').doc(uid).collection('folders');
+    final now = fs.FieldValue.serverTimestamp();
+    final ref = await col.add({
+      ...data,
+      'createdAt': now,
+      'updatedAt': now,
+      'noteIds': data['noteIds'] ?? [],
+    });
+    return ref.id;
+  }
+  
+  @override
+  Future<void> updateFolder({required String uid, required String folderId, required Map<String, dynamic> data}) async {
+    await _db.collection('users').doc(uid).collection('folders').doc(folderId).set({
+      ...data,
+      'updatedAt': fs.FieldValue.serverTimestamp(),
+    }, fs.SetOptions(merge: true));
+  }
+  
+  @override
+  Future<void> deleteFolder({required String uid, required String folderId}) async {
+    await _db.collection('users').doc(uid).collection('folders').doc(folderId).delete();
+  }
+  
+  @override
+  Future<void> addNoteToFolder({required String uid, required String noteId, required String folderId}) async {
+    final ref = _db.collection('users').doc(uid).collection('folders').doc(folderId);
+    await ref.update({
+      'noteIds': fs.FieldValue.arrayUnion([noteId]),
+      'updatedAt': fs.FieldValue.serverTimestamp(),
+    });
+  }
+  
+  @override
+  Future<void> removeNoteFromFolder({required String uid, required String noteId, required String folderId}) async {
+    final ref = _db.collection('users').doc(uid).collection('folders').doc(folderId);
+    await ref.update({
+      'noteIds': fs.FieldValue.arrayRemove([noteId]),
+      'updatedAt': fs.FieldValue.serverTimestamp(),
+    });
   }
 }
 
@@ -714,9 +781,11 @@ class _RestFirestoreService implements FirestoreService {
   Future<void> _arrayOp(String uid, String noteId, String field, List<String> values, {required bool add}) async {
     // Firestore REST doesn't have arrayUnion/arrayRemove via simple patch; use get, modify, patch
     final current = await getNote(uid: uid, noteId: noteId);
-    final arr = List<String>.from((current?['$field'] as List?)?.whereType<String>() ?? []);
+    final arr = List<String>.from((current?[field] as List?)?.whereType<String>() ?? []);
     if (add) {
-      for (final v in values) if (!arr.contains(v)) arr.add(v);
+      for (final v in values) {
+        if (!arr.contains(v)) arr.add(v);
+      }
     } else {
       arr.removeWhere((e) => values.contains(e));
     }
@@ -775,7 +844,9 @@ class _RestFirestoreService implements FirestoreService {
     for (final n in notes) {
       final from = n['id'].toString();
       final links = (n['links'] as List?)?.whereType<String>() ?? const [];
-      for (final to in links) edges.add({'from': from, 'to': to});
+      for (final to in links) {
+        edges.add({'from': from, 'to': to});
+      }
     }
     return edges;
   }
@@ -820,15 +891,21 @@ class _RestFirestoreService implements FirestoreService {
   Map<String, dynamic> _decodeFields(Map<String, dynamic>? fields) {
     final result = <String, dynamic>{};
     if (fields == null) return result;
-    fields.forEach((key, value) {
+    for (final entry in fields.entries) {
+      final key = entry.key;
+      final value = entry.value;
       if (value is Map<String, dynamic>) {
         if (value.containsKey('stringValue')) {
           result[key] = value['stringValue'];
-        } else if (value.containsKey('booleanValue')) result[key] = value['booleanValue'];
-        else if (value.containsKey('doubleValue')) result[key] = value['doubleValue'];
-        else if (value.containsKey('integerValue')) result[key] = int.tryParse(value['integerValue'].toString());
-        else if (value.containsKey('timestampValue')) result[key] = value['timestampValue'];
-        else if (value.containsKey('arrayValue')) {
+        } else if (value.containsKey('booleanValue')) {
+          result[key] = value['booleanValue'];
+        } else if (value.containsKey('doubleValue')) {
+          result[key] = value['doubleValue'];
+        } else if (value.containsKey('integerValue')) {
+          result[key] = int.tryParse(value['integerValue'].toString());
+        } else if (value.containsKey('timestampValue')) {
+          result[key] = value['timestampValue'];
+        } else if (value.containsKey('arrayValue')) {
           final arr = value['arrayValue'] as Map<String, dynamic>?;
           final vals = arr?['values'] as List? ?? [];
           result[key] = vals.map((e) => (e as Map<String, dynamic>)['stringValue'] ?? e.toString()).toList();
@@ -836,7 +913,101 @@ class _RestFirestoreService implements FirestoreService {
           result[key] = value.toString();
         }
       }
-    });
+    }
     return result;
+  }
+  
+  // Folders - REST API implementation
+  @override
+  Future<List<Map<String, dynamic>>> listFolders({required String uid}) async {
+    final headers = await _authHeader();
+    final url = '$_base/users/$uid/folders?orderBy=order';
+    final resp = await http.get(Uri.parse(url), headers: headers);
+    if (resp.statusCode != 200) return [];
+    final data = jsonDecode(resp.body) as Map<String, dynamic>;
+    final docs = (data['documents'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    return docs.map((d) {
+      final id = (d['name'] as String).split('/').last;
+      final fields = _decodeFields(d['fields'] as Map<String, dynamic>?);
+      return {'id': id, ...fields};
+    }).toList();
+  }
+  
+  @override
+  Future<Map<String, dynamic>?> getFolder({required String uid, required String folderId}) async {
+    final headers = await _authHeader();
+    final url = '$_base/users/$uid/folders/$folderId';
+    final resp = await http.get(Uri.parse(url), headers: headers);
+    if (resp.statusCode != 200) return null;
+    final data = jsonDecode(resp.body) as Map<String, dynamic>;
+    final id = (data['name'] as String).split('/').last;
+    final fields = _decodeFields(data['fields'] as Map<String, dynamic>?);
+    return {'id': id, ...fields};
+  }
+  
+  @override
+  Future<String> createFolder({required String uid, required Map<String, dynamic> data}) async {
+    final headers = await _authHeader();
+    final url = '$_base/users/$uid/folders';
+    final now = DateTime.now().toUtc();
+    final fields = <String, dynamic>{};
+    data.forEach((k, v) => fields[k] = _encodeValue(v));
+    fields['noteIds'] = _encodeValue(data['noteIds'] ?? []);
+    fields['createdAt'] = _encodeValue(now);
+    fields['updatedAt'] = _encodeValue(now);
+    final payload = {'fields': fields};
+    final resp = await http.post(Uri.parse(url), headers: headers, body: jsonEncode(payload));
+    if (resp.statusCode != 200) throw Exception('Failed to create folder');
+    final respData = jsonDecode(resp.body) as Map<String, dynamic>;
+    final id = (respData['name'] as String).split('/').last;
+    return id;
+  }
+  
+  @override
+  Future<void> updateFolder({required String uid, required String folderId, required Map<String, dynamic> data}) async {
+    final headers = await _authHeader();
+    final url = '$_base/users/$uid/folders/$folderId';
+    final now = DateTime.now().toUtc();
+    final fields = <String, dynamic>{};
+    for (final entry in data.entries) {
+      fields[entry.key] = _encodeValue(entry.value);
+    }
+    fields['updatedAt'] = _encodeValue(now);
+    
+    final updateMask = [...data.keys, 'updatedAt'];
+    final qs = updateMask.map((f) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(f)}').join('&');
+    final urlWithMask = '$url?$qs';
+    
+    final payload = {'fields': fields};
+    final resp = await http.patch(Uri.parse(urlWithMask), headers: headers, body: jsonEncode(payload));
+    if (resp.statusCode != 200) throw Exception('Failed to update folder');
+  }
+  
+  @override
+  Future<void> deleteFolder({required String uid, required String folderId}) async {
+    final headers = await _authHeader();
+    final url = '$_base/users/$uid/folders/$folderId';
+    final resp = await http.delete(Uri.parse(url), headers: headers);
+    if (resp.statusCode != 200) throw Exception('Failed to delete folder');
+  }
+  
+  @override
+  Future<void> addNoteToFolder({required String uid, required String noteId, required String folderId}) async {
+    final folder = await getFolder(uid: uid, folderId: folderId);
+    if (folder == null) throw Exception('Folder not found');
+    final noteIds = List<String>.from((folder['noteIds'] as List?)?.cast<String>() ?? []);
+    if (!noteIds.contains(noteId)) {
+      noteIds.add(noteId);
+      await updateFolder(uid: uid, folderId: folderId, data: {'noteIds': noteIds});
+    }
+  }
+  
+  @override
+  Future<void> removeNoteFromFolder({required String uid, required String noteId, required String folderId}) async {
+    final folder = await getFolder(uid: uid, folderId: folderId);
+    if (folder == null) throw Exception('Folder not found');
+    final noteIds = List<String>.from((folder['noteIds'] as List?)?.cast<String>() ?? []);
+    noteIds.remove(noteId);
+    await updateFolder(uid: uid, folderId: folderId, data: {'noteIds': noteIds});
   }
 }

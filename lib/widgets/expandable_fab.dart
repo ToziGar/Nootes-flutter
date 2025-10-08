@@ -31,7 +31,11 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
   void _toggle() {
     setState(() {
       _open = !_open;
-      if (_open) _ctrl.forward(); else _ctrl.reverse();
+      if (_open) {
+        _ctrl.forward();
+      } else {
+        _ctrl.reverse();
+      }
     });
   }
 

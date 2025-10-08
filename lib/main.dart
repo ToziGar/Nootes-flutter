@@ -10,6 +10,10 @@ import 'auth/register_page.dart';
 import 'auth/forgot_password_page.dart';
 import 'home_page.dart';
 import 'theme/app_theme.dart';
+import 'notes/tasks_page.dart';
+import 'notes/export_page.dart';
+import 'notes/interactive_graph_page.dart';
+import 'notes/advanced_search_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,6 +52,10 @@ class MyApp extends StatelessWidget {
         '/register': (_) => const RegisterPage(),
         '/forgot': (_) => const ForgotPasswordPage(),
         '/home': (_) => const HomePage(),
+        '/tasks': (_) => const TasksPage(),
+        '/export': (_) => const ExportPage(),
+        '/graph': (_) => const InteractiveGraphPage(),
+        '/advanced-search': (_) => const AdvancedSearchPage(),
       },
       home: initError == null ? const AuthGate() : SetupHelpPage(error: initError!),
     );

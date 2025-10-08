@@ -78,8 +78,8 @@ class _TagInputState extends State<TagInput> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
-          spacing: 6,
-          runSpacing: -6,
+          spacing: 8,
+          runSpacing: 4,
           children: [
             for (final t in _tags)
               Chip(

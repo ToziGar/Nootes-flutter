@@ -74,7 +74,12 @@ class MarkdownToolbar extends StatelessWidget {
   }
 
   Widget _btn(BuildContext context, IconData icon, String tip, VoidCallback onPressed) {
-    return IconButton(onPressed: onPressed, tooltip: tip, icon: Icon(icon));
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tip,
+      icon: Icon(icon),
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+    );
   }
 
   Widget _headerMenu(BuildContext context) {

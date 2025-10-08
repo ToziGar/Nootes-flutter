@@ -35,10 +35,39 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.of(context).pushReplacementNamed('/home');
       }
     } catch (e) {
-      final msg = e.toString();
+      String msg = 'Error al iniciar sesión';
+      final errorStr = e.toString().toLowerCase();
+      
+      if (errorStr.contains('invalid-email')) {
+        msg = 'Email inválido';
+      } else if (errorStr.contains('wrong-password') || errorStr.contains('invalid-credential')) {
+        msg = 'Email o contraseña incorrectos';
+      } else if (errorStr.contains('user-not-found')) {
+        msg = 'Usuario no encontrado. ¿Deseas crear una cuenta?';
+      } else if (errorStr.contains('user-disabled')) {
+        msg = 'Esta cuenta ha sido deshabilitada';
+      } else if (errorStr.contains('too-many-requests')) {
+        msg = 'Demasiados intentos. Intenta más tarde';
+      } else if (errorStr.contains('network')) {
+        msg = 'Error de conexión. Verifica tu internet';
+      } else {
+        msg = 'Error: ${errorStr.split(':').last.trim()}';
+      }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg)),
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            action: errorStr.contains('user-not-found')
+                ? SnackBarAction(
+                    label: 'Crear cuenta',
+                    textColor: Colors.white,
+                    onPressed: () => Navigator.of(context).pushNamed('/register'),
+                  )
+                : null,
+          ),
         );
       }
     } finally {
