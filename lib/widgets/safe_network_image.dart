@@ -24,14 +24,25 @@ class _SafeNetworkImageState extends State<SafeNetworkImage> {
     setState(() => _reloadToken++);
   }
 
+  /// Añade parámetros CORS para Firebase Storage URLs
+  String _addCorsParams(String url) {
+    if (url.contains('firebasestorage.googleapis.com')) {
+      final separator = url.contains('?') ? '&' : '?';
+      return '$url${separator}t=${DateTime.now().millisecondsSinceEpoch}';
+    }
+    return url;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final correctedUrl = _addCorsParams(widget.url);
+    
     return SizedBox(
       height: widget.height,
       width: widget.width,
       child: Image.network(
-        widget.url,
-        key: ValueKey('safe-${widget.url}-$_reloadToken'),
+        correctedUrl,
+        key: ValueKey('safe-$correctedUrl-$_reloadToken'),
         fit: widget.fit,
         // show a spinner while loading
         loadingBuilder: (context, child, loadingProgress) {
@@ -75,7 +86,13 @@ class _SafeNetworkImageState extends State<SafeNetworkImage> {
                 if (kIsWeb)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
-                    child: Text('Puede existir un bloqueo CORS en web', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                    child: Column(
+                      children: [
+                        Text('Puede existir un bloqueo CORS en web', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                        const SizedBox(height: 4),
+                        Text('Verifica configuración CORS en Firebase Storage', style: TextStyle(fontSize: 10, color: Colors.orange[700])),
+                      ],
+                    ),
                   ),
               ],
             ),

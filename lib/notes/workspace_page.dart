@@ -1138,6 +1138,45 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       case ContextMenuActionType.insertAudio:
         await _toggleRecording();
         break;
+      case ContextMenuActionType.insertTable:
+        _insertMarkdownTable();
+        break;
+      case ContextMenuActionType.insertCodeBlock:
+        _insertCodeBlock();
+        break;
+      case ContextMenuActionType.pinNote:
+        if (noteId != null) await _togglePinNote(noteId, true);
+        break;
+      case ContextMenuActionType.unpinNote:
+        if (noteId != null) await _togglePinNote(noteId, false);
+        break;
+      case ContextMenuActionType.favoriteNote:
+        if (noteId != null) await _toggleFavoriteNote(noteId, true);
+        break;
+      case ContextMenuActionType.unfavoriteNote:
+        if (noteId != null) await _toggleFavoriteNote(noteId, false);
+        break;
+      case ContextMenuActionType.archiveNote:
+        if (noteId != null) await _toggleArchiveNote(noteId, true);
+        break;
+      case ContextMenuActionType.unarchiveNote:
+        if (noteId != null) await _toggleArchiveNote(noteId, false);
+        break;
+      case ContextMenuActionType.addTags:
+        if (noteId != null) await _showAddTagsDialog(noteId);
+        break;
+      case ContextMenuActionType.copyNoteLink:
+        if (noteId != null) _copyNoteLink(noteId);
+        break;
+      case ContextMenuActionType.viewHistory:
+        if (noteId != null) _showNoteHistory(noteId);
+        break;
+      case ContextMenuActionType.colorFolder:
+        if (folderId != null) await _showFolderColorPicker(folderId);
+        break;
+      case ContextMenuActionType.properties:
+        if (noteId != null) _showNoteProperties(noteId);
+        break;
       default:
         debugPrint('⚠️ Acción no implementada: $action');
     }
@@ -1165,6 +1204,174 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
+
+      // --- New helper methods for extended context menu actions ---
+
+      Future<void> _togglePinNote(String noteId, bool pin) async {
+        try {
+          final note = notes.firstWhere((n) => n['id'].toString() == noteId);
+          await FirestoreService.instance.updateNote(
+            uid: _uid,
+            noteId: noteId,
+            data: {'pinned': pin, 'updatedAt': fs.FieldValue.serverTimestamp()},
+          );
+          if (mounted) {
+            setState(() => note['pinned'] = pin);
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(pin ? 'Nota fijada' : 'Nota desfijada'), backgroundColor: AppColors.success),
+          );
+        } catch (e) {
+          debugPrint('⚠️ Error toggling pin: $e');
+        }
+      }
+
+      Future<void> _toggleFavoriteNote(String noteId, bool fav) async {
+        try {
+          final note = notes.firstWhere((n) => n['id'].toString() == noteId);
+          await FirestoreService.instance.updateNote(
+            uid: _uid,
+            noteId: noteId,
+            data: {'favorite': fav, 'updatedAt': fs.FieldValue.serverTimestamp()},
+          );
+          if (mounted) setState(() => note['favorite'] = fav);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(fav ? 'Añadido a favoritos' : 'Eliminado de favoritos'), backgroundColor: AppColors.success),
+          );
+        } catch (e) {
+          debugPrint('⚠️ Error toggling favorite: $e');
+        }
+      }
+
+      Future<void> _toggleArchiveNote(String noteId, bool archive) async {
+        try {
+          final note = notes.firstWhere((n) => n['id'].toString() == noteId);
+          await FirestoreService.instance.updateNote(
+            uid: _uid,
+            noteId: noteId,
+            data: {'archived': archive, 'updatedAt': fs.FieldValue.serverTimestamp()},
+          );
+          if (mounted) setState(() => note['archived'] = archive);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(archive ? 'Nota archivada' : 'Nota desarchivada'), backgroundColor: AppColors.success),
+          );
+        } catch (e) {
+          debugPrint('⚠️ Error toggling archive: $e');
+        }
+      }
+
+      Future<void> _showAddTagsDialog(String noteId) async {
+        final note = notes.firstWhere((n) => n['id'].toString() == noteId);
+        final currentTags = List<String>.from((note['tags'] as List?) ?? []);
+        final controller = TextEditingController(text: currentTags.join(', '));
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Añadir etiquetas'),
+            content: TextField(
+              controller: controller,
+              decoration: const InputDecoration(hintText: 'etiqueta1, etiqueta2'),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Guardar')),
+            ],
+          ),
+        );
+        if (confirmed == true) {
+          final tags = controller.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+          try {
+            await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'tags': tags});
+            if (mounted) setState(() => note['tags'] = tags);
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Etiquetas actualizadas'), backgroundColor: AppColors.success));
+          } catch (e) {
+            debugPrint('⚠️ Error actualizando etiquetas: $e');
+          }
+        }
+      }
+
+      void _copyNoteLink(String noteId) async {
+        try {
+          final url = await FirestoreService.instance.getNoteShareLink(uid: _uid, noteId: noteId);
+          await Clipboard.setData(ClipboardData(text: url));
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enlace copiado'), backgroundColor: AppColors.success));
+        } catch (e) {
+          debugPrint('⚠️ Error copiando enlace: $e');
+        }
+      }
+
+      void _showNoteHistory(String noteId) {
+        // Simple placeholder — open history page or dialog if available
+        showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Historial de la nota'),
+            content: const Text('Historial no disponible en esta versión.'),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar'))],
+          ),
+        );
+      }
+
+      Future<void> _showFolderColorPicker(String folderId) async {
+        final folder = _folders.firstWhere((f) => f.id == folderId);
+        final colors = [Colors.blue, Colors.green, Colors.amber, Colors.pink, Colors.purple, Colors.grey];
+        final chosen = await showDialog<Color?>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Color de carpeta'),
+            content: Wrap(
+              spacing: 8,
+              children: colors.map((c) => GestureDetector(
+                onTap: () => Navigator.pop(ctx, c),
+                child: Container(width: 36, height: 36, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(6))),
+              )).toList(),
+            ),
+          ),
+        );
+        if (chosen != null) {
+          try {
+            await FirestoreService.instance.updateFolder(uid: _uid, folderId: folderId, data: {'color': chosen.value.toRadixString(16)});
+            if (mounted) setState(() => folder.color = chosen);
+          } catch (e) {
+            debugPrint('⚠️ Error cambiando color de carpeta: $e');
+          }
+        }
+      }
+
+      void _showNoteProperties(String noteId) {
+        final note = notes.firstWhere((n) => n['id'].toString() == noteId);
+        showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Propiedades de la nota'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Título: ${note['title'] ?? ''}'),
+                const SizedBox(height: 8),
+                Text('ID: ${noteId}'),
+                const SizedBox(height: 8),
+                Text('Creado: ${note['createdAt'] ?? '—'}'),
+              ],
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar'))],
+          ),
+        );
+      }
+
+      // Minimal insert helpers for editor
+      void _insertMarkdownTable() {
+        _editorCtrl.text = '${_editorCtrl.text}\n| Col1 | Col2 | Col3 |\n|---|---:|:---:|\n|   |   |   |\n';
+        _editorCtrl.selection = TextSelection.collapsed(offset: _editorCtrl.text.length);
+      }
+
+      void _insertCodeBlock() {
+        _editorCtrl.text = '${_editorCtrl.text}\n```
+    // lenguaje
+    ```\n';
+        _editorCtrl.selection = TextSelection.collapsed(offset: _editorCtrl.text.length - 7);
+      }
             content: Text('Nota duplicada'),
             backgroundColor: AppColors.success,
           ),
@@ -1224,22 +1431,28 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     if (confirmed == true) {
       try {
         debugPrint('🗑️ Eliminando carpeta: ${folder.id}');
+        
+        // 1. Eliminar de Firestore primero
         await FirestoreService.instance.deleteFolder(
           uid: _uid,
           folderId: folder.id,
         );
+        debugPrint('✅ Carpeta eliminada de Firestore');
         
+        // 2. Actualizar estado local inmediatamente (UI optimista)
         setState(() {
-          // Limpiar estado relacionado con esta carpeta
           _folders.removeWhere((f) => f.id == folder.id);
           _expandedFolders.remove(folder.id);
           if (_selectedFolderId == folder.id) {
             _selectedFolderId = null;
           }
         });
-        
         debugPrint('✅ Carpeta eliminada del estado local');
-        await _loadFolders(); // Recargar desde Firestore
+        
+        // 3. Esperar un poco para que Firestore propague el cambio
+        await Future.delayed(const Duration(milliseconds: 300));
+        
+        // 4. NO recargar carpetas inmediatamente - solo actualizar notas
         await _loadNotes();
         
         if (mounted) {
@@ -1247,12 +1460,15 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             SnackBar(
               content: Text('Carpeta "${folder.name}" eliminada'),
               backgroundColor: AppColors.success,
-              duration: Duration(seconds: 2),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
       } catch (e) {
         debugPrint('❌ Error eliminando carpeta: $e');
+        // Si falla, recargar carpetas para restaurar estado consistente
+        await _loadFolders();
+        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
