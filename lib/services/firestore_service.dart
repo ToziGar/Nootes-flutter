@@ -11,16 +11,10 @@ abstract class FirestoreService {
   static FirestoreService get instance => _instance ??= _resolve();
 
   static FirestoreService _resolve() {
-    // Prefer SDK on all supported platforms; fallback to REST only where SDK is unavailable
-    final isSdkSupported = kIsWeb ||
-        defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.macOS ||
-        defaultTargetPlatform == TargetPlatform.windows;
-    if (isSdkSupported) {
-      return _FirebaseFirestoreService();
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      return _RestFirestoreService();
     }
-    return _RestFirestoreService();
+    return _FirebaseFirestoreService();
   }
 
   Future<void> reserveHandle({required String username, required String uid});
@@ -41,39 +35,39 @@ abstract class FirestoreService {
 
   // Notes APIs (subcollection users/{uid}/notes)
   Future<List<Map<String, dynamic>>> listNotes({required String uid});
-  // Minimal payload for list view (may be same as listNotes on SDK)
-  Future<List<Map<String, dynamic>>> listNotesSummary({required String uid});
-  Future<List<Map<String, dynamic>>> searchNotesSummary({required String uid, required String query});
-  Future<List<Map<String, dynamic>>> listTrashedNotesSummary({required String uid});
   Future<Map<String, dynamic>?> getNote({required String uid, required String noteId});
   Future<String> createNote({required String uid, required Map<String, dynamic> data});
   Future<void> updateNote({required String uid, required String noteId, required Map<String, dynamic> data});
   Future<void> deleteNote({required String uid, required String noteId});
+  
+  // Additional notes helpers used by the UI
+  Future<List<Map<String, dynamic>>> listNotesSummary({required String uid});
+  Future<List<Map<String, dynamic>>> searchNotesSummary({required String uid, required String query});
+  Future<void> setPinned({required String uid, required String noteId, required bool pinned});
+
+  // Soft-delete / trash
   Future<void> softDeleteNote({required String uid, required String noteId});
   Future<void> restoreNote({required String uid, required String noteId});
   Future<void> purgeNote({required String uid, required String noteId});
-  Future<void> setPinned({required String uid, required String noteId, required bool pinned});
+  Future<List<Map<String, dynamic>>> listTrashedNotesSummary({required String uid});
 
-  // Advanced Notes: Collections
+  // Collections (users/{uid}/collections)
   Future<List<Map<String, dynamic>>> listCollections({required String uid});
-  Future<Map<String, dynamic>?> getCollection({required String uid, required String collectionId});
   Future<String> createCollection({required String uid, required Map<String, dynamic> data});
   Future<void> updateCollection({required String uid, required String collectionId, required Map<String, dynamic> data});
   Future<void> deleteCollection({required String uid, required String collectionId});
-  Future<void> moveNoteToCollection({required String uid, required String noteId, String? collectionId});
 
-  // Advanced Notes: Tags
+  // Tags
   Future<List<String>> listTags({required String uid});
-  Future<List<Map<String, dynamic>>> listNotesByTag({required String uid, required String tag});
   Future<void> addTagToNote({required String uid, required String noteId, required String tag});
   Future<void> removeTagFromNote({required String uid, required String noteId, required String tag});
 
-  // Advanced Notes: Graph links between notes
-  Future<void> addLink({required String uid, required String fromNoteId, required String toNoteId});
-  Future<void> removeLink({required String uid, required String fromNoteId, required String toNoteId});
+  // Links / graph
   Future<List<String>> listOutgoingLinks({required String uid, required String noteId});
   Future<List<String>> listIncomingLinks({required String uid, required String noteId});
-  Future<List<Map<String, String>>> listEdges({required String uid});
+  Future<void> addLink({required String uid, required String fromNoteId, required String toNoteId});
+  Future<void> removeLink({required String uid, required String fromNoteId, required String toNoteId});
+  Future<void> moveNoteToCollection({required String uid, required String noteId, String? collectionId});
 }
 
 class _FirebaseFirestoreService implements FirestoreService {
@@ -199,84 +193,135 @@ class _FirebaseFirestoreService implements FirestoreService {
 
   @override
   Future<List<Map<String, dynamic>>> listNotesSummary({required String uid}) async {
-    // Try to order pinned first, then updatedAt; fallback gracefully.
-    final col = _db.collection('users').doc(uid).collection('notes');
-    try {
-      final q = await col.orderBy('pinned', descending: true).orderBy('updatedAt', descending: true).get();
-      return q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-    } catch (_) {
-      final q = await col.orderBy('updatedAt', descending: true).get();
-      final items = q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-      items.sort((a, b) => ((b['pinned'] == true) ? 1 : 0).compareTo((a['pinned'] == true) ? 1 : 0));
-      return items;
-    }
+    final q = await _db.collection('users').doc(uid).collection('notes').orderBy('updatedAt', descending: true).get();
+    return q.docs.map((d) {
+      final data = d.data();
+      return {
+        'id': d.id,
+        'title': data['title'] ?? '',
+        'pinned': data['pinned'] ?? false,
+        'collectionId': data['collectionId'],
+        'tags': data['tags'] ?? <String>[],
+        'updatedAt': data['updatedAt'],
+      };
+    }).toList();
   }
 
   @override
   Future<List<Map<String, dynamic>>> searchNotesSummary({required String uid, required String query}) async {
-    final s = query.trim();
-    if (s.isEmpty) {
-      return listNotesSummary(uid: uid);
-    }
-    try {
-      final q = await _db
-          .collection('users').doc(uid).collection('notes')
-          .orderBy('title')
-          .startAt([s])
-          .endAt([s + '\uf8ff'])
-          .get();
-      final items = q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-      items.sort((a, b) {
-        final ap = (a['pinned'] == true) ? 1 : 0;
-        final bp = (b['pinned'] == true) ? 1 : 0;
-        if (ap != bp) return bp.compareTo(ap);
-        final au = a['updatedAt'];
-        final bu = b['updatedAt'];
-        return bu.toString().compareTo(au.toString());
-      });
-      return items;
-    } catch (_) {
-      // Fallback: client-side contains
-      final all = await listNotesSummary(uid: uid);
-      final lower = s.toLowerCase();
-      return all.where((n) => (n['title']?.toString().toLowerCase() ?? '').contains(lower)).toList();
-    }
-  }
-
-  @override
-  Future<List<Map<String, dynamic>>> listTrashedNotesSummary({required String uid}) async {
-    // SDK: filter client-side by deletedAt != null
+    // Simple search by title contains (client-side fallback)
     final all = await listNotesSummary(uid: uid);
-    return all.where((n) => n['deletedAt'] != null).toList();
-  }
-
-  @override
-  Future<void> softDeleteNote({required String uid, required String noteId}) async {
-    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({
-      'deletedAt': fs.FieldValue.serverTimestamp(),
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    }, fs.SetOptions(merge: true));
-  }
-
-  @override
-  Future<void> restoreNote({required String uid, required String noteId}) async {
-    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({
-      'deletedAt': fs.FieldValue.delete(),
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    }, fs.SetOptions(merge: true));
-  }
-
-  @override
-  Future<void> purgeNote({required String uid, required String noteId}) async {
-    await deleteNote(uid: uid, noteId: noteId);
+    final q = query.trim().toLowerCase();
+    return all.where((n) => (n['title']?.toString() ?? '').toLowerCase().contains(q)).toList();
   }
 
   @override
   Future<void> setPinned({required String uid, required String noteId, required bool pinned}) async {
-    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({
-      'pinned': pinned,
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    }, fs.SetOptions(merge: true));
+    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({'pinned': pinned, 'updatedAt': fs.FieldValue.serverTimestamp()}, fs.SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> softDeleteNote({required String uid, required String noteId}) async {
+    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({'trashed': true, 'trashedAt': fs.FieldValue.serverTimestamp(), 'updatedAt': fs.FieldValue.serverTimestamp()}, fs.SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> restoreNote({required String uid, required String noteId}) async {
+    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({'trashed': false, 'trashedAt': null, 'updatedAt': fs.FieldValue.serverTimestamp()}, fs.SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> purgeNote({required String uid, required String noteId}) async {
+    await _db.collection('users').doc(uid).collection('notes').doc(noteId).delete();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listTrashedNotesSummary({required String uid}) async {
+    final q = await _db.collection('users').doc(uid).collection('notes').where('trashed', isEqualTo: true).orderBy('trashedAt', descending: true).get();
+    return q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listCollections({required String uid}) async {
+    final q = await _db.collection('users').doc(uid).collection('collections').orderBy('createdAt', descending: false).get();
+    return q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+  }
+
+  @override
+  Future<String> createCollection({required String uid, required Map<String, dynamic> data}) async {
+    final col = _db.collection('users').doc(uid).collection('collections');
+    final ref = await col.add({...data, 'createdAt': fs.FieldValue.serverTimestamp()});
+    return ref.id;
+  }
+
+  @override
+  Future<void> updateCollection({required String uid, required String collectionId, required Map<String, dynamic> data}) async {
+    await _db.collection('users').doc(uid).collection('collections').doc(collectionId).set({...data, 'updatedAt': fs.FieldValue.serverTimestamp()}, fs.SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> deleteCollection({required String uid, required String collectionId}) async {
+    await _db.collection('users').doc(uid).collection('collections').doc(collectionId).delete();
+  }
+
+  @override
+  Future<List<String>> listTags({required String uid}) async {
+    // Aggregate tags by scanning notes (could be optimized with a tags collection)
+    final notes = await listNotes(uid: uid);
+    final s = <String>{};
+    for (final n in notes) {
+      final tags = (n['tags'] as List?)?.whereType<String>() ?? const [];
+      s.addAll(tags);
+    }
+    final list = s.toList()..sort();
+    return list;
+  }
+
+  @override
+  Future<void> addTagToNote({required String uid, required String noteId, required String tag}) async {
+    final ref = _db.collection('users').doc(uid).collection('notes').doc(noteId);
+    await ref.set({'tags': fs.FieldValue.arrayUnion([tag]), 'updatedAt': fs.FieldValue.serverTimestamp()}, fs.SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> removeTagFromNote({required String uid, required String noteId, required String tag}) async {
+    final ref = _db.collection('users').doc(uid).collection('notes').doc(noteId);
+    await ref.set({'tags': fs.FieldValue.arrayRemove([tag]), 'updatedAt': fs.FieldValue.serverTimestamp()}, fs.SetOptions(merge: true));
+  }
+
+  @override
+  Future<List<String>> listOutgoingLinks({required String uid, required String noteId}) async {
+    final d = await getNote(uid: uid, noteId: noteId);
+    return List<String>.from((d?['links'] as List?)?.whereType<String>() ?? const []);
+  }
+
+  @override
+  Future<List<String>> listIncomingLinks({required String uid, required String noteId}) async {
+    final notes = await listNotes(uid: uid);
+    final incoming = <String>[];
+    for (final n in notes) {
+      final links = (n['links'] as List?)?.whereType<String>() ?? const [];
+      if (links.contains(noteId)) incoming.add(n['id'].toString());
+    }
+    return incoming;
+  }
+
+  @override
+  Future<void> addLink({required String uid, required String fromNoteId, required String toNoteId}) async {
+    final ref = _db.collection('users').doc(uid).collection('notes').doc(fromNoteId);
+    await ref.set({'links': fs.FieldValue.arrayUnion([toNoteId]), 'updatedAt': fs.FieldValue.serverTimestamp()}, fs.SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> removeLink({required String uid, required String fromNoteId, required String toNoteId}) async {
+    final ref = _db.collection('users').doc(uid).collection('notes').doc(fromNoteId);
+    await ref.set({'links': fs.FieldValue.arrayRemove([toNoteId]), 'updatedAt': fs.FieldValue.serverTimestamp()}, fs.SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> moveNoteToCollection({required String uid, required String noteId, String? collectionId}) async {
+    final ref = _db.collection('users').doc(uid).collection('notes').doc(noteId);
+    await ref.set({'collectionId': collectionId, 'updatedAt': fs.FieldValue.serverTimestamp()}, fs.SetOptions(merge: true));
   }
 
   @override
@@ -308,177 +353,13 @@ class _FirebaseFirestoreService implements FirestoreService {
 
   @override
   Future<void> deleteNote({required String uid, required String noteId}) async {
-    final userNotes = _db.collection('users').doc(uid).collection('notes');
-    // Remove incoming links referencing this note
-    final incoming = await userNotes.where('links', arrayContains: noteId).get();
-    final batch = _db.batch();
-    for (final d in incoming.docs) {
-      batch.set(d.reference, {
-        'links': fs.FieldValue.arrayRemove([noteId]),
-        'updatedAt': fs.FieldValue.serverTimestamp(),
-      }, fs.SetOptions(merge: true));
-    }
-    // Delete the note itself
-    batch.delete(userNotes.doc(noteId));
-    await batch.commit();
-  }
-
-  // Collections (users/{uid}/collections)
-
-  @override
-  Future<List<Map<String, dynamic>>> listCollections({required String uid}) async {
-    final q = await _db
-        .collection('users').doc(uid).collection('collections')
-        .orderBy('createdAt', descending: true)
-        .get();
-    return q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-  }
-
-  @override
-  Future<Map<String, dynamic>?> getCollection({required String uid, required String collectionId}) async {
-    final d = await _db.collection('users').doc(uid).collection('collections').doc(collectionId).get();
-    if (!d.exists) return null;
-    return {'id': d.id, ...d.data()!};
-  }
-
-  @override
-  Future<String> createCollection({required String uid, required Map<String, dynamic> data}) async {
-    final col = _db.collection('users').doc(uid).collection('collections');
-    final now = fs.FieldValue.serverTimestamp();
-    final ref = await col.add({
-      ...data,
-      'createdAt': now,
-      'updatedAt': now,
-    });
-    return ref.id;
-  }
-
-  @override
-  Future<void> updateCollection({required String uid, required String collectionId, required Map<String, dynamic> data}) async {
-    await _db.collection('users').doc(uid).collection('collections').doc(collectionId).set({
-      ...data,
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    }, fs.SetOptions(merge: true));
-  }
-
-  @override
-  Future<void> deleteCollection({required String uid, required String collectionId}) async {
-    await _db.collection('users').doc(uid).collection('collections').doc(collectionId).delete();
-  }
-
-  @override
-  Future<void> moveNoteToCollection({required String uid, required String noteId, String? collectionId}) async {
-    final data = collectionId == null || collectionId.isEmpty
-        ? {'collectionId': fs.FieldValue.delete()}
-        : {'collectionId': collectionId};
-    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({
-      ...data,
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    }, fs.SetOptions(merge: true));
-  }
-
-  // Tags (stored in notes[].tags array)
-
-  @override
-  Future<List<String>> listTags({required String uid}) async {
-    final q = await _db.collection('users').doc(uid).collection('notes').get();
-    final set = <String>{};
-    for (final d in q.docs) {
-      final tags = (d.data()['tags'] as List?)?.whereType<String>() ?? const [];
-      set.addAll(tags);
-    }
-    return set.toList()..sort((a, b) => a.compareTo(b));
-  }
-
-  @override
-  Future<List<Map<String, dynamic>>> listNotesByTag({required String uid, required String tag}) async {
-    final base = _db
-        .collection('users').doc(uid).collection('notes')
-        .where('tags', arrayContains: tag);
-    try {
-      final q = await base.orderBy('updatedAt', descending: true).get();
-      return q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-    } catch (_) {
-      final q = await base.get();
-      return q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-    }
-  }
-
-  @override
-  Future<void> addTagToNote({required String uid, required String noteId, required String tag}) async {
-    final t = tag.trim();
-    if (t.isEmpty) return;
-    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({
-      'tags': fs.FieldValue.arrayUnion([t]),
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    }, fs.SetOptions(merge: true));
-  }
-
-  @override
-  Future<void> removeTagFromNote({required String uid, required String noteId, required String tag}) async {
-    final t = tag.trim();
-    if (t.isEmpty) return;
-    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({
-      'tags': fs.FieldValue.arrayRemove([t]),
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    }, fs.SetOptions(merge: true));
-  }
-
-  // Graph links (store as notes[].links: [noteId])
-
-  @override
-  Future<void> addLink({required String uid, required String fromNoteId, required String toNoteId}) async {
-    if (fromNoteId == toNoteId) return;
-    await _db.collection('users').doc(uid).collection('notes').doc(fromNoteId).set({
-      'links': fs.FieldValue.arrayUnion([toNoteId]),
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    }, fs.SetOptions(merge: true));
-  }
-
-  @override
-  Future<void> removeLink({required String uid, required String fromNoteId, required String toNoteId}) async {
-    await _db.collection('users').doc(uid).collection('notes').doc(fromNoteId).set({
-      'links': fs.FieldValue.arrayRemove([toNoteId]),
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    }, fs.SetOptions(merge: true));
-  }
-
-  @override
-  Future<List<String>> listOutgoingLinks({required String uid, required String noteId}) async {
-    final d = await _db.collection('users').doc(uid).collection('notes').doc(noteId).get();
-    if (!d.exists) return const [];
-    final links = (d.data()?['links'] as List?)?.whereType<String>().toList() ?? const [];
-    return List<String>.from(links);
-  }
-
-  @override
-  Future<List<String>> listIncomingLinks({required String uid, required String noteId}) async {
-    final q = await _db
-        .collection('users').doc(uid).collection('notes')
-        .where('links', arrayContains: noteId)
-        .get();
-    return q.docs.map((d) => d.id).toList();
-  }
-
-  @override
-  Future<List<Map<String, String>>> listEdges({required String uid}) async {
-    final q = await _db.collection('users').doc(uid).collection('notes').get();
-    final edges = <Map<String, String>>[];
-    for (final d in q.docs) {
-      final from = d.id;
-      final links = (d.data()['links'] as List?)?.whereType<String>() ?? const [];
-      for (final to in links) {
-        edges.add({'from': from, 'to': to});
-      }
-    }
-    return edges;
+    await _db.collection('users').doc(uid).collection('notes').doc(noteId).delete();
   }
 }
 
 class _RestFirestoreService implements FirestoreService {
   String get _projectId => DefaultFirebaseOptions.web.projectId;
   String get _base => 'https://firestore.googleapis.com/v1/projects/$_projectId/databases/(default)/documents';
-  String _parentForUser(String uid) => 'projects/$_projectId/databases/(default)/documents/users/$uid';
 
   Future<Map<String, String>> _authHeader() async {
     final token = await AuthService.instanceToken();
@@ -676,168 +557,6 @@ class _RestFirestoreService implements FirestoreService {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> listNotesSummary({required String uid}) async {
-    // Use runQuery with projection to get minimal fields (pinned first)
-    final body = {
-      'parent': _parentForUser(uid),
-      'structuredQuery': {
-        'select': {
-          'fields': [
-            {'fieldPath': 'title'},
-            {'fieldPath': 'tags'},
-            {'fieldPath': 'collectionId'},
-            {'fieldPath': 'updatedAt'},
-            {'fieldPath': 'pinned'},
-          ]
-        },
-        'from': [
-          {'collectionId': 'notes'}
-        ],
-        'orderBy': [
-          {
-            'field': {'fieldPath': 'pinned'},
-            'direction': 'DESCENDING',
-          },
-          {
-            'field': {'fieldPath': 'updatedAt'},
-            'direction': 'DESCENDING',
-          }
-        ],
-      },
-    };
-    return _runQueryAndDecode(body);
-  }
-
-  @override
-  Future<List<Map<String, dynamic>>> searchNotesSummary({required String uid, required String query}) async {
-    final s = query.trim();
-    if (s.isEmpty) return listNotesSummary(uid: uid);
-    final body = {
-      'parent': _parentForUser(uid),
-      'structuredQuery': {
-        'select': {
-          'fields': [
-            {'fieldPath': 'title'},
-            {'fieldPath': 'tags'},
-            {'fieldPath': 'collectionId'},
-            {'fieldPath': 'updatedAt'},
-            {'fieldPath': 'pinned'},
-          ]
-        },
-        'from': [
-          {'collectionId': 'notes'}
-        ],
-        'orderBy': [
-          {'field': {'fieldPath': 'title'}},
-        ],
-        'startAt': {
-          'values': [ {'stringValue': s} ],
-        },
-        'endAt': {
-          'values': [ {'stringValue': s + '\\uf8ff'} ],
-        },
-      },
-    };
-    final docs = await _runQueryAndDecode(body);
-    // Sort pinned first then updatedAt desc
-    docs.sort((a, b) {
-      final ap = (a['pinned'] == true) ? 1 : 0;
-      final bp = (b['pinned'] == true) ? 1 : 0;
-      if (ap != bp) return bp.compareTo(ap);
-      return (b['updatedAt']?.toString() ?? '').compareTo(a['updatedAt']?.toString() ?? '');
-    });
-    return docs;
-  }
-
-  @override
-  Future<List<Map<String, dynamic>>> listTrashedNotesSummary({required String uid}) async {
-    // Try unaryFilter IS_NOT_NULL on deletedAt; fallback to client filter
-    final body = {
-      'parent': _parentForUser(uid),
-      'structuredQuery': {
-        'select': {
-          'fields': [
-            {'fieldPath': 'title'},
-            {'fieldPath': 'updatedAt'},
-            {'fieldPath': 'deletedAt'},
-          ]
-        },
-        'from': [
-          {'collectionId': 'notes'}
-        ],
-        'where': {
-          'unaryFilter': {
-            'op': 'IS_NOT_NULL',
-            'field': {'fieldPath': 'deletedAt'}
-          }
-        },
-        'orderBy': [
-          {
-            'field': {'fieldPath': 'updatedAt'},
-            'direction': 'DESCENDING',
-          }
-        ],
-      },
-    };
-    try {
-      return await _runQueryAndDecode(body);
-    } catch (_) {
-      final all = await listNotesSummary(uid: uid);
-      return all.where((n) => n['deletedAt'] != null).toList();
-    }
-  }
-
-  @override
-  Future<void> softDeleteNote({required String uid, required String noteId}) async {
-    final uri = Uri.parse('$_base/users/$uid/notes/$noteId?updateMask.fieldPaths=deletedAt&updateMask.fieldPaths=updatedAt');
-    final body = jsonEncode({
-      'fields': {
-        'deletedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
-        'updatedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
-      }
-    });
-    final resp = await http.patch(uri, headers: await _authHeader(), body: body);
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-soft-delete-${resp.statusCode}');
-    }
-  }
-
-  @override
-  Future<void> restoreNote({required String uid, required String noteId}) async {
-    // To delete a field: include it in updateMask but omit from fields
-    final uri = Uri.parse('$_base/users/$uid/notes/$noteId?updateMask.fieldPaths=deletedAt&updateMask.fieldPaths=updatedAt');
-    final body = jsonEncode({
-      'fields': {
-        'updatedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
-      }
-    });
-    final resp = await http.patch(uri, headers: await _authHeader(), body: body);
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-restore-note-${resp.statusCode}');
-    }
-  }
-
-  @override
-  Future<void> purgeNote({required String uid, required String noteId}) async {
-    await deleteNote(uid: uid, noteId: noteId);
-  }
-
-  @override
-  Future<void> setPinned({required String uid, required String noteId, required bool pinned}) async {
-    final uri = Uri.parse('$_base/users/$uid/notes/$noteId?updateMask.fieldPaths=pinned&updateMask.fieldPaths=updatedAt');
-    final body = jsonEncode({
-      'fields': {
-        'pinned': {'booleanValue': pinned},
-        'updatedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
-      }
-    });
-    final resp = await http.patch(uri, headers: await _authHeader(), body: body);
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-set-pinned-${resp.statusCode}');
-    }
-  }
-
-  @override
   Future<Map<String, dynamic>?> getNote({required String uid, required String noteId}) async {
     final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
     final resp = await http.get(uri, headers: await _authHeader());
@@ -852,8 +571,6 @@ class _RestFirestoreService implements FirestoreService {
     final uri = Uri.parse('$_base/users/$uid/notes');
     final fields = <String, dynamic>{};
     data.forEach((k, v) => fields[k] = _encodeValue(v));
-    fields['createdAt'] = {'timestampValue': DateTime.now().toUtc().toIso8601String()};
-    fields['updatedAt'] = {'timestampValue': DateTime.now().toUtc().toIso8601String()};
     final body = jsonEncode({'fields': fields});
     final resp = await http.post(uri, headers: await _authHeader(), body: body);
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
@@ -868,17 +585,9 @@ class _RestFirestoreService implements FirestoreService {
   Future<void> updateNote({required String uid, required String noteId, required Map<String, dynamic> data}) async {
     final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
     final fields = <String, dynamic>{};
-    final updateMask = <String>[];
-    data.forEach((k, v) {
-      fields[k] = _encodeValue(v);
-      updateMask.add(k);
-    });
-    fields['updatedAt'] = {'timestampValue': DateTime.now().toUtc().toIso8601String()};
-    updateMask.add('updatedAt');
-    final qs = updateMask.map((f) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(f)}').join('&');
-    final patchUri = Uri.parse('$uri?$qs');
+    data.forEach((k, v) => fields[k] = _encodeValue(v));
     final body = jsonEncode({'fields': fields});
-    final resp = await http.patch(patchUri, headers: await _authHeader(), body: body);
+    final resp = await http.patch(uri, headers: await _authHeader(), body: body);
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-update-note-${resp.statusCode}');
     }
@@ -886,364 +595,11 @@ class _RestFirestoreService implements FirestoreService {
 
   @override
   Future<void> deleteNote({required String uid, required String noteId}) async {
-    // Remove incoming links (documents where links array contains noteId)
-    final runBody = {
-      'parent': _parentForUser(uid),
-      'structuredQuery': {
-        'select': {
-          'fields': [
-            {'fieldPath': 'links'}
-          ]
-        },
-        'from': [
-          {'collectionId': 'notes'}
-        ],
-        'where': {
-          'fieldFilter': {
-            'field': {'fieldPath': 'links'},
-            'op': 'ARRAY_CONTAINS',
-            'value': {'stringValue': noteId},
-          }
-        },
-      },
-    };
-    final incoming = await _runQueryAndDecode(runBody);
-    for (final d in incoming) {
-      final id = d['id']?.toString();
-      if (id == null || id.isEmpty) continue;
-      final patch = Uri.parse('$_base/users/$uid/notes/$id?updateMask.fieldPaths=links&updateMask.fieldPaths=updatedAt');
-      final body = jsonEncode({
-        'fields': {
-          'links': {
-            'arrayValue': {
-              'values': ((d['links'] as List?)?.whereType<String>() ?? const []).where((e) => e != noteId).map((e) => _encodeValue(e)).toList(),
-            }
-          },
-          'updatedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
-        }
-      });
-      await http.patch(patch, headers: await _authHeader(), body: body);
-    }
-    // Delete the note
-    final delUri = Uri.parse('$_base/users/$uid/notes/$noteId');
-    final delResp = await http.delete(delUri, headers: await _authHeader());
-    if (delResp.statusCode < 200 || delResp.statusCode >= 300) {
-      throw Exception('firestore-delete-note-${delResp.statusCode}');
-    }
-  }
-
-  // Collections (users/{uid}/collections)
-
-  @override
-  Future<List<Map<String, dynamic>>> listCollections({required String uid}) async {
-    final uri = Uri.parse('$_base/users/$uid/collections');
-    final resp = await http.get(uri, headers: await _authHeader());
-    if (resp.statusCode != 200) return [];
-    final data = jsonDecode(resp.body) as Map<String, dynamic>;
-    final docs = (data['documents'] as List?) ?? [];
-    return docs.map<Map<String, dynamic>>((d) {
-      final name = d['name']?.toString() ?? '';
-      final id = name.split('/').last;
-      final fields = _decodeFields(d['fields'] as Map<String, dynamic>?);
-      return {'id': id, ...fields};
-    }).toList();
-  }
-
-  @override
-  Future<Map<String, dynamic>?> getCollection({required String uid, required String collectionId}) async {
-    final uri = Uri.parse('$_base/users/$uid/collections/$collectionId');
-    final resp = await http.get(uri, headers: await _authHeader());
-    if (resp.statusCode != 200) return null;
-    final data = jsonDecode(resp.body) as Map<String, dynamic>;
-    final fields = _decodeFields(data['fields'] as Map<String, dynamic>?);
-    return {'id': collectionId, ...fields};
-  }
-
-  @override
-  Future<String> createCollection({required String uid, required Map<String, dynamic> data}) async {
-    final uri = Uri.parse('$_base/users/$uid/collections');
-    final fields = <String, dynamic>{};
-    data.forEach((k, v) => fields[k] = _encodeValue(v));
-    fields['createdAt'] = {'timestampValue': DateTime.now().toUtc().toIso8601String()};
-    fields['updatedAt'] = {'timestampValue': DateTime.now().toUtc().toIso8601String()};
-    final body = jsonEncode({'fields': fields});
-    final resp = await http.post(uri, headers: await _authHeader(), body: body);
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-create-collection-${resp.statusCode}');
-    }
-    final json = jsonDecode(resp.body) as Map<String, dynamic>;
-    final name = json['name']?.toString() ?? '';
-    return name.split('/').last;
-  }
-
-  @override
-  Future<void> updateCollection({required String uid, required String collectionId, required Map<String, dynamic> data}) async {
-    final uri = Uri.parse('$_base/users/$uid/collections/$collectionId');
-    final fields = <String, dynamic>{};
-    final updateMask = <String>[];
-    data.forEach((k, v) {
-      fields[k] = _encodeValue(v);
-      updateMask.add(k);
-    });
-    fields['updatedAt'] = {'timestampValue': DateTime.now().toUtc().toIso8601String()};
-    updateMask.add('updatedAt');
-    final qs = updateMask.map((f) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(f)}').join('&');
-    final patchUri = Uri.parse('$uri?$qs');
-    final body = jsonEncode({'fields': fields});
-    final resp = await http.patch(patchUri, headers: await _authHeader(), body: body);
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-update-collection-${resp.statusCode}');
-    }
-  }
-
-  @override
-  Future<void> deleteCollection({required String uid, required String collectionId}) async {
-    final uri = Uri.parse('$_base/users/$uid/collections/$collectionId');
+    final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
     final resp = await http.delete(uri, headers: await _authHeader());
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-delete-collection-${resp.statusCode}');
+      throw Exception('firestore-delete-note-${resp.statusCode}');
     }
-  }
-
-  @override
-  Future<void> moveNoteToCollection({required String uid, required String noteId, String? collectionId}) async {
-    final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
-    final fields = <String, dynamic>{};
-    final updateMask = <String>[];
-    if (collectionId == null || collectionId.isEmpty) {
-      // Represent removal as empty string (simpler than using transforms)
-      fields['collectionId'] = _encodeValue('');
-    } else {
-      fields['collectionId'] = _encodeValue(collectionId);
-    }
-    updateMask.add('collectionId');
-    fields['updatedAt'] = {'timestampValue': DateTime.now().toUtc().toIso8601String()};
-    updateMask.add('updatedAt');
-    final qs = updateMask.map((f) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(f)}').join('&');
-    final patchUri = Uri.parse('$uri?$qs');
-    final body = jsonEncode({'fields': fields});
-    final resp = await http.patch(patchUri, headers: await _authHeader(), body: body);
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-move-note-collection-${resp.statusCode}');
-    }
-  }
-
-  // Tags (client-side filtering for REST)
-
-  @override
-  Future<List<String>> listTags({required String uid}) async {
-    // Use runQuery with projection to fetch only 'tags' from notes
-    final body = {
-      'parent': _parentForUser(uid),
-      'structuredQuery': {
-        'select': {
-          'fields': [
-            {'fieldPath': 'tags'}
-          ]
-        },
-        'from': [
-          {'collectionId': 'notes'}
-        ],
-      },
-    };
-    final docs = await _runQueryAndDecode(body);
-    final set = <String>{};
-    for (final d in docs) {
-      final tags = (d['tags'] as List?)?.whereType<String>() ?? const [];
-      set.addAll(tags);
-    }
-    final list = set.toList();
-    list.sort((a, b) => a.compareTo(b));
-    return list;
-  }
-
-  @override
-  Future<List<Map<String, dynamic>>> listNotesByTag({required String uid, required String tag}) async {
-    // Try runQuery with array-contains filter; if index required, retry without orderBy.
-    Future<List<Map<String, dynamic>>> run({required bool withOrder}) async {
-      final body = {
-        'parent': _parentForUser(uid),
-        'structuredQuery': {
-          'from': [
-            {'collectionId': 'notes'}
-          ],
-          'where': {
-            'fieldFilter': {
-              'field': {'fieldPath': 'tags'},
-              'op': 'ARRAY_CONTAINS',
-              'value': {'stringValue': tag},
-            }
-          },
-          if (withOrder)
-            'orderBy': [
-              {
-                'field': {'fieldPath': 'updatedAt'},
-                'direction': 'DESCENDING',
-              }
-            ],
-        },
-      };
-      return _runQueryAndDecode(body);
-    }
-
-    try {
-      return await run(withOrder: true);
-    } catch (_) {
-      return await run(withOrder: false);
-    }
-  }
-
-  @override
-  Future<void> addTagToNote({required String uid, required String noteId, required String tag}) async {
-    final t = tag.trim();
-    if (t.isEmpty) return;
-    // Fetch, modify, patch back with updateMask
-    final note = await getNote(uid: uid, noteId: noteId);
-    final tags = <String>{...((note?['tags'] as List?)?.whereType<String>() ?? const [])};
-    tags.add(t);
-    final uri = Uri.parse('$_base/users/$uid/notes/$noteId?updateMask.fieldPaths=tags&updateMask.fieldPaths=updatedAt');
-    final body = jsonEncode({
-      'fields': {
-        'tags': {
-          'arrayValue': {
-            'values': tags.map((e) => _encodeValue(e)).toList(),
-          }
-        },
-        'updatedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
-      }
-    });
-    final resp = await http.patch(uri, headers: await _authHeader(), body: body);
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-update-tags-${resp.statusCode}');
-    }
-  }
-
-  @override
-  Future<void> removeTagFromNote({required String uid, required String noteId, required String tag}) async {
-    final t = tag.trim();
-    if (t.isEmpty) return;
-    final note = await getNote(uid: uid, noteId: noteId);
-    final tags = <String>{...((note?['tags'] as List?)?.whereType<String>() ?? const [])};
-    tags.remove(t);
-    final uri = Uri.parse('$_base/users/$uid/notes/$noteId?updateMask.fieldPaths=tags&updateMask.fieldPaths=updatedAt');
-    final body = jsonEncode({
-      'fields': {
-        'tags': {
-          'arrayValue': {
-            'values': tags.map((e) => _encodeValue(e)).toList(),
-          }
-        },
-        'updatedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
-      }
-    });
-    final resp = await http.patch(uri, headers: await _authHeader(), body: body);
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-update-tags-${resp.statusCode}');
-    }
-  }
-
-  // Graph links
-
-  @override
-  Future<void> addLink({required String uid, required String fromNoteId, required String toNoteId}) async {
-    if (fromNoteId == toNoteId) return;
-    final note = await getNote(uid: uid, noteId: fromNoteId);
-    final links = <String>{...((note?['links'] as List?)?.whereType<String>() ?? const [])};
-    links.add(toNoteId);
-    final uri = Uri.parse('$_base/users/$uid/notes/$fromNoteId?updateMask.fieldPaths=links&updateMask.fieldPaths=updatedAt');
-    final body = jsonEncode({
-      'fields': {
-        'links': {
-          'arrayValue': {
-            'values': links.map((e) => _encodeValue(e)).toList(),
-          }
-        },
-        'updatedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
-      }
-    });
-    final resp = await http.patch(uri, headers: await _authHeader(), body: body);
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-update-links-${resp.statusCode}');
-    }
-  }
-
-  @override
-  Future<void> removeLink({required String uid, required String fromNoteId, required String toNoteId}) async {
-    final note = await getNote(uid: uid, noteId: fromNoteId);
-    final links = <String>{...((note?['links'] as List?)?.whereType<String>() ?? const [])};
-    links.remove(toNoteId);
-    final uri = Uri.parse('$_base/users/$uid/notes/$fromNoteId?updateMask.fieldPaths=links&updateMask.fieldPaths=updatedAt');
-    final body = jsonEncode({
-      'fields': {
-        'links': {
-          'arrayValue': {
-            'values': links.map((e) => _encodeValue(e)).toList(),
-          }
-        },
-        'updatedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
-      }
-    });
-    final resp = await http.patch(uri, headers: await _authHeader(), body: body);
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-update-links-${resp.statusCode}');
-    }
-  }
-
-  @override
-  Future<List<String>> listOutgoingLinks({required String uid, required String noteId}) async {
-    final note = await getNote(uid: uid, noteId: noteId);
-    final links = (note?['links'] as List?)?.whereType<String>().toList() ?? const [];
-    return List<String>.from(links);
-  }
-
-  @override
-  Future<List<String>> listIncomingLinks({required String uid, required String noteId}) async {
-    // Query notes where links array contains noteId
-    final body = {
-      'parent': _parentForUser(uid),
-      'structuredQuery': {
-        'from': [
-          {'collectionId': 'notes'}
-        ],
-        'where': {
-          'fieldFilter': {
-            'field': {'fieldPath': 'links'},
-            'op': 'ARRAY_CONTAINS',
-            'value': {'stringValue': noteId},
-          }
-        },
-      },
-    };
-    final docs = await _runQueryAndDecode(body);
-    return docs.map((d) => d['id'].toString()).toList();
-  }
-
-  @override
-  Future<List<Map<String, String>>> listEdges({required String uid}) async {
-    // Efficient REST query: fetch only 'links' via StructuredQuery select
-    final body = {
-      'parent': _parentForUser(uid),
-      'structuredQuery': {
-        'select': {
-          'fields': [
-            {'fieldPath': 'links'}
-          ]
-        },
-        'from': [
-          {'collectionId': 'notes'}
-        ],
-      },
-    };
-    final docs = await _runQueryAndDecode(body);
-    final edges = <Map<String, String>>[];
-    for (final d in docs) {
-      final from = d['id']?.toString() ?? '';
-      final links = (d['links'] as List?)?.whereType<String>() ?? const [];
-      for (final to in links) {
-        edges.add({'from': from, 'to': to});
-      }
-    }
-    return edges;
   }
 
   dynamic _encodeValue(dynamic value) {
@@ -1264,22 +620,16 @@ class _RestFirestoreService implements FirestoreService {
 
   Map<String, dynamic> _decodeFields(Map<String, dynamic>? fields) {
     final result = <String, dynamic>{};
-    if (fields == null) {
-      return result;
-    }
+    if (fields == null) return result;
     fields.forEach((key, value) {
       if (value is Map<String, dynamic>) {
         if (value.containsKey('stringValue')) {
           result[key] = value['stringValue'];
-        } else if (value.containsKey('booleanValue')) {
-          result[key] = value['booleanValue'];
-        } else if (value.containsKey('doubleValue')) {
-          result[key] = value['doubleValue'];
-        } else if (value.containsKey('integerValue')) {
-          result[key] = int.tryParse(value['integerValue'].toString());
-        } else if (value.containsKey('timestampValue')) {
-          result[key] = value['timestampValue'];
-        } else if (value.containsKey('arrayValue')) {
+        } else if (value.containsKey('booleanValue')) result[key] = value['booleanValue'];
+        else if (value.containsKey('doubleValue')) result[key] = value['doubleValue'];
+        else if (value.containsKey('integerValue')) result[key] = int.tryParse(value['integerValue'].toString());
+        else if (value.containsKey('timestampValue')) result[key] = value['timestampValue'];
+        else if (value.containsKey('arrayValue')) {
           final arr = value['arrayValue'] as Map<String, dynamic>?;
           final vals = arr?['values'] as List? ?? [];
           result[key] = vals.map((e) => (e as Map<String, dynamic>)['stringValue'] ?? e.toString()).toList();
@@ -1289,36 +639,5 @@ class _RestFirestoreService implements FirestoreService {
       }
     });
     return result;
-  }
-
-  Future<List<Map<String, dynamic>>> _runQueryAndDecode(Map<String, dynamic> body) async {
-    final uri = Uri.parse('$_base:runQuery');
-    final resp = await http.post(uri, headers: await _authHeader(), body: jsonEncode(body));
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-runQuery-${resp.statusCode}');
-    }
-    final text = resp.body.trim();
-    final List results = <dynamic>[];
-    if (text.startsWith('[')) {
-      results.addAll(jsonDecode(text) as List);
-    } else {
-      // Newline-delimited JSON fallback
-      for (final line in text.split('\n')) {
-        final l = line.trim();
-        if (l.isEmpty) continue;
-        results.add(jsonDecode(l));
-      }
-    }
-    final docs = <Map<String, dynamic>>[];
-    for (final item in results) {
-      if (item is Map && item['document'] != null) {
-        final d = item['document'] as Map<String, dynamic>;
-        final name = d['name']?.toString() ?? '';
-        final id = name.split('/').last;
-        final fields = _decodeFields(d['fields'] as Map<String, dynamic>?);
-        docs.add({'id': id, ...fields});
-      }
-    }
-    return docs;
   }
 }
