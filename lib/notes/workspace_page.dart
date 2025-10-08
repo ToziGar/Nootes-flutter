@@ -1605,41 +1605,56 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                           ),
                         ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(AppColors.space12),
-                        itemCount: _folders.length + 1 + _notes.length, // carpetas + botón crear + notas
-                        itemBuilder: (context, i) {
-                          // Sección de carpetas
-                          if (i < _folders.length) {
-                            final folder = _folders[i];
-                            final noteCount = folder.noteIds.length;
-                            return _buildFolderCard(folder, noteCount);
+                    : Builder(
+                        builder: (context) {
+                          // Obtener IDs de notas que están en carpetas
+                          final Set<String> notesInFolders = {};
+                          for (final folder in _folders) {
+                            notesInFolders.addAll(folder.noteIds);
                           }
                           
-                          // Botón crear carpeta
-                          if (i == _folders.length) {
-                            return _buildCreateFolderButton();
-                          }
+                          // Filtrar notas que NO están en carpetas
+                          final notesWithoutFolder = _notes
+                              .where((n) => !notesInFolders.contains(n['id'].toString()))
+                              .toList();
                           
-                          // Notas
-                          final noteIndex = i - _folders.length - 1;
-                          final note = _notes[noteIndex];
-                          final id = note['id'].toString();
-                          return NotesSidebarCard(
-                            note: note,
-                            isSelected: id == _selectedId,
-                            onTap: () => _select(id),
-                            onPin: () async {
-                              await FirestoreService.instance.setPinned(
-                                uid: _uid,
-                                noteId: id,
-                                pinned: !(note['pinned'] == true),
+                          return ListView.builder(
+                            padding: const EdgeInsets.all(AppColors.space12),
+                            itemCount: _folders.length + 1 + notesWithoutFolder.length,
+                            itemBuilder: (context, i) {
+                              // Sección de carpetas
+                              if (i < _folders.length) {
+                                final folder = _folders[i];
+                                final noteCount = folder.noteIds.length;
+                                return _buildFolderCard(folder, noteCount);
+                              }
+                              
+                              // Botón crear carpeta
+                              if (i == _folders.length) {
+                                return _buildCreateFolderButton();
+                              }
+                              
+                              // Notas sin carpeta
+                              final noteIndex = i - _folders.length - 1;
+                              final note = notesWithoutFolder[noteIndex];
+                              final id = note['id'].toString();
+                              return NotesSidebarCard(
+                                note: note,
+                                isSelected: id == _selectedId,
+                                onTap: () => _select(id),
+                                onPin: () async {
+                                  await FirestoreService.instance.setPinned(
+                                    uid: _uid,
+                                    noteId: id,
+                                    pinned: !(note['pinned'] == true),
+                                  );
+                                  await _loadNotes();
+                                },
+                                onDelete: () => _delete(id),
+                                enableDrag: true,
+                                compact: _compactMode,
                               );
-                              await _loadNotes();
                             },
-                            onDelete: () => _delete(id),
-                            enableDrag: true,
-                            compact: _compactMode,
                           );
                         },
                       ),
