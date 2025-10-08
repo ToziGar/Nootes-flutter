@@ -52,7 +52,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   bool _saving = false;
   bool _richMode = false;
   String _richJson = '';
-  bool _focusMode = false;
+  // focus mode removed per request
   final _storage = const FlutterSecureStorage();
   bool _isRecording = false;
   late final AnimationController _editorCtrl;
@@ -238,19 +238,19 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     try {
       debugPrint('🔍 Verificando integridad de carpetas...');
       
-      // Obtener carpetas desde Firestore para comparar
+      // Obtener carpetas desde Firestore para comparar (comparar docId)
       final remoteFolders = await FirestoreService.instance.listFolders(uid: _uid);
-      final remoteFolderIds = remoteFolders.map((f) => f['id'].toString()).toSet();
-      
-      // Verificar que la carpeta eliminada NO está en Firestore
-      if (remoteFolderIds.contains(deletedFolderId)) {
-        debugPrint('❌ ERROR: La carpeta $deletedFolderId todavía existe en Firestore');
+      final remoteDocIds = remoteFolders.map((f) => (f['docId'] ?? f['id']).toString()).toSet();
+
+      // Verificar que la carpeta eliminada NO está en Firestore (por docId)
+      if (remoteDocIds.contains(deletedFolderId)) {
+        debugPrint('❌ ERROR: La carpeta (docId) $deletedFolderId todavía existe en Firestore');
         throw Exception('La carpeta no se eliminó correctamente de Firestore');
       }
-      
-      // Verificar que el estado local coincide con Firestore
-      final localFolderIds = _folders.map((f) => f.id).toSet();
-      final phantomFolders = localFolderIds.difference(remoteFolderIds);
+
+      // Verificar que el estado local coincide con Firestore (mapear local a docId)
+      final localDocIds = _folders.map((f) => f.docId.isNotEmpty ? f.docId : f.id).toSet();
+      final phantomFolders = localDocIds.difference(remoteDocIds);
       
       if (phantomFolders.isNotEmpty) {
         debugPrint('👻 Carpetas fantasma detectadas en estado local: $phantomFolders');
@@ -1702,22 +1702,22 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
 
     if (confirmed == true) {
       try {
-        debugPrint('🗑️ Eliminando carpeta: ${folder.id}');
-        
-        // 1. Eliminar de Firestore primero
+        debugPrint('🗑️ Eliminando carpeta (docId): ${folder.docId}');
+
+        // 1. Eliminar de Firestore primero (usar docId, que es el doc ID en Firestore)
         await FirestoreService.instance.deleteFolder(
           uid: _uid,
-          folderId: folder.id,
+          folderId: folder.docId,
         );
         debugPrint('✅ Carpeta eliminada de Firestore');
-        
-        // 2. Verificar que realmente se eliminó
+
+        // 2. Verificar que realmente se eliminó (comprobar por docId)
         await Future.delayed(const Duration(milliseconds: 500));
         final deletedFolder = await FirestoreService.instance.getFolder(
-          uid: _uid, 
-          folderId: folder.id,
+          uid: _uid,
+          folderId: folder.docId,
         );
-        
+
         if (deletedFolder != null) {
           throw Exception('La carpeta no se eliminó correctamente de Firestore');
         }
@@ -1736,8 +1736,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         // 3. Esperar un poco para que Firestore propague el cambio
         await Future.delayed(const Duration(milliseconds: 300));
         
-        // 4. Verificar integridad y hacer limpieza final
-        await _verifyFolderIntegrity(folder.id);
+  // 4. Verificar integridad y hacer limpieza final (usar docId)
+  await _verifyFolderIntegrity(folder.docId);
         
         // 5. Recargar carpetas Y notas para sincronizar con Firestore
         await _loadFolders();
@@ -1807,12 +1807,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
               return null;
             },
           ),
-          FocusModeIntent: CallbackAction<FocusModeIntent>(
-            onInvoke: (_) {
-              setState(() => _focusMode = !_focusMode);
-              return null;
-            },
-          ),
+          // FocusModeIntent removed
           ToggleCompactModeIntent: CallbackAction<ToggleCompactModeIntent>(
             onInvoke: (_) {
               _toggleCompactMode();
@@ -1830,16 +1825,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           }
           
           return Scaffold(
-        appBar: _focusMode
-            ? null
-            : PreferredSize(
+        appBar: PreferredSize(
                 preferredSize: const Size.fromHeight(64),
                 child: WorkspaceHeader(
                   saving: _saving,
                   richMode: _richMode,
-                  focusMode: _focusMode,
+                  // focusMode removed
                   onToggleMode: (mode) => setState(() => _richMode = mode),
-                  onToggleFocus: () => setState(() => _focusMode = !_focusMode),
                   onSave: _save,
                   onSettings: _openSettings,
                   saveScale: _saveScale,
@@ -1853,7 +1845,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             : null,
         body: Row(
             children: [
-              if (!_focusMode && !narrow)
+              if (!narrow)
                 ConstrainedBox(
                   constraints: const BoxConstraints(minWidth: 260, maxWidth: 360),
                   child: Container(

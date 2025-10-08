@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/color_utils.dart';
 import '../services/auth_service.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -125,9 +126,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.accent.withOpacity(0.1),
-              AppColors.primary.withOpacity(0.1),
-              AppColors.secondary.withOpacity(0.05),
+              AppColors.accent.withOpacityCompat(0.1),
+              AppColors.primary.withOpacityCompat(0.1),
+              AppColors.secondary.withOpacityCompat(0.05),
             ],
           ),
         ),
@@ -147,7 +148,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.accent.withOpacity(0.1),
+                            color: AppColors.accent.withOpacityCompat(0.1),
                             blurRadius: 30,
                             offset: const Offset(0, 15),
                           ),
@@ -165,12 +166,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [AppColors.accent, AppColors.accent.withOpacity(0.7)],
+                                  colors: [AppColors.accent, AppColors.accent.withOpacityCompat(0.7)],
                                 ),
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppColors.accent.withOpacity(0.3),
+                                    color: AppColors.accent.withOpacityCompat(0.3),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
                                   ),
@@ -187,7 +188,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                             // Título mejorado
                             ShaderMask(
                               shaderCallback: (bounds) => LinearGradient(
-                                colors: [AppColors.accent, AppColors.accent.withOpacity(0.7)],
+                                colors: [AppColors.accent, AppColors.accent.withOpacityCompat(0.7)],
                               ).createShader(bounds),
                               child: Text(
                                 'Recuperar Contraseña',
@@ -203,7 +204,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                               'Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña',
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacityCompat(0.7),
                               ),
                             ),
                             const SizedBox(height: 32),
@@ -268,14 +269,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.accent.withOpacity(0.2),
+          color: AppColors.accent.withOpacityCompat(0.2),
           width: 1,
         ),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.accent.withOpacity(0.05),
+            AppColors.accent.withOpacityCompat(0.05),
             Colors.transparent,
           ],
         ),
@@ -297,7 +298,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
           ),
           filled: true,
           fillColor: Colors.transparent,
-          labelStyle: TextStyle(color: AppColors.accent.withOpacity(0.8)),
+          labelStyle: TextStyle(color: AppColors.accent.withOpacityCompat(0.8)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
       ),
@@ -309,12 +310,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
       height: 56,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.accent, AppColors.accent.withOpacity(0.7)],
+          colors: [AppColors.accent, AppColors.accent.withOpacityCompat(0.7)],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.accent.withOpacity(0.3),
+            color: AppColors.accent.withOpacityCompat(0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

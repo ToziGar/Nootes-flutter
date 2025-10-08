@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import '../theme/app_theme.dart';
+import '../theme/color_utils.dart';
 
 /// Widget mejorado que maneja el menú contextual evitando el menú nativo
 class EnhancedContextMenuRegion extends StatelessWidget {
@@ -21,30 +22,48 @@ class EnhancedContextMenuRegion extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Listener(
+      // Track pointer id to avoid nested regions both opening a menu.
       onPointerDown: (details) {
         // Detectar click derecho y prevenir menú nativo
         if (details.kind == PointerDeviceKind.mouse &&
             details.buttons == kSecondaryMouseButton) {
-          _handleRightClick(context, details.position);
+          _handleRightClick(context, details.position, pointer: details.pointer);
         }
       },
       child: GestureDetector(
         onSecondaryTapDown: enabled ? (details) {
-          // También manejar con GestureDetector como respaldo
-          _handleRightClick(context, details.globalPosition);
+          // También manejar con GestureDetector como respaldo (no tenemos id aquí)
+          _handleRightClick(context, details.globalPosition, pointer: null);
         } : null,
         onLongPress: enabled ? () {
           // Para dispositivos táctiles
           final RenderBox box = context.findRenderObject() as RenderBox;
           final Offset position = box.localToGlobal(box.size.center(Offset.zero));
-          _handleRightClick(context, position);
+          _handleRightClick(context, position, pointer: null);
         } : null,
         child: child,
       ),
     );
   }
 
-  void _handleRightClick(BuildContext context, Offset position) async {
+  // Keep track of recently consumed pointer ids so nested regions don't both react.
+  static final Set<int> _consumedPointerIds = <int>{};
+
+  void _markPointerConsumed(int pointer) {
+    _consumedPointerIds.add(pointer);
+    // Remove after short delay to avoid permanently blocking other interactions.
+    Future.delayed(const Duration(milliseconds: 600), () {
+      _consumedPointerIds.remove(pointer);
+    });
+  }
+
+  void _unmarkPointer(int pointer) {
+    _consumedPointerIds.remove(pointer);
+  }
+
+  void _handleRightClick(BuildContext context, Offset position, {int? pointer}) async {
+    // If this pointer was already consumed by a nested EnhancedContextMenuRegion, ignore.
+    if (pointer != null && _consumedPointerIds.contains(pointer)) return;
     if (!enabled || actions == null) return;
 
     // Feedback háptico
@@ -54,11 +73,15 @@ class EnhancedContextMenuRegion extends StatelessWidget {
     if (contextActions.isEmpty) return;
 
     try {
+      if (pointer != null) _markPointerConsumed(pointer);
+
       final selectedAction = await _showEnhancedMenu(
         context: context,
         position: position,
         actions: contextActions,
       );
+
+      if (pointer != null) _unmarkPointer(pointer);
 
       if (selectedAction != null && onActionSelected != null) {
         onActionSelected!(selectedAction);
@@ -106,9 +129,9 @@ class EnhancedContextMenuRegion extends StatelessWidget {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: action.isDanger 
-                        ? AppColors.danger.withOpacity(0.1)
-                        : AppColors.primary.withOpacity(0.1),
+          color: action.isDanger
+            ? AppColors.danger.withOpacityCompat(0.1)
+            : AppColors.primary.withOpacityCompat(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -170,7 +193,7 @@ class EnhancedContextMenuRegion extends StatelessWidget {
       }).toList(),
       elevation: 12,
       color: AppColors.surface,
-      shadowColor: AppColors.primary.withOpacity(0.1),
+  shadowColor: AppColors.primary.withOpacityCompat(0.1),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(

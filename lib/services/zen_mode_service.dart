@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../theme/color_utils.dart';
 import 'package:flutter/services.dart';
 
 /// Servicio para el modo Zen (escritura sin distracciones)
@@ -263,7 +264,7 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
     
     return Material(
       type: MaterialType.canvas,
-      color: backgroundColor.withOpacity(widget.config.opacity),
+      color: backgroundColor.withOpacityCompat(widget.config.opacity),
       child: Stack(
         children: [
           // Fondo con efecto de respiración
@@ -277,7 +278,7 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
                       center: Alignment.center,
                       radius: _breathingAnimation.value,
                       colors: [
-                        backgroundColor.withOpacity(0.1),
+                        backgroundColor.withOpacityCompat(0.1),
                         backgroundColor,
                       ],
                     ),
@@ -358,7 +359,7 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withOpacityCompat(0.3),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Icon(
@@ -396,7 +397,7 @@ class ZenModeControls extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.8),
+  color: Colors.black.withOpacityCompat(0.8),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -488,7 +489,7 @@ class ZenModeProgress extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
+  color: Colors.black.withOpacityCompat(0.5),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -496,7 +497,7 @@ class ZenModeProgress extends StatelessWidget {
         children: [
           Icon(
             Icons.timer,
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withOpacityCompat(0.7),
             size: 16,
           ),
           const SizedBox(width: 8),
@@ -504,7 +505,7 @@ class ZenModeProgress extends StatelessWidget {
             width: 200,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withOpacityCompat(0.3),
               borderRadius: BorderRadius.circular(2),
             ),
             child: FractionallySizedBox(

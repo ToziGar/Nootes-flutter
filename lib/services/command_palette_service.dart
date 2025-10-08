@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../theme/color_utils.dart';
 
 /// Servicio para la paleta de comandos del editor
 class CommandPaletteService {
@@ -524,7 +525,7 @@ class _CommandPaletteState extends State<CommandPalette> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withOpacityCompat(0.3),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -537,7 +538,7 @@ class _CommandPaletteState extends State<CommandPalette> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.primaryColor.withOpacity(0.1),
+                color: theme.primaryColor.withOpacityCompat(0.1),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               ),
               child: Row(
@@ -621,9 +622,9 @@ class _CommandPaletteState extends State<CommandPalette> {
                         final isRecent = widget.service.recentCommands.contains(command.id);
                         
                         return Container(
-                          color: isSelected 
-                              ? theme.primaryColor.withOpacity(0.1)
-                              : null,
+              color: isSelected
+                ? theme.primaryColor.withOpacityCompat(0.1)
+                : null,
                           child: ListTile(
                             dense: true,
                             leading: Row(
@@ -674,7 +675,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: theme.primaryColor.withOpacity(0.1),
+                                color: theme.primaryColor.withOpacityCompat(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(

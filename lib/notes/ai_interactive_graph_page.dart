@@ -7,6 +7,7 @@ import '../widgets/glass.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/color_utils.dart';
 
 /// 🧠 Mapa Mental Ultra-Avanzado con IA y Conexiones Inteligentes
 /// Características:
@@ -799,7 +800,7 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
       top: 16,
       right: 16,
       child: Card(
-        color: Colors.black.withOpacity(0.8),
+  color: Colors.black.withOpacityCompat(0.8),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -870,7 +871,7 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
       left: 16,
       right: 16,
       child: Card(
-        color: Colors.black.withOpacity(0.9),
+  color: Colors.black.withOpacityCompat(0.9),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -957,7 +958,7 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
       top: 16,
       left: 16,
       child: Card(
-        color: Colors.black.withOpacity(0.8),
+  color: Colors.black.withOpacityCompat(0.8),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -992,9 +993,9 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
+          color: color.withOpacityCompat(0.2),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.5)),
+          border: Border.all(color: color.withOpacityCompat(0.5)),
         ),
         child: Text(
           label,

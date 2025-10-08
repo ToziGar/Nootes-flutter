@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/color_utils.dart';
 
 /// Servicio para matching de brackets y paréntesis
 class BracketMatchingService {
@@ -275,7 +276,7 @@ class BracketMatchingService {
     if (isError) {
       return Theme.of(context).colorScheme.error;
     }
-    return Theme.of(context).primaryColor.withOpacity(0.3);
+  return Theme.of(context).primaryColor.withOpacityCompat(0.3);
   }
 
   /// Verifica si un carácter es un bracket
@@ -391,8 +392,8 @@ class BracketHighlightOverlay extends StatelessWidget {
         height: lineHeight,
         decoration: BoxDecoration(
           color: isError 
-              ? Theme.of(context).colorScheme.error.withOpacity(0.3)
-              : Theme.of(context).primaryColor.withOpacity(0.3),
+              ? Theme.of(context).colorScheme.error.withOpacityCompat(0.3)
+              : Theme.of(context).primaryColor.withOpacityCompat(0.3),
           borderRadius: BorderRadius.circular(2),
         ),
       ),

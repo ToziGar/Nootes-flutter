@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/color_utils.dart';
 import '../theme/app_theme.dart';
 import '../services/firestore_service.dart';
 
@@ -170,7 +171,7 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: AppColors.borderColor.withOpacity(0.3),
+              color: AppColors.borderColor.withOpacityCompat(0.3),
             ),
           ),
         ),
@@ -227,10 +228,10 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withOpacityCompat(0.1),
                       borderRadius: BorderRadius.circular(AppColors.radiusSm),
                       border: Border.all(
-                        color: AppColors.primary.withOpacity(0.2),
+                        color: AppColors.primary.withOpacityCompat(0.2),
                       ),
                     ),
                     child: Text(

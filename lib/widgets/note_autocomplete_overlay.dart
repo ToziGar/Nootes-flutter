@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/color_utils.dart';
 import '../theme/app_theme.dart';
 
 /// Overlay que muestra sugerencias de notas cuando el usuario escribe [[
@@ -102,7 +103,7 @@ class NoteAutocompleteOverlay extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: AppColors.borderColor.withOpacity(0.3),
+              color: AppColors.borderColor.withOpacityCompat(0.3),
             ),
           ),
         ),
@@ -140,7 +141,7 @@ class NoteAutocompleteOverlay extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withOpacityCompat(0.1),
                       borderRadius: BorderRadius.circular(AppColors.radiusSm),
                     ),
                     child: Text(

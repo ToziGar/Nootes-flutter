@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/editor_config_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/color_utils.dart';
 
 /// Diálogo de configuración del editor avanzado
 class EditorSettingsDialog extends StatefulWidget {
@@ -318,7 +319,7 @@ class _EditorSettingsDialogState extends State<EditorSettingsDialog> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
+                    color: AppColors.primary.withOpacityCompat(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(

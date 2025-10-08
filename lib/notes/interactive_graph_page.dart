@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/toast_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/color_utils.dart';
 
 /// 🧠 Mapa Mental Unificado (IA + Interactivo)
 /// Esta implementación reemplaza la versión anterior y combina las
@@ -26,7 +27,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
   late Future<void> _init;
   List<AIGraphNode> _nodes = [];
   List<AIGraphEdge> _edges = [];
-  List<ParticleConnection> _particles = [];
+  final List<ParticleConnection> _particles = [];
   String? _selectedNodeId;
   String? _hoveredNodeId;
   // Drag-to-link state
@@ -34,7 +35,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
   Offset? _draggingCurrentPosition; // in canvas coordinates (post-transform)
   
   // Edge filtering
-  Set<EdgeType> _visibleEdgeTypes = EdgeType.values.toSet();
+  final Set<EdgeType> _visibleEdgeTypes = EdgeType.values.toSet();
   double _minEdgeStrength = 0.0;
   bool _showEdgeLabels = true;
   
@@ -46,7 +47,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
   bool _autoLayout = true;
   
   // IA settings
-  NodeClusteringMode _clusteringMode = NodeClusteringMode.semantic;
+  final NodeClusteringMode _clusteringMode = NodeClusteringMode.semantic;
   VisualizationStyle _visualStyle = VisualizationStyle.galaxy;
   double _connectionThreshold = 0.3;
   
@@ -59,7 +60,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
   
   // Particles
   Timer? _layoutTimer;
-  List<FloatingParticle> _floatingParticles = [];
+  final List<FloatingParticle> _floatingParticles = [];
   
   Map<String, double> _centrality = {};
   List<NodeCluster> _clusters = [];
@@ -111,8 +112,8 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
   }
 
   void _updateParticles() {
-    _floatingParticles.removeWhere((p) => p.life <= 0);
-    for (var particle in _floatingParticles) particle.update();
+  _floatingParticles.removeWhere((p) => p.life <= 0);
+  for (var particle in _floatingParticles) { particle.update(); }
     if (_floatingParticles.length < 50 && _showParticles) {
       final size = MediaQuery.of(context).size;
       _floatingParticles.add(FloatingParticle(
@@ -143,7 +144,14 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
     final existingEdgesLegacy = await svc.listEdges(uid: _uid);
     
     final nodes = <AIGraphNode>[];
-    final size = Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height);
+    // Ensure we have a valid layout size. If called during initState before the
+    // first frame, MediaQuery size may be zero; wait a frame if necessary.
+    Size size = MediaQuery.of(context).size;
+    if (size.width == 0 || size.height == 0) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      size = MediaQuery.of(context).size;
+    }
     
     for (var i = 0; i < notes.length; i++) {
       final note = notes[i];
@@ -705,6 +713,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
               ],
             ),
           );
+          if (!mounted) return;
           if (confirmed == true) {
             try {
               await FirestoreService.instance.addLink(uid: _uid, fromNoteId: fromId, toNoteId: targetNode);
@@ -719,26 +728,33 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
       child: AnimatedBuilder(
         animation: Listenable.merge([_pulseAnimation, _rotationAnimation]),
         builder: (context, child) {
-          return CustomPaint(
-            size: Size.infinite,
-            painter: AIGraphPainter(
-              nodes: _nodes,
-              edges: _getFilteredEdges(),
-              particles: _showParticles ? _particles : [],
-              floatingParticles: _showParticles ? _floatingParticles : [],
-              selectedNodeId: _selectedNodeId,
-              hoveredNodeId: _hoveredNodeId,
-              scale: _scale,
-              offset: _offset,
-              is3DMode: _is3DMode,
-              pulseValue: _pulseAnimation.value,
-              rotationValue: _rotationAnimation.value,
-              clusters: _clusters,
-              centrality: _centrality,
-              // New drag visual state
-              draggingFromNodeId: _draggingFromNodeId,
-              draggingPosition: _draggingCurrentPosition,
-            ),
+          // Use LayoutBuilder to ensure the painter receives a finite size
+          // and the render box is properly laid out before hit-testing.
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+              return CustomPaint(
+                size: canvasSize,
+                painter: AIGraphPainter(
+                  nodes: _nodes,
+                  edges: _getFilteredEdges(),
+                  particles: _showParticles ? _particles : [],
+                  floatingParticles: _showParticles ? _floatingParticles : [],
+                  selectedNodeId: _selectedNodeId,
+                  hoveredNodeId: _hoveredNodeId,
+                  scale: _scale,
+                  offset: _offset,
+                  is3DMode: _is3DMode,
+                  pulseValue: _pulseAnimation.value,
+                  rotationValue: _rotationAnimation.value,
+                  clusters: _clusters,
+                  centrality: _centrality,
+                  // New drag visual state
+                  draggingFromNodeId: _draggingFromNodeId,
+                  draggingPosition: _draggingCurrentPosition,
+                ),
+              );
+            },
           );
         },
       ),
@@ -757,7 +773,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
       top: 16,
       right: 16,
       child: Card(
-        color: Colors.black.withOpacity(0.8),
+  color: Colors.black.withOpacityCompat(0.8),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -812,7 +828,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
       left: 16,
       right: 16,
       child: Card(
-        color: Colors.black.withOpacity(0.9),
+  color: Colors.black.withOpacityCompat(0.9),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -865,6 +881,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
                           final match = docs.firstWhere((d) => d['from'] == edge.from && d['to'] == edge.to, orElse: () => <String, dynamic>{});
                           final edgeId = match['id']?.toString();
                           final res = await showDialog(context: context, builder: (ctx) => EdgeEditorDialog(uid: _uid, edgeId: edgeId, fromNoteId: edge.from, toNoteId: edge.to));
+                          if (!mounted) return;
                           if (res is EdgeEditorResult) {
                             await _loadGraphWithAI();
                           }
@@ -886,7 +903,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
       top: 16,
       left: 16,
       child: Card(
-        color: Colors.black.withOpacity(0.8),
+  color: Colors.black.withOpacityCompat(0.8),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -915,7 +932,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
       padding: const EdgeInsets.only(right: 8, bottom: 4),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(color: color.withOpacity(0.2), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.5))),
+  decoration: BoxDecoration(color: color.withOpacityCompat(0.2), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacityCompat(0.5))),
         child: Text(label, style: TextStyle(fontSize: 10, color: color)),
       ),
     );
@@ -968,7 +985,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
       top: 16,
       right: 16,
       child: Card(
-        color: Colors.black.withOpacity(0.8),
+  color: Colors.black.withOpacityCompat(0.8),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -1054,7 +1071,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
       bottom: 16,
       right: 16,
       child: Card(
-        color: Colors.black.withOpacity(0.7),
+  color: Colors.black.withOpacityCompat(0.7),
         child: Padding(
           padding: const EdgeInsets.all(8),
           child: Column(
@@ -1111,7 +1128,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
     if (lenSq == 0) return (point - start).distance; // start == end
     
     final param = dot / lenSq;
-    final xx, yy;
+  double xx, yy;
     
     if (param < 0) {
       xx = start.dx;
@@ -1145,6 +1162,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
       ),
     );
     
+    if (!mounted) return;
     if (result != null) {
       await _loadGraphWithAI();
       final action = result.deleted ? 'eliminado' : (edgeId == null ? 'creado' : 'actualizado');
@@ -1201,6 +1219,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
                                 ],
                               ),
                             );
+                            if (!mounted) return;
                             if (confirmed == true) {
                               try {
                                 await FirestoreService.instance.removeLink(uid: _uid, fromNoteId: edge.from, toNoteId: edge.to);
@@ -1226,6 +1245,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
           ),
           FilledButton(
             onPressed: () async {
+              if (!mounted) return;
               Navigator.pop(ctx);
               await _showEdgeEditDialog(AIGraphEdge(from: nodeId, to: '', strength: 0.8, type: EdgeType.manual, label: ''));
             },
@@ -1312,13 +1332,13 @@ class AIGraphPainter extends CustomPainter {
   }
 
   void _drawFloatingParticles(Canvas canvas) {
-    final baseOpacity = 0.1;
-    final paint = Paint()..color = Colors.white.withOpacity(baseOpacity)..style = PaintingStyle.fill;
+  final baseOpacity = 0.1;
+  final paint = Paint()..color = Colors.white.withOpacityCompat(baseOpacity)..style = PaintingStyle.fill;
     for (var particle in floatingParticles) {
       // particle.life may drift outside 0..1 during updates; clamp to valid range
       final life = particle.life.clamp(0.0, 1.0);
   final opacity = (baseOpacity * life).clamp(0.0, 1.0);
-      canvas.drawCircle(particle.position, particle.size * life, paint..color = Colors.white.withOpacity(opacity));
+  canvas.drawCircle(particle.position, particle.size * life, paint..color = Colors.white.withOpacityCompat(opacity));
     }
   }
 
@@ -1328,8 +1348,8 @@ class AIGraphPainter extends CustomPainter {
       if (clusterNodes.length < 2) continue;
       final positions = clusterNodes.map((n) => n.position).toList();
       final bounds = _calculateBounds(positions);
-      final paint = Paint()..color = cluster.color.withOpacity(0.1)..style = PaintingStyle.fill;
-      final strokePaint = Paint()..color = cluster.color.withOpacity(0.3)..style = PaintingStyle.stroke..strokeWidth = 2;
+  final paint = Paint()..color = cluster.color.withOpacityCompat(0.1)..style = PaintingStyle.fill;
+  final strokePaint = Paint()..color = cluster.color.withOpacityCompat(0.3)..style = PaintingStyle.stroke..strokeWidth = 2;
       final rect = RRect.fromRectAndRadius(bounds, const Radius.circular(20));
       canvas.drawRRect(rect, paint);
       canvas.drawRRect(rect, strokePaint);
@@ -1362,13 +1382,13 @@ class AIGraphPainter extends CustomPainter {
         paint.shader = ui.Gradient.linear(fromNode.position, toNode.position, [fromNode.color, toNode.color]);
         paint.strokeWidth = 4 * edge.strength;
       } else if (edge.type == EdgeType.semantic) {
-        paint.color = Colors.purple.withOpacity(0.6 * edge.strength);
+  paint.color = Colors.purple.withOpacityCompat(0.6 * edge.strength);
         paint.strokeWidth = 3 * edge.strength;
       } else {
-        paint.color = Colors.white.withOpacity(0.3 * edge.strength);
+  paint.color = Colors.white.withOpacityCompat(0.3 * edge.strength);
         paint.strokeWidth = 2 * edge.strength;
       }
-      if (isHighlighted) { paint.strokeWidth *= 1.5; paint.color = paint.color.withOpacity(math.min(1.0, paint.color.opacity * 2)); }
+  if (isHighlighted) { paint.strokeWidth *= 1.5; paint.color = paint.color.withOpacityCompat(math.min(1.0, paint.color.opacity * 2)); }
       final controlPoint = _calculateControlPoint(fromNode.position, toNode.position);
       final path = Path()..moveTo(fromNode.position.dx, fromNode.position.dy)..quadraticBezierTo(controlPoint.dx, controlPoint.dy, toNode.position.dx, toNode.position.dy);
       canvas.drawPath(path, paint);
@@ -1378,11 +1398,11 @@ class AIGraphPainter extends CustomPainter {
     if (draggingFromNodeId != null && draggingPosition != null) {
       try {
         final fromNode = nodes.firstWhere((n) => n.id == draggingFromNodeId);
-        final paint = Paint()..color = Colors.white.withOpacity(0.7)..strokeWidth = 3..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
+  final paint = Paint()..color = Colors.white.withOpacityCompat(0.7)..strokeWidth = 3..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
         final path = Path()..moveTo(fromNode.position.dx, fromNode.position.dy)..lineTo(draggingPosition!.dx, draggingPosition!.dy);
         canvas.drawPath(path, paint);
         // small target indicator
-        canvas.drawCircle(draggingPosition!, 6, Paint()..color = Colors.white.withOpacity(0.9)..style = PaintingStyle.fill);
+  canvas.drawCircle(draggingPosition!, 6, Paint()..color = Colors.white.withOpacityCompat(0.9)..style = PaintingStyle.fill);
       } catch (_) {}
     }
   }
@@ -1399,9 +1419,9 @@ class AIGraphPainter extends CustomPainter {
       final toNode = nodes.firstWhere((n) => n.id == particle.to);
       final t = (math.sin(rotationValue + particle.phase) + 1) / 2;
       final position = Offset.lerp(fromNode.position, toNode.position, t)!;
-      final paint = Paint()..color = Colors.cyan.withOpacity(0.8 * particle.strength)..style = PaintingStyle.fill;
+  final paint = Paint()..color = Colors.cyan.withOpacityCompat(0.8 * particle.strength)..style = PaintingStyle.fill;
       canvas.drawCircle(position, 3 * particle.strength, paint);
-      final trailPaint = Paint()..color = Colors.cyan.withOpacity(0.3 * particle.strength)..style = PaintingStyle.fill;
+  final trailPaint = Paint()..color = Colors.cyan.withOpacityCompat(0.3 * particle.strength)..style = PaintingStyle.fill;
       for (int i = 1; i <= 3; i++) {
         final trailT = math.max(0.0, t - i * 0.1);
         final trailPos = Offset.lerp(fromNode.position, toNode.position, trailT)!;
@@ -1420,17 +1440,17 @@ class AIGraphPainter extends CustomPainter {
       final centralityMultiplier = 1.0 + centralityValue * 0.3;
       final nodeSize = baseSize * importanceMultiplier * centralityMultiplier;
       var finalSize = nodeSize;
-      if (isSelected) finalSize *= pulseValue;
-      if (isHovered) finalSize *= 1.1;
-      final shadowPaint = Paint()..color = Colors.black.withOpacity(0.3)..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
-      final glowPaint = Paint()..color = node.color.withOpacity(0.6)..maskFilter = MaskFilter.blur(BlurStyle.normal, finalSize * 0.5);
+  if (isSelected) { finalSize *= pulseValue; }
+  if (isHovered) { finalSize *= 1.1; }
+  final shadowPaint = Paint()..color = Colors.black.withOpacityCompat(0.3)..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
+  final glowPaint = Paint()..color = node.color.withOpacityCompat(0.6)..maskFilter = MaskFilter.blur(BlurStyle.normal, finalSize * 0.5);
       final nodePaint = Paint()..style = PaintingStyle.fill;
       if (is3DMode) {
-        nodePaint.shader = ui.Gradient.radial(node.position, finalSize, [node.color.withOpacity(1.0), node.color.withOpacity(0.7), node.color.withOpacity(0.3)], [0.0, 0.7, 1.0]);
+  nodePaint.shader = ui.Gradient.radial(node.position, finalSize, [node.color.withOpacityCompat(1.0), node.color.withOpacityCompat(0.7), node.color.withOpacityCompat(0.3)], [0.0, 0.7, 1.0]);
       } else {
         nodePaint.color = node.color;
       }
-      final strokePaint = Paint()..color = isSelected ? Colors.white : Colors.white.withOpacity(0.5)..style = PaintingStyle.stroke..strokeWidth = isSelected ? 4 : 2;
+  final strokePaint = Paint()..color = isSelected ? Colors.white : Colors.white.withOpacityCompat(0.5)..style = PaintingStyle.stroke..strokeWidth = isSelected ? 4 : 2;
       if (is3DMode) {
         canvas.drawCircle(node.position + const Offset(3, 3), finalSize, shadowPaint);
         if (isSelected || isHovered) canvas.drawCircle(node.position, finalSize * 1.2, glowPaint);

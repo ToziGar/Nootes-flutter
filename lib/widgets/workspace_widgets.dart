@@ -219,9 +219,9 @@ class WorkspaceHeader extends StatelessWidget {
     super.key,
     required this.saving,
     required this.richMode,
-    required this.focusMode,
+    this.focusMode = false,
     required this.onToggleMode,
-    required this.onToggleFocus,
+    this.onToggleFocus,
     required this.onSave,
     this.onSettings,
     this.saveScale,
@@ -231,7 +231,7 @@ class WorkspaceHeader extends StatelessWidget {
   final bool richMode;
   final bool focusMode;
   final ValueChanged<bool> onToggleMode;
-  final VoidCallback onToggleFocus;
+  final VoidCallback? onToggleFocus;
   final VoidCallback onSave;
   final VoidCallback? onSettings;
   final Animation<double>? saveScale;

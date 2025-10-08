@@ -11,6 +11,7 @@ import '../services/smart_indentation_service.dart' as indentation;
 import '../services/command_palette_service.dart' as commands;
 import '../services/zen_mode_service.dart' as zen;
 import '../theme/app_colors.dart';
+import '../theme/color_utils.dart';
 
 /// Widget de editor avanzado con funciones profesionales
 class AdvancedEditor extends StatefulWidget {
@@ -254,7 +255,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+            border: Border.all(color: AppColors.primary.withOpacityCompat(0.3)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -354,7 +355,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
     
     return Container(
       width: 50,
-      color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.5),
+      color: Theme.of(context).scaffoldBackgroundColor.withOpacityCompat(0.5),
       child: ListView.builder(
         controller: _scrollController,
         itemCount: _totalLines,
@@ -366,14 +367,14 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
             height: widget.fontSize * 1.5,
             alignment: Alignment.centerRight,
             padding: const EdgeInsets.only(right: 8),
-            color: isCurrentLine ? AppColors.primary.withOpacity(0.1) : null,
+            color: isCurrentLine ? AppColors.primary.withOpacityCompat(0.1) : null,
             child: Text(
               lineNumber.toString(),
               style: TextStyle(
                 fontSize: widget.fontSize * 0.8,
                 color: isCurrentLine 
                     ? AppColors.primary
-                    : Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
+                    : Theme.of(context).textTheme.bodySmall?.color?.withOpacityCompat(0.6),
                 fontFamily: 'monospace',
               ),
             ),
@@ -388,7 +389,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
     
     return Container(
       width: 100,
-      color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.8),
+      color: Theme.of(context).scaffoldBackgroundColor.withOpacityCompat(0.8),
       child: SingleChildScrollView(
         controller: _minimapScrollController,
         child: Container(
@@ -398,7 +399,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
             style: TextStyle(
               fontSize: 4,
               fontFamily: 'monospace',
-              color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5),
+              color: Theme.of(context).textTheme.bodySmall?.color?.withOpacityCompat(0.5),
             ),
           ),
         ),

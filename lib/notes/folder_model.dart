@@ -7,6 +7,7 @@ class Folder {
   final IconData icon;
   final Color color;
   final List<String> noteIds; // IDs de las notas en esta carpeta
+  final String docId;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int order;
@@ -17,6 +18,7 @@ class Folder {
     this.icon = Icons.folder_rounded,
     this.color = const Color(0xFFF59E0B),
     this.noteIds = const [],
+    this.docId = '',
     required this.createdAt,
     required this.updatedAt,
     this.order = 0,
@@ -42,6 +44,7 @@ class Folder {
       icon: _iconFromString(json['icon'] as String? ?? 'folder_rounded'),
       color: Color(json['color'] as int? ?? 0xFFF59E0B),
       noteIds: List<String>.from(json['noteIds'] as List? ?? []),
+      docId: json['docId'] as String? ?? (json['id'] as String),
       createdAt: parseDateTime(json['createdAt']),
       updatedAt: parseDateTime(json['updatedAt']),
       order: json['order'] as int? ?? 0,
@@ -52,9 +55,10 @@ class Folder {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'docId': docId,
       'name': name,
       'icon': _iconToString(icon),
-      'color': color.toARGB32(),
+      'color': color.value,
       'noteIds': noteIds,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),

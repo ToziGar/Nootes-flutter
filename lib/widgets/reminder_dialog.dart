@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/notification_service.dart';
 import '../services/toast_service.dart';
 import '../theme/app_theme.dart';
+import '../theme/color_utils.dart';
 
 /// Widget para programar recordatorios para una nota
 class ReminderDialog extends StatefulWidget {
@@ -100,7 +101,7 @@ class _ReminderDialogState extends State<ReminderDialog> {
                       });
                     }
                   },
-                  selectedColor: AppColors.primary.withOpacity(0.3),
+                  selectedColor: AppColors.primary.withOpacityCompat(0.3),
                   labelStyle: TextStyle(
                     color: _selectedPreset == preset 
                         ? AppColors.primary 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/template_service.dart';
 import '../theme/app_theme.dart';
+import '../theme/color_utils.dart';
 
 /// Dialog para seleccionar y usar plantillas de notas
 class TemplateSelectionDialog extends StatefulWidget {
@@ -263,7 +264,7 @@ class _TemplateCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.2),
+                      color: AppColors.primary.withOpacityCompat(0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(

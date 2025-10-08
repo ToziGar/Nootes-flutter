@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'color_utils.dart';
 
 /// Paleta de colores moderna y mejorada de la aplicación
 class AppColors {
@@ -11,6 +12,7 @@ class AppColors {
   
   // Acentos complementarios
   static const Color secondary = Color(0xFF00CEC9);      // Turquesa moderno
+  static const Color secondaryLight = Color(0xFF55E6E1); // Turquesa claro
   static const Color accent = Color(0xFFFF7675);         // Rosa coral
   static const Color success = Color(0xFF00B894);        // Verde éxito
   static const Color warning = Color(0xFFF39C12);        // Naranja advertencia
@@ -110,12 +112,12 @@ class AppColors {
 
   /// Obtiene el color primario con opacidad
   static Color primaryWithOpacity(double opacity) {
-    return primary.withOpacity(opacity);
+    return primary.withOpacityCompat(opacity);
   }
 
   /// Obtiene el color secundario con opacidad
   static Color secondaryWithOpacity(double opacity) {
-    return secondary.withOpacity(opacity);
+    return secondary.withOpacityCompat(opacity);
   }
 
   /// Obtiene los colores del editor según el tema
