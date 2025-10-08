@@ -366,6 +366,422 @@ class BuiltInTemplates {
 ''',
   );
 
+  static const bugReport = NoteTemplate(
+    id: 'bug_report',
+    name: 'Reporte de Bug',
+    description: 'Plantilla para documentar errores y bugs',
+    icon: Icons.bug_report_rounded,
+    color: Color(0xFFDC2626),
+    tags: ['bug', 'desarrollo'],
+    variables: {
+      'bugTitle': 'Título del bug',
+      'severity': 'Severidad',
+    },
+    content: '''# 🐛 Bug: {{bugTitle}}
+
+**Fecha:** {{date}}
+**Severidad:** {{severity}}
+**Estado:** 🟡 Abierto
+
+## 📝 Descripción
+Describe el problema de manera clara y concisa.
+
+## 🔄 Pasos para reproducir
+1. 
+2. 
+3. 
+
+## ✅ Resultado esperado
+Qué debería pasar normalmente.
+
+## ❌ Resultado actual
+Qué está pasando en realidad.
+
+## 🖼️ Capturas de pantalla
+![]()
+
+## 🌐 Entorno
+- Sistema Operativo: 
+- Navegador/Versión: 
+- Versión de la aplicación: 
+
+## 📝 Logs y mensajes de error
+```
+```
+
+## 🔧 Solución propuesta
+
+
+## ✅ Criterios de aceptación para el fix
+- [ ] 
+
+''',
+  );
+
+  static const codeSnippet = NoteTemplate(
+    id: 'code_snippet',
+    name: 'Snippet de Código',
+    description: 'Guardar fragmentos de código útiles',
+    icon: Icons.code_rounded,
+    color: Color(0xFF059669),
+    tags: ['código', 'desarrollo'],
+    variables: {
+      'snippetName': 'Nombre del snippet',
+      'language': 'Lenguaje',
+    },
+    content: '''# 💻 {{snippetName}}
+
+**Lenguaje:** {{language}}
+**Fecha:** {{date}}
+**Tags:** 
+
+## 📝 Descripción
+Para qué sirve este código.
+
+## 🔧 Código
+```{{language}}
+// Tu código aquí
+```
+
+## 🎯 Caso de uso
+
+
+## 📚 Documentación relacionada
+- 
+
+## ⚠️ Consideraciones
+
+
+''',
+  );
+
+  static const interview = NoteTemplate(
+    id: 'interview',
+    name: 'Entrevista',
+    description: 'Notas de entrevista con candidatos o usuarios',
+    icon: Icons.person_pin_rounded,
+    color: Color(0xFF7C3AED),
+    tags: ['entrevista', 'rrhh'],
+    variables: {
+      'candidateName': 'Nombre del candidato',
+      'position': 'Posición',
+    },
+    content: '''# 👤 Entrevista: {{candidateName}}
+
+**Fecha:** {{date}} {{time}}
+**Posición:** {{position}}
+**Entrevistador(es):** 
+
+## 📋 Información del candidato
+- **Email:** 
+- **Teléfono:** 
+- **LinkedIn:** 
+
+## 💼 Experiencia relevante
+
+
+## 🎯 Evaluación de habilidades
+
+| Skill | Rating (1-5) | Notas |
+|-------|--------------|-------|
+|       |              |       |
+
+## 💡 Puntos fuertes
+- 
+
+## ⚠️ Áreas de mejora
+- 
+
+## ❓ Preguntas realizadas y respuestas
+
+
+## 🤝 Fit cultural
+
+
+## 📊 Evaluación final
+**Rating general:** ⭐️ / 5
+**Recomendación:** 
+
+## 🔄 Siguientes pasos
+- [ ] 
+
+''',
+  );
+
+  static const retrospective = NoteTemplate(
+    id: 'retrospective',
+    name: 'Retrospectiva',
+    description: 'Retrospectiva de sprint o proyecto',
+    icon: Icons.history_rounded,
+    color: Color(0xFFEA580C),
+    tags: ['agile', 'retrospectiva'],
+    variables: {
+      'sprintName': 'Sprint o proyecto',
+    },
+    content: '''# 🔄 Retrospectiva: {{sprintName}}
+
+**Fecha:** {{date}}
+**Participantes:** 
+**Facilitador:** 
+
+## ✅ ¿Qué fue bien?
+- 
+- 
+- 
+
+## ❌ ¿Qué podemos mejorar?
+- 
+- 
+- 
+
+## 💡 ¿Qué vamos a probar?
+- 
+- 
+- 
+
+## 🎬 Action items
+- [ ] **Responsable:** - **Fecha:** 
+
+## 📊 Métricas del sprint
+- Velocidad: 
+- Tareas completadas: 
+- Incidencias: 
+
+## 💭 Comentarios adicionales
+
+
+''',
+  );
+
+  static const productSpec = NoteTemplate(
+    id: 'product_spec',
+    name: 'Especificación de Producto',
+    description: 'Documento de especificación de producto/feature',
+    icon: Icons.article_rounded,
+    color: Color(0xFF0891B2),
+    tags: ['producto', 'especificación'],
+    variables: {
+      'featureName': 'Nombre de la feature',
+      'pm': 'Product Manager',
+    },
+    content: '''# 📱 Spec: {{featureName}}
+
+**PM:** {{pm}}
+**Fecha:** {{date}}
+**Estado:** 🟡 Borrador
+
+## 🎯 Problema a resolver
+¿Qué problema estamos tratando de solucionar y para quién?
+
+## 💡 Solución propuesta
+
+
+## 👥 Usuarios objetivo
+- **Perfil 1:** 
+- **Perfil 2:** 
+
+## ✅ Casos de uso
+1. **Como** [tipo de usuario], **quiero** [acción], **para** [beneficio]
+
+## 📐 Requerimientos funcionales
+- [ ] RF1: 
+- [ ] RF2: 
+- [ ] RF3: 
+
+## 🚧 Requerimientos no funcionales
+- **Performance:** 
+- **Seguridad:** 
+- **Accesibilidad:** 
+
+## 🎨 Diseño UX/UI
+![]()
+
+## 🔧 Consideraciones técnicas
+
+
+## 📊 Métricas de éxito
+- KPI 1: 
+- KPI 2: 
+
+## 🗓️ Timeline
+- Diseño: 
+- Desarrollo: 
+- QA: 
+- Release: 
+
+## ⚠️ Riesgos y dependencias
+
+
+## ❓ Preguntas abiertas
+- [ ] 
+
+''',
+  );
+
+  static const travelPlan = NoteTemplate(
+    id: 'travel_plan',
+    name: 'Plan de Viaje',
+    description: 'Itinerario y planificación de viajes',
+    icon: Icons.flight_takeoff_rounded,
+    color: Color(0xFF0EA5E9),
+    tags: ['viaje', 'personal'],
+    variables: {
+      'destination': 'Destino',
+      'dates': 'Fechas del viaje',
+    },
+    content: '''# ✈️ Viaje a {{destination}}
+
+**Fechas:** {{dates}}
+**Viajeros:** 
+
+## 📋 Checklist pre-viaje
+- [ ] Pasaporte/DNI
+- [ ] Reservas de hotel
+- [ ] Tickets de transporte
+- [ ] Seguro de viaje
+- [ ] Moneda local
+- [ ] Adaptador de corriente
+
+## 🗓️ Itinerario
+
+### Día 1
+- **Mañana:** 
+- **Tarde:** 
+- **Noche:** 
+
+### Día 2
+- **Mañana:** 
+- **Tarde:** 
+- **Noche:** 
+
+## 🏨 Alojamiento
+- **Hotel:** 
+- **Dirección:** 
+- **Check-in:** 
+- **Check-out:** 
+
+## 🍽️ Restaurantes recomendados
+1. 
+2. 
+
+## 📍 Lugares de interés
+- [ ] 
+- [ ] 
+
+## 💰 Presupuesto
+- Alojamiento: 
+- Transporte: 
+- Comida: 
+- Actividades: 
+- **Total:** 
+
+## 📝 Notas y consejos locales
+
+
+## 📸 Mejores momentos del viaje
+![]()
+
+''',
+  );
+
+  static const workout = NoteTemplate(
+    id: 'workout',
+    name: 'Rutina de Ejercicio',
+    description: 'Plan de entrenamiento y seguimiento',
+    icon: Icons.fitness_center_rounded,
+    color: Color(0xFFEC4899),
+    tags: ['fitness', 'salud'],
+    variables: {
+      'workoutName': 'Nombre del workout',
+    },
+    content: '''# 💪 {{workoutName}}
+
+**Fecha:** {{date}}
+**Duración:** 
+**Nivel:** 
+
+## 🔥 Calentamiento (10 min)
+- 
+- 
+
+## 🏋️ Ejercicios principales
+
+### Ejercicio 1
+- **Sets:** 
+- **Reps:** 
+- **Peso:** 
+- **Descanso:** 
+
+### Ejercicio 2
+- **Sets:** 
+- **Reps:** 
+- **Peso:** 
+- **Descanso:** 
+
+## 🧘 Enfriamiento y estiramiento (5-10 min)
+- 
+- 
+
+## 📊 Progreso
+- Peso corporal: 
+- Energía (1-10): 
+- Dificultad (1-10): 
+
+## 💭 Notas
+
+
+''',
+  );
+
+  static const bookNotes = NoteTemplate(
+    id: 'book_notes',
+    name: 'Notas de Libro',
+    description: 'Resumen y notas de libros leídos',
+    icon: Icons.menu_book_rounded,
+    color: Color(0xFF8B5CF6),
+    tags: ['lectura', 'aprendizaje'],
+    variables: {
+      'bookTitle': 'Título del libro',
+      'author': 'Autor',
+    },
+    content: '''# 📖 {{bookTitle}}
+
+**Autor:** {{author}}
+**Fecha de lectura:** {{date}}
+**Rating:** ⭐️⭐️⭐️⭐️⭐️ / 5
+
+## 📝 Resumen
+Una breve descripción del libro en tus propias palabras.
+
+## 🎯 Temas principales
+1. 
+2. 
+3. 
+
+## 💡 Ideas clave y citas
+
+> "Cita memorable"
+
+- **Idea 1:** 
+- **Idea 2:** 
+
+## 🤔 Reflexiones personales
+
+
+## ✅ Aplicaciones prácticas
+¿Cómo puedo aplicar lo aprendido en mi vida?
+
+- [ ] 
+
+## 📚 Libros relacionados
+- 
+
+## 🔗 Referencias y recursos
+
+
+''',
+  );
+
   /// Lista de todas las plantillas disponibles
   static List<NoteTemplate> get all => [
     daily,
@@ -376,6 +792,14 @@ class BuiltInTemplates {
     learning,
     brainstorm,
     weekly,
+    bugReport,
+    codeSnippet,
+    interview,
+    retrospective,
+    productSpec,
+    travelPlan,
+    workout,
+    bookNotes,
   ];
 
   /// Obtener plantilla por ID

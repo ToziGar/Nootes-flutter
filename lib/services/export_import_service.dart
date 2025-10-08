@@ -1,6 +1,9 @@
 import 'dart:convert';
-import 'dart:html' as html;
 import 'package:flutter/foundation.dart' show kIsWeb;
+// Conditional imports para soporte multiplataforma
+import 'export_import_service_stub.dart'
+    if (dart.library.html) 'export_import_service_web.dart'
+    if (dart.library.io) 'export_import_service_io.dart' as platform;
 
 /// Servicio para exportar e importar notas
 class ExportImportService {
@@ -106,15 +109,10 @@ $content
     }
   }
 
-  /// Descargar archivo en web
+  /// Descargar archivo usando implementación específica de plataforma
   static void _downloadFileWeb(String content, String filename, String mimeType) {
     final bytes = utf8.encode(content);
-    final blob = html.Blob([bytes], mimeType);
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    html.AnchorElement(href: url)
-      ..setAttribute('download', filename)
-      ..click();
-    html.Url.revokeObjectUrl(url);
+    platform.PlatformExportImport.downloadFile(bytes, filename, mimeType);
   }
 
   /// Sanitizar nombre de archivo

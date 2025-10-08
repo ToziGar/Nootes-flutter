@@ -5,7 +5,6 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../editor/markdown_editor_with_links.dart';
 import '../editor/rich_text_editor.dart';
-import '../services/note_links_parser.dart';
 import '../widgets/tag_input.dart';
 import '../services/storage_service.dart';
 import '../services/audio_service.dart';
@@ -18,6 +17,7 @@ import '../widgets/backlinks_panel.dart';
 import '../widgets/advanced_search_dialog.dart';
 import '../widgets/recent_searches.dart';
 import '../widgets/workspace_stats.dart';
+import '../widgets/unified_fab_menu.dart';
 import '../services/preferences_service.dart';
 import '../services/keyboard_shortcuts_service.dart';
 import 'folder_model.dart';
@@ -163,10 +163,59 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           debugPrint('  - ${folder.name} (${folder.noteIds.length} notas)');
         }
       });
+      
+      // 🧹 LIMPIEZA AUTOMÁTICA: Verificar y limpiar referencias a notas inexistentes
+      await _cleanOrphanedNoteReferences();
     } catch (e) {
       debugPrint('❌ Error loading folders: $e');
       if (!mounted) return;
       setState(() => _folders = []);
+    }
+  }
+  
+  /// Limpia referencias a notas que ya no existen en las carpetas
+  Future<void> _cleanOrphanedNoteReferences() async {
+    try {
+      // Obtener todos los IDs de notas que existen realmente
+      final allNotes = await FirestoreService.instance.listNotesSummary(uid: _uid);
+      final existingNoteIds = allNotes.map((n) => n['id'].toString()).toSet();
+      
+      // Revisar cada carpeta
+      for (var folder in _folders) {
+        // Encontrar notas "fantasma" (que están en noteIds pero no existen)
+        final orphanedNotes = folder.noteIds.where((noteId) => !existingNoteIds.contains(noteId)).toList();
+        
+        if (orphanedNotes.isNotEmpty) {
+          debugPrint('🧹 Limpiando ${orphanedNotes.length} referencias huérfanas en carpeta "${folder.name}"');
+          
+          // Crear lista limpia sin las notas huérfanas
+          final cleanedNoteIds = folder.noteIds.where((noteId) => existingNoteIds.contains(noteId)).toList();
+          
+          // Actualizar la carpeta en Firestore
+          await FirestoreService.instance.updateFolder(
+            uid: _uid,
+            folderId: folder.id,
+            data: {'noteIds': cleanedNoteIds},
+          );
+          
+          // Actualizar el objeto local
+          folder.noteIds.clear();
+          folder.noteIds.addAll(cleanedNoteIds);
+          
+          debugPrint('✅ Carpeta "${folder.name}" limpiada: ${cleanedNoteIds.length} notas válidas');
+        }
+      }
+      
+      // Actualizar UI si se hicieron cambios
+      if (mounted) {
+        setState(() {
+          for (var folder in _folders) {
+            debugPrint('  - ${folder.name} (${folder.noteIds.length} notas)');
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error al limpiar referencias huérfanas: $e');
     }
   }
 
@@ -457,6 +506,39 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   
   Future<void> _onNoteDroppedInFolder(String noteId, String folderId) async {
     try {
+      // Caso especial: soltar en "Todas las notas" = remover de todas las carpetas
+      if (folderId == '__REMOVE_FROM_ALL__') {
+        debugPrint('📤 Sacando nota $noteId de todas las carpetas');
+        
+        // Buscar todas las carpetas que contienen esta nota y removerla
+        for (final folder in _folders) {
+          if (folder.noteIds.contains(noteId)) {
+            await FirestoreService.instance.removeNoteFromFolder(
+              uid: _uid,
+              noteId: noteId,
+              folderId: folder.id,
+            );
+          }
+        }
+        
+        debugPrint('✅ Nota removida de todas las carpetas');
+        
+        // Recargar carpetas Y notas para actualizar la UI
+        await _loadFolders();
+        await _loadNotes();
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Nota removida de las carpetas'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+      
       debugPrint('📁 Agregando nota $noteId a carpeta $folderId');
       await FirestoreService.instance.addNoteToFolder(
         uid: _uid,
@@ -480,7 +562,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         ),
       );
     } catch (e) {
-      debugPrint('❌ Error al agregar nota a carpeta: $e');
+      debugPrint('❌ Error al mover nota: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -512,6 +594,78 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         noteId: _selectedId!,
         data: data,
       );
+      
+      // 🔥 ACTUALIZACIÓN INSTANTÁNEA: Actualizar la nota en la lista local sin recargar desde Firestore
+      final noteIndex = _allNotes.indexWhere((n) => n['id'] == _selectedId);
+      if (noteIndex != -1) {
+        _allNotes[noteIndex] = {
+          ..._allNotes[noteIndex],
+          'title': _title.text,
+          'tags': _tags,
+          'updatedAt': DateTime.now(),
+        };
+        
+        // Reaplicar filtros para actualizar _notes
+        var filteredNotes = List<Map<String, dynamic>>.from(_allNotes);
+        
+        // Filtro por carpeta
+        if (_selectedFolderId != null) {
+          try {
+            final folder = _folders.firstWhere((f) => f.id == _selectedFolderId);
+            filteredNotes = filteredNotes.where((note) {
+              final noteId = note['id'].toString();
+              return folder.noteIds.contains(noteId);
+            }).toList();
+          } catch (e) {
+            _selectedFolderId = null;
+          }
+        }
+        
+        // Filtro por búsqueda
+        final q = _search.text.trim();
+        if (q.isNotEmpty) {
+          filteredNotes = filteredNotes.where((note) {
+            final title = (note['title'] ?? '').toString().toLowerCase();
+            final content = (note['content'] ?? '').toString().toLowerCase();
+            final searchLower = q.toLowerCase();
+            return title.contains(searchLower) || content.contains(searchLower);
+          }).toList();
+        }
+        
+        // Filtro por tags
+        if (_filterTags.isNotEmpty) {
+          filteredNotes = filteredNotes.where((note) {
+            final noteTags = List<String>.from((note['tags'] as List?)?.whereType<String>() ?? []);
+            return _filterTags.every((tag) => noteTags.contains(tag));
+          }).toList();
+        }
+        
+        // Filtro por rango de fechas
+        if (_filterDateRange != null) {
+          filteredNotes = filteredNotes.where((note) {
+            final createdAt = note['createdAt'];
+            if (createdAt == null) return false;
+            
+            DateTime noteDate;
+            if (createdAt is DateTime) {
+              noteDate = createdAt;
+            } else if (createdAt is int) {
+              noteDate = DateTime.fromMillisecondsSinceEpoch(createdAt);
+            } else {
+              return false;
+            }
+            
+            return !noteDate.isBefore(_filterDateRange!.start) &&
+                   !noteDate.isAfter(_filterDateRange!.end.add(const Duration(days: 1)));
+          }).toList();
+        }
+        
+        _sortNotes(filteredNotes);
+        
+        setState(() {
+          _notes = filteredNotes;
+        });
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -791,7 +945,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                       await _loadNotes();
                     },
                     onDelete: () => _delete(id),
-                    enableDrag: false, // Desactivar drag para notas dentro de carpetas
+                    enableDrag: true, // ✅ HABILITAR drag para poder mover notas entre carpetas o sacarlas
                     compact: true,
                   ),
                 );
@@ -1336,70 +1490,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                   bottom: narrow ? AppColors.space16 : AppColors.space24,
                   right: narrow ? AppColors.space16 : AppColors.space24,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    // Dashboard button
-                    FloatingActionButton.small(
-                      heroTag: 'dashboard',
-                      onPressed: _openDashboard,
-                      tooltip: 'Dashboard de Productividad',
-                      backgroundColor: const Color(0xFF8B5CF6),
-                      child: const Icon(Icons.analytics_rounded, size: 20),
-                    ),
-                    const SizedBox(height: AppColors.space8),
-                    
-                    // Botón de plantilla
-                    FloatingActionButton.small(
-                      heroTag: 'template',
-                      onPressed: _createFromTemplate,
-                      tooltip: 'Crear desde Plantilla',
-                      backgroundColor: const Color(0xFFF59E0B),
-                      child: const Icon(Icons.description_rounded, size: 20),
-                    ),
-                    const SizedBox(height: AppColors.space12),
-                    
-                    // Botón de nueva nota
-                    FloatingActionButton.extended(
-                      heroTag: 'new_note',
-                      onPressed: _create,
-                      icon: const Icon(Icons.note_add_rounded),
-                      label: const Text('Nueva'),
-                      backgroundColor: AppColors.primary,
-                    ),
-                    const SizedBox(height: AppColors.space12),
-                    
-                    // Botones de multimedia
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Imagen
-                        FloatingActionButton.small(
-                          heroTag: 'add_image',
-                          onPressed: _insertImage,
-                          tooltip: 'Insertar imagen',
-                          backgroundColor: AppColors.surfaceLight,
-                          foregroundColor: AppColors.textPrimary,
-                          child: const Icon(Icons.image_outlined, size: 20),
-                        ),
-                        const SizedBox(width: AppColors.space8),
-                        
-                        // Audio
-                        FloatingActionButton.small(
-                          heroTag: 'add_audio',
-                          onPressed: _toggleRecording,
-                          tooltip: _isRecording ? 'Detener grabación' : 'Grabar audio',
-                          backgroundColor: _isRecording ? AppColors.danger : AppColors.surfaceLight,
-                          foregroundColor: _isRecording ? Colors.white : AppColors.textPrimary,
-                          child: Icon(
-                            _isRecording ? Icons.stop_rounded : Icons.mic_outlined,
-                            size: 20,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                child: UnifiedFABMenu(
+                  onNewNote: _create,
+                  onNewFromTemplate: _createFromTemplate,
+                  onInsertImage: _insertImage,
+                  onToggleRecording: _toggleRecording,
+                  onOpenDashboard: _openDashboard,
+                  isRecording: _isRecording,
                 ),
               )
             : null,

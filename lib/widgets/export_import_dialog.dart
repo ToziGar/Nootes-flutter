@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'dart:html' as html;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../theme/app_theme.dart';
 import '../services/export_import_service.dart';
+// Conditional imports para soporte multiplataforma
+import '../services/export_import_service_stub.dart'
+    if (dart.library.html) '../services/export_import_service_web.dart'
+    if (dart.library.io) '../services/export_import_service_io.dart' as platform;
 
 /// Diálogo para exportar e importar notas
 class ExportImportDialog extends StatefulWidget {
@@ -70,44 +74,45 @@ class _ExportImportDialogState extends State<ExportImportDialog> {
   }
 
   Future<void> _importFromJson() async {
-    final input = html.FileUploadInputElement()..accept = '.json';
-    input.click();
-
-    input.onChange.listen((event) async {
-      final file = input.files?.first;
-      if (file == null) return;
-
+    if (!kIsWeb) {
       setState(() {
-        _isProcessing = true;
-        _statusMessage = null;
+        _statusMessage = '✗ Importar no disponible en esta plataforma todavía';
       });
+      return;
+    }
 
-      try {
-        final reader = html.FileReader();
-        reader.readAsText(file);
-        
-        await reader.onLoad.first;
-        final content = reader.result as String;
-        
-        final importedNotes = await ExportImportService.importFromJson(content);
-        
-        if (mounted) {
-          setState(() {
-            _statusMessage = '✓ ${importedNotes.length} notas importadas correctamente';
-            _isProcessing = false;
-          });
-          
-          widget.onImport(importedNotes);
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _statusMessage = '✗ Error al importar: ${e.toString()}';
-            _isProcessing = false;
-          });
-        }
-      }
+    setState(() {
+      _isProcessing = true;
+      _statusMessage = null;
     });
+
+    try {
+      final content = await platform.PlatformExportImport.pickAndReadFile();
+      if (content == null) {
+        setState(() {
+          _isProcessing = false;
+        });
+        return;
+      }
+        
+      final importedNotes = await ExportImportService.importFromJson(content);
+      
+      if (mounted) {
+        setState(() {
+          _statusMessage = '✓ ${importedNotes.length} notas importadas correctamente';
+          _isProcessing = false;
+        });
+        
+        widget.onImport(importedNotes);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _statusMessage = '✗ Error al importar: ${e.toString()}';
+          _isProcessing = false;
+        });
+      }
+    }
   }
 
   Future<void> _createBackup() async {

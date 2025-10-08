@@ -180,10 +180,13 @@ class FoldersPanel extends StatelessWidget {
 
     return DragTarget<String>(
       key: key,
-      onWillAcceptWithDetails: (details) => folder != null,
+      onWillAcceptWithDetails: (details) => true, // ✅ Aceptar siempre (incluido "Todas las notas")
       onAcceptWithDetails: (details) {
         if (folder != null) {
           onNoteDropped(details.data, folder.id);
+        } else {
+          // Soltar en "Todas las notas" = remover de todas las carpetas
+          onNoteDropped(details.data, '__REMOVE_FROM_ALL__');
         }
       },
       builder: (context, candidateData, rejectedData) {

@@ -4,7 +4,7 @@ import 'package:record/record.dart';
 import 'storage_service.dart';
 
 class AudioService {
-  static final _rec = Record();
+  static final _rec = AudioRecorder(); // Usar AudioRecorder en vez de Record
 
   /// Starts recording to a temporary file and returns the path when started.
   static Future<String?> startRecording() async {
@@ -13,7 +13,15 @@ class AudioService {
     final tmp = Directory.systemTemp;
     final filename = 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
     final path = p.join(tmp.path, filename);
-    await _rec.start(path: path, encoder: AudioEncoder.aacLc, bitRate: 128000);
+    
+    // Nueva API de record 5.x
+    await _rec.start(
+      RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        bitRate: 128000,
+      ),
+      path: path,
+    );
     return path;
   }
 
