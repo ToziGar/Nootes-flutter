@@ -30,4 +30,19 @@ class AudioService {
       return null;
     }
   }
+
+  /// Stops recording and discards the file if possible.
+  static Future<void> stopRecordingAndDiscard() async {
+    try {
+      final path = await _rec.stop();
+      if (path == null) return;
+      final f = File(path);
+      if (await f.exists()) await f.delete();
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  /// Whether the service can discard recordings (true on platforms with file access)
+  static bool get supportsDiscard => true;
 }

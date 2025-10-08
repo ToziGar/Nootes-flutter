@@ -56,6 +56,17 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
             final start = i / (actions.length + 1);
             final end = (i + 1) / (actions.length + 1);
             final anim = CurvedAnimation(parent: _ctrl, curve: Interval(start, end, curve: Curves.easeOut));
+            final w = actions[i];
+            Widget wrapped = w;
+            // If it's an IconButton or FloatingActionButton, give it larger constraints for touch targets
+            if (w is IconButton) {
+              wrapped = ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                child: w,
+              );
+            } else if (w is FloatingActionButton) {
+              wrapped = SizedBox(width: 48, height: 48, child: Center(child: w));
+            }
             return Positioned(
               right: 4 + (i * 56),
               bottom: 4,
@@ -66,7 +77,7 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
                   // Disable Hero animations for action buttons to avoid duplicate hero tags
                   child: HeroMode(
                     enabled: false,
-                    child: actions[i],
+                    child: Semantics(container: true, button: true, child: wrapped),
                   ),
                 ),
               ),

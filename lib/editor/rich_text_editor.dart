@@ -98,6 +98,7 @@ class _RichTextEditorState extends State<RichTextEditor> {
     final sel = _controller.selection;
     final i = sel.isValid ? sel.baseOffset : _controller.text.length;
     final text = _controller.text;
+    // Insert at cursor position
     _controller.value = _controller.value.copyWith(
       text: text.replaceRange(i, i, insertText),
       selection: TextSelection.collapsed(offset: i + insertText.length),

@@ -6,6 +6,16 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'markdown_toolbar.dart';
+import '../widgets/safe_network_image.dart';
+
+// Simple Intents for editor shortcuts
+class BoldIntent extends Intent {
+  const BoldIntent();
+}
+
+class ItalicIntent extends Intent {
+  const ItalicIntent();
+}
 
 class MarkdownEditor extends StatefulWidget {
   const MarkdownEditor({
@@ -95,6 +105,7 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
     final sel = widget.controller.selection;
     final insert = suffix.isEmpty ? prefix : '$prefix$suffix';
     final i = sel.isValid ? sel.baseOffset : text.length;
+    // Insert at current cursor position (cursor-aware)
     widget.controller.value = widget.controller.value.copyWith(
       text: text.replaceRange(i, i, insert),
       selection: TextSelection.collapsed(offset: i + prefix.length),
@@ -102,36 +113,46 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
     );
   }
 
-  void _onKey(RawKeyEvent event) {
-    if (event is! RawKeyDownEvent) return;
-    final keys = RawKeyboard.instance.keysPressed;
-    final isCtrl = keys.contains(LogicalKeyboardKey.controlLeft) ||
-        keys.contains(LogicalKeyboardKey.controlRight) ||
-        keys.contains(LogicalKeyboardKey.metaLeft) ||
-        keys.contains(LogicalKeyboardKey.metaRight);
-    if (isCtrl && event.logicalKey == LogicalKeyboardKey.keyB) {
-      _wrapSelection('**', '**');
-      return;
-    }
-    if (isCtrl && event.logicalKey == LogicalKeyboardKey.keyI) {
-      _wrapSelection('*', '*');
-      return;
-    }
-  }@override
+  // Use Shortcuts+Actions to handle keyboard shortcuts (avoids deprecated RawKeyboard APIs)
+  void _handleBoldIntent() => _wrapSelection('**', '**');
+  void _handleItalicIntent() => _wrapSelection('*', '*');
+
+  @override
   Widget build(BuildContext context) {
-    final editor = RawKeyboardListener(
-      focusNode: _focus,
-      onKey: _onKey,
-      child: TextField(
-        controller: widget.controller,
-        maxLines: null,
-        minLines: widget.minLines,
-        keyboardType: TextInputType.multiline,
-        style: const TextStyle(fontFamily: 'monospace', height: 1.35),
-        decoration: const InputDecoration(
-          hintText: '# Escribe en Markdown…',
-          alignLabelWithHint: true,
-          border: OutlineInputBorder(),
+    final editor = Shortcuts(
+      shortcuts: <LogicalKeySet, Intent>{
+        // Ctrl/Cmd + B -> bold
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyB): const BoldIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyB): const BoldIntent(),
+        // Ctrl/Cmd + I -> italic
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyI): const ItalicIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyI): const ItalicIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          BoldIntent: CallbackAction<BoldIntent>(onInvoke: (intent) {
+            _handleBoldIntent();
+            return null;
+          }),
+          ItalicIntent: CallbackAction<ItalicIntent>(onInvoke: (intent) {
+            _handleItalicIntent();
+            return null;
+          }),
+        },
+        child: Focus(
+          focusNode: _focus,
+          child: TextField(
+            controller: widget.controller,
+            maxLines: null,
+            minLines: widget.minLines,
+            keyboardType: TextInputType.multiline,
+            style: const TextStyle(fontFamily: 'monospace', height: 1.35),
+            decoration: const InputDecoration(
+              hintText: '# Escribe en Markdown…',
+              alignLabelWithHint: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
         ),
       ),
     );
@@ -141,19 +162,7 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
       shrinkWrap: true,
       selectable: true,
       imageBuilder: (uri, title, alt) {
-        // Use a network image with an errorBuilder so a failed load doesn't throw (esp. on web/CORS)
-        return Image.network(
-          uri.toString(),
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stack) => Container(
-            padding: const EdgeInsets.all(8),
-            color: Colors.black12,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [Icon(Icons.broken_image_rounded), SizedBox(width: 8), Text('Imagen no disponible')],
-            ),
-          ),
-        );
+        return SafeNetworkImage(uri.toString(), fit: BoxFit.contain);
       },
       builders: {
         'code': CodeElementBuilder(),
