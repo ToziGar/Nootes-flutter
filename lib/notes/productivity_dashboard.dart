@@ -489,7 +489,7 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),

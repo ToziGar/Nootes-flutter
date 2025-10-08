@@ -195,7 +195,7 @@ class _TemplatePickerDialogState extends State<TemplatePickerDialog> {
                   maxLines: entry.key.contains('description') ? 3 : 1,
                 ),
               );
-            }).toList(),
+            }),
           ],
           
           // Preview

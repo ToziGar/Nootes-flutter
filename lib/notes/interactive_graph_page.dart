@@ -237,7 +237,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage> {
                       ),
                     ),
                   );
-                }).toList(),
+                }),
                 
                 // Info panel
                 if (_selectedNodeId != null)
@@ -360,7 +360,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage> {
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ],
     );

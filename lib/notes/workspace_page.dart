@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/export_import_service.dart';
 import '../editor/markdown_editor_with_links.dart';
 import '../editor/rich_text_editor.dart';
 import '../widgets/tag_input.dart';
@@ -12,8 +13,8 @@ import '../widgets/recording_overlay.dart';
 import '../widgets/workspace_widgets.dart';
 import '../theme/app_theme.dart';
 import '../profile/settings_page.dart';
-import '../widgets/folders_panel.dart';
 import '../widgets/backlinks_panel.dart';
+import '../widgets/unified_context_menu.dart';
 import '../widgets/advanced_search_dialog.dart';
 import '../widgets/recent_searches.dart';
 import '../widgets/workspace_stats.dart';
@@ -446,12 +447,6 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     }
   }
   
-  void _onFolderSelected(String? folderId) {
-    setState(() => _selectedFolderId = folderId);
-    PreferencesService.setSelectedFolder(folderId);
-    _loadNotes();
-  }
-  
   void _toggleCompactMode() {
     setState(() => _compactMode = !_compactMode);
     PreferencesService.setCompactMode(_compactMode);
@@ -841,19 +836,28 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
               ),
               child: Material(
                 color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      if (isExpanded) {
-                        _expandedFolders.remove(folder.id);
-                      } else {
-                        _expandedFolders.add(folder.id);
-                      }
-                    });
+                child: GestureDetector(
+                  onSecondaryTapDown: (details) async {
+                    final result = await UnifiedContextMenu.show<ContextMenuActionType>(
+                      context: context,
+                      position: details.globalPosition,
+                      actions: ContextMenuBuilder.folder(),
+                    );
+                    _handleContextMenuAction(result, context: context, folderId: folder.id);
                   },
-                  onLongPress: () => _confirmDeleteFolder(folder),
-                  borderRadius: BorderRadius.circular(AppColors.radiusSm),
-                  child: Padding(
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (isExpanded) {
+                          _expandedFolders.remove(folder.id);
+                        } else {
+                          _expandedFolders.add(folder.id);
+                        }
+                      });
+                    },
+                    onLongPress: () => _confirmDeleteFolder(folder),
+                    borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                    child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppColors.space8,
                       vertical: AppColors.space8,
@@ -924,29 +928,40 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                 ),
               ),
             ),
+          ),
             
             // Notas dentro de la carpeta (cuando está expandida)
             if (isExpanded && notesInFolder.isNotEmpty)
               ...notesInFolder.map((note) {
                 final id = note['id'].toString();
-                return Padding(
+                return GestureDetector(
                   key: ValueKey('folder_note_${folder.id}_$id'), // Key única para notas en carpetas
-                  padding: const EdgeInsets.only(left: 32, bottom: 2),
-                  child: NotesSidebarCard(
-                    note: note,
-                    isSelected: id == _selectedId,
-                    onTap: () => _select(id),
-                    onPin: () async {
-                      await FirestoreService.instance.setPinned(
-                        uid: _uid,
-                        noteId: id,
-                        pinned: !(note['pinned'] == true),
-                      );
-                      await _loadNotes();
-                    },
-                    onDelete: () => _delete(id),
-                    enableDrag: true, // ✅ HABILITAR drag para poder mover notas entre carpetas o sacarlas
-                    compact: true,
+                  onSecondaryTapDown: (details) async {
+                    final result = await UnifiedContextMenu.show<ContextMenuActionType>(
+                      context: context,
+                      position: details.globalPosition,
+                      actions: ContextMenuBuilder.note(isInFolder: true),
+                    );
+                    _handleContextMenuAction(result, context: context, noteId: id, folderId: folder.id);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 32, bottom: 2),
+                    child: NotesSidebarCard(
+                      note: note,
+                      isSelected: id == _selectedId,
+                      onTap: () => _select(id),
+                      onPin: () async {
+                        await FirestoreService.instance.setPinned(
+                          uid: _uid,
+                          noteId: id,
+                          pinned: !(note['pinned'] == true),
+                        );
+                        await _loadNotes();
+                      },
+                      onDelete: () => _delete(id),
+                      enableDrag: true, // ✅ HABILITAR drag para poder mover notas entre carpetas o sacarlas
+                      compact: true,
+                    ),
                   ),
                 );
               }),
@@ -971,45 +986,6 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   }
 
   // Construir botón de crear carpeta
-  Widget _buildCreateFolderButton() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppColors.space16),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _showCreateFolderDialog,
-          borderRadius: BorderRadius.circular(AppColors.radiusMd),
-          child: Container(
-            padding: const EdgeInsets.all(AppColors.space12),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
-              borderRadius: BorderRadius.circular(AppColors.radiusMd),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.create_new_folder_rounded,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: AppColors.space8),
-                Text(
-                  'Nueva carpeta',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   // Mostrar diálogo de crear carpeta
   Future<void> _showCreateFolderDialog() async {
     final result = await showDialog<Folder>(
@@ -1078,6 +1054,145 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           );
         }
       }
+    }
+  }
+
+  // Manejador unificado de acciones del menú contextual
+  Future<void> _handleContextMenuAction(
+    ContextMenuActionType? action, {
+    required BuildContext context,
+    String? noteId,
+    String? folderId,
+  }) async {
+    if (action == null) return;
+
+    switch (action) {
+      case ContextMenuActionType.newNote:
+        await _create();
+        break;
+      case ContextMenuActionType.newFolder:
+        await _showCreateFolderDialog();
+        break;
+      case ContextMenuActionType.newFromTemplate:
+        await _createFromTemplate();
+        break;
+      case ContextMenuActionType.editNote:
+        if (noteId != null) await _select(noteId);
+        break;
+      case ContextMenuActionType.duplicateNote:
+        if (noteId != null) await _duplicateNote(noteId);
+        break;
+      case ContextMenuActionType.deleteNote:
+        if (noteId != null) await _delete(noteId);
+        break;
+      case ContextMenuActionType.exportNote:
+        if (noteId != null) await _exportSingleNote(noteId);
+        break;
+      case ContextMenuActionType.removeFromFolder:
+        if (noteId != null && folderId != null) {
+          await FirestoreService.instance.removeNoteFromFolder(
+            uid: _uid,
+            folderId: folderId,
+            noteId: noteId,
+          );
+          await _loadFolders();
+          await _loadNotes();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Nota quitada de la carpeta'),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          }
+        }
+        break;
+      case ContextMenuActionType.moveToFolder:
+        if (noteId != null) {
+          // TODO: Mostrar diálogo para seleccionar carpeta
+          debugPrint('⚠️ Mover a carpeta: pendiente diálogo de selección');
+        }
+        break;
+      case ContextMenuActionType.editFolder:
+        if (folderId != null) {
+          final folder = _folders.firstWhere((f) => f.id == folderId);
+          await _showEditFolderDialog(folder);
+        }
+        break;
+      case ContextMenuActionType.deleteFolder:
+        if (folderId != null) {
+          final folder = _folders.firstWhere((f) => f.id == folderId);
+          await _confirmDeleteFolder(folder);
+        }
+        break;
+      case ContextMenuActionType.openDashboard:
+        _openDashboard();
+        break;
+      case ContextMenuActionType.refresh:
+        await _loadNotes();
+        await _loadFolders();
+        break;
+      case ContextMenuActionType.insertImage:
+        await _insertImage();
+        break;
+      case ContextMenuActionType.insertAudio:
+        await _toggleRecording();
+        break;
+      default:
+        debugPrint('⚠️ Acción no implementada: $action');
+    }
+  }
+
+  // Duplicar nota (nueva función)
+  Future<void> _duplicateNote(String noteId) async {
+    try {
+      final notes = await FirestoreService.instance.listNotes(uid: _uid);
+      final originalNote = notes.firstWhere((n) => n['id'].toString() == noteId);
+      
+      await FirestoreService.instance.createNote(
+        uid: _uid,
+        data: {
+          'title': '${originalNote['title']} (copia)',
+          'content': originalNote['content'],
+          'richContent': originalNote['richContent'],
+          'tags': originalNote['tags'] ?? [],
+          'pinned': false,
+        },
+      );
+      
+      await _loadNotes();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nota duplicada'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error duplicando nota: $e');
+    }
+  }
+
+  // Exportar una sola nota
+  Future<void> _exportSingleNote(String noteId) async {
+    try {
+      final notes = await FirestoreService.instance.listNotes(uid: _uid);
+      final note = notes.firstWhere((n) => n['id'].toString() == noteId);
+      
+      await ExportImportService.exportSingleNoteToMarkdown(note);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nota exportada'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error exportando nota: $e');
     }
   }
 
@@ -1563,23 +1678,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                 ),
                 const SizedBox(height: AppColors.space12),
                 
-                // Fila de acciones
+                // Fila de acciones simplificada (solo estadísticas y compacto)
                 Row(
                   children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _create,
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: const Text('Nueva'),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppColors.space16,
-                            vertical: AppColors.space12,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppColors.space8),
                     // Botón de estadísticas
                     IconButton(
                       onPressed: _toggleStats,
@@ -1694,77 +1795,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
               ),
             ),
           
-          // Panel de carpetas (siempre visible para poder crear carpetas)
-          Container(
-            constraints: const BoxConstraints(maxHeight: 200),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
-            ),
-            child: FoldersPanel(
-              folders: _folders,
-              selectedFolderId: _selectedFolderId,
-              onFolderSelected: _onFolderSelected,
-              onFolderCreated: (folder) async {
-                  try {
-                    await FirestoreService.instance.createFolder(
-                      uid: _uid,
-                      data: folder.toJson(),
-                    );
-                    await _loadFolders();
-                  } catch (e) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error al crear carpeta: $e'),
-                        backgroundColor: AppColors.danger,
-                      ),
-                    );
-                  }
-                },
-                onFolderUpdated: (folder) async {
-                  try {
-                    await FirestoreService.instance.updateFolder(
-                      uid: _uid,
-                      folderId: folder.id,
-                      data: folder.toJson(),
-                    );
-                    await _loadFolders();
-                  } catch (e) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error al actualizar carpeta: $e'),
-                        backgroundColor: AppColors.danger,
-                      ),
-                    );
-                  }
-                },
-                onFolderDeleted: (folderId) async {
-                  try {
-                    await FirestoreService.instance.deleteFolder(
-                      uid: _uid,
-                      folderId: folderId,
-                    );
-                    if (_selectedFolderId == folderId) {
-                      setState(() => _selectedFolderId = null);
-                    }
-                    await _loadFolders();
-                    await _loadNotes();
-                  } catch (e) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error al eliminar carpeta: $e'),
-                        backgroundColor: AppColors.danger,
-                      ),
-                    );
-                  }
-                },
-                onNoteDropped: _onNoteDroppedInFolder,
-              ),
-            ),
-          
-          // Lista de notas con tarjetas modernas
+          // Lista unificada de carpetas y notas con tarjetas modernas
           Expanded(
             child: _loading
                 ? const Center(
@@ -1798,58 +1829,74 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                           ),
                         ),
                       )
-                    : Builder(
-                        builder: (context) {
-                          // Obtener IDs de notas que están en carpetas
-                          final Set<String> notesInFolders = {};
-                          for (final folder in _folders) {
-                            notesInFolders.addAll(folder.noteIds);
-                          }
-                          
-                          // Filtrar notas que NO están en carpetas
-                          final notesWithoutFolder = _notes
-                              .where((n) => !notesInFolders.contains(n['id'].toString()))
-                              .toList();
-                          
-                          return ListView.builder(
-                            padding: const EdgeInsets.all(AppColors.space12),
-                            itemCount: _folders.length + 1 + notesWithoutFolder.length,
-                            itemBuilder: (context, i) {
-                              // Sección de carpetas
-                              if (i < _folders.length) {
-                                final folder = _folders[i];
-                                final noteCount = folder.noteIds.length;
-                                return _buildFolderCard(folder, noteCount);
-                              }
-                              
-                              // Botón crear carpeta
-                              if (i == _folders.length) {
-                                return _buildCreateFolderButton();
-                              }
-                              
-                              // Notas sin carpeta
-                              final noteIndex = i - _folders.length - 1;
-                              final note = notesWithoutFolder[noteIndex];
-                              final id = note['id'].toString();
-                              return NotesSidebarCard(
-                                note: note,
-                                isSelected: id == _selectedId,
-                                onTap: () => _select(id),
-                                onPin: () async {
-                                  await FirestoreService.instance.setPinned(
-                                    uid: _uid,
-                                    noteId: id,
-                                    pinned: !(note['pinned'] == true),
-                                  );
-                                  await _loadNotes();
-                                },
-                                onDelete: () => _delete(id),
-                                enableDrag: true,
-                                compact: _compactMode,
-                              );
-                            },
+                    : GestureDetector(
+                        // Click derecho en área vacía
+                        onSecondaryTapDown: (details) async {
+                          final result = await UnifiedContextMenu.show<ContextMenuActionType>(
+                            context: context,
+                            position: details.globalPosition,
+                            actions: ContextMenuBuilder.workspace(),
                           );
+                          _handleContextMenuAction(result, context: context);
                         },
+                        child: Builder(
+                          builder: (context) {
+                            // Obtener IDs de notas que están en carpetas
+                            final Set<String> notesInFolders = {};
+                            for (final folder in _folders) {
+                              notesInFolders.addAll(folder.noteIds);
+                            }
+                            
+                            // Filtrar notas que NO están en carpetas
+                            final notesWithoutFolder = _notes
+                                .where((n) => !notesInFolders.contains(n['id'].toString()))
+                                .toList();
+                            
+                            return ListView.builder(
+                              padding: const EdgeInsets.all(AppColors.space12),
+                              itemCount: _folders.length + notesWithoutFolder.length,
+                              itemBuilder: (context, i) {
+                                // Sección de carpetas con sus notas
+                                if (i < _folders.length) {
+                                  final folder = _folders[i];
+                                  final noteCount = folder.noteIds.length;
+                                  return _buildFolderCard(folder, noteCount);
+                                }
+                                
+                                // Notas sin carpeta (con menú contextual)
+                                final noteIndex = i - _folders.length;
+                                final note = notesWithoutFolder[noteIndex];
+                                final id = note['id'].toString();
+                                return GestureDetector(
+                                  onSecondaryTapDown: (details) async {
+                                    final result = await UnifiedContextMenu.show<ContextMenuActionType>(
+                                      context: context,
+                                      position: details.globalPosition,
+                                      actions: ContextMenuBuilder.note(isInFolder: false),
+                                    );
+                                    _handleContextMenuAction(result, context: context, noteId: id);
+                                  },
+                                  child: NotesSidebarCard(
+                                    note: note,
+                                    isSelected: id == _selectedId,
+                                    onTap: () => _select(id),
+                                    onPin: () async {
+                                      await FirestoreService.instance.setPinned(
+                                        uid: _uid,
+                                        noteId: id,
+                                        pinned: !(note['pinned'] == true),
+                                      );
+                                      await _loadNotes();
+                                    },
+                                    onDelete: () => _delete(id),
+                                    enableDrag: true,
+                                    compact: _compactMode,
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
                       ),
           ),
         ],
