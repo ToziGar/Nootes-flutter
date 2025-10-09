@@ -187,7 +187,7 @@ class _ShareDialogState extends State<ShareDialog> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        ..._sharedByMe.map((s) => _buildExistingSharingTile(s)).toList(),
+                        ..._sharedByMe.map((s) => _buildExistingSharingTile(s)),
                       ],
                     ),
                   ),
@@ -475,16 +475,26 @@ class _ShareDialogState extends State<ShareDialog> {
               const SizedBox(width: 6),
               const Text('Enlace público', style: TextStyle(fontWeight: FontWeight.w600)),
               const Spacer(),
-              if (_publicBusy) const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-              if (!_publicBusy && _publicToken == null)
-                TextButton(
+              if (_publicBusy) 
+                const Row(
+                  children: [
+                    SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                    SizedBox(width: 8),
+                    Text('Procesando...', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  ],
+                )
+              else if (_publicToken == null)
+                TextButton.icon(
                   onPressed: _createPublicLink,
-                  child: const Text('Generar'),
-                ),
-              if (!_publicBusy && _publicToken != null)
-                TextButton(
+                  icon: const Icon(Icons.add_link, size: 16),
+                  label: const Text('Generar'),
+                )
+              else
+                TextButton.icon(
                   onPressed: _revokePublicLink,
-                  child: const Text('Revocar'),
+                  icon: const Icon(Icons.link_off, size: 16),
+                  label: const Text('Revocar'),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.danger),
                 ),
             ],
           ),
@@ -501,17 +511,40 @@ class _ShareDialogState extends State<ShareDialog> {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Copiar',
-                  icon: const Icon(Icons.copy, size: 18),
-                  onPressed: () async {
+                  tooltip: _publicBusy ? 'Procesando...' : 'Copiar enlace',
+                  icon: Icon(
+                    _publicBusy ? Icons.hourglass_empty : Icons.copy, 
+                    size: 18,
+                    color: _publicBusy ? AppColors.textSecondary : null,
+                  ),
+                  onPressed: _publicBusy ? null : () async {
                     await Clipboard.setData(ClipboardData(text: _composePublicUrl(_publicToken!)));
-                    ToastService.success('Copiado');
+                    
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Row(
+                            children: [
+                              Icon(Icons.copy, color: Colors.white, size: 16),
+                              SizedBox(width: 8),
+                              Text('Enlace copiado al portapapeles'),
+                            ],
+                          ),
+                          backgroundColor: AppColors.primary,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
                   },
                 ),
                 IconButton(
-                  tooltip: 'Abrir',
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  onPressed: () => Navigator.of(context).pushNamed('/p/${_publicToken!}'),
+                  tooltip: _publicBusy ? 'Procesando...' : 'Abrir en nueva pestaña',
+                  icon: Icon(
+                    _publicBusy ? Icons.hourglass_empty : Icons.open_in_new, 
+                    size: 18,
+                    color: _publicBusy ? AppColors.textSecondary : null,
+                  ),
+                  onPressed: _publicBusy ? null : () => Navigator.of(context).pushNamed('/p/${_publicToken!}'),
                 ),
               ],
             ),
@@ -528,22 +561,88 @@ class _ShareDialogState extends State<ShareDialog> {
     try {
       final token = await SharingService().generatePublicLink(noteId: widget.itemId);
       setState(() => _publicToken = token);
-      ToastService.success('Enlace generado');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.link, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text('Enlace público generado exitosamente'),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Copiar',
+              textColor: Colors.white,
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: _composePublicUrl(token)));
+              },
+            ),
+          ),
+        );
+      }
     } catch (e) {
       ToastService.error('Error: $e');
-    } finally { if (mounted) setState(() => _publicBusy = false); }
+    } finally { 
+      if (mounted) setState(() => _publicBusy = false); 
+    }
   }
 
   Future<void> _revokePublicLink() async {
     if (_publicBusy) return;
+    
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Revocar enlace público'),
+        content: const Text(
+          '¿Estás seguro de que quieres revocar este enlace? '
+          'Las personas que lo tengan ya no podrán acceder a la nota.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Revocar'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed != true) return;
+    
     setState(() => _publicBusy = true);
     try {
       await SharingService().revokePublicLink(noteId: widget.itemId);
       setState(() => _publicToken = null);
-      ToastService.success('Enlace revocado');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text('Enlace público revocado exitosamente'),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     } catch (e) {
       ToastService.error('Error: $e');
-    } finally { if (mounted) setState(() => _publicBusy = false); }
+    } finally { 
+      if (mounted) setState(() => _publicBusy = false); 
+    }
   }
 
   Widget _buildExistingSharingTile(SharedItem item) {

@@ -17,6 +17,26 @@ class ItalicIntent extends Intent {
   const ItalicIntent();
 }
 
+class StrikeIntent extends Intent {
+  const StrikeIntent();
+}
+
+class HeadingCycleIntent extends Intent {
+  const HeadingCycleIntent();
+}
+
+class ToggleListIntent extends Intent {
+  const ToggleListIntent();
+}
+
+class CodeBlockIntent extends Intent {
+  const CodeBlockIntent();
+}
+
+class ToggleSplitIntent extends Intent {
+  const ToggleSplitIntent();
+}
+
 class MarkdownEditor extends StatefulWidget {
   const MarkdownEditor({
     super.key,
@@ -28,6 +48,7 @@ class MarkdownEditor extends StatefulWidget {
     this.wikiIndex,
     this.onOpenNote,
     this.splitEnabled = true,
+    this.readOnly = false,
   });
 
   final TextEditingController controller;
@@ -38,6 +59,7 @@ class MarkdownEditor extends StatefulWidget {
   final Map<String, String>? wikiIndex; // title -> id
   final void Function(String noteId)? onOpenNote;
   final bool splitEnabled;
+  final bool readOnly;
 
   @override
   State<MarkdownEditor> createState() => _MarkdownEditorState();
@@ -116,6 +138,68 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
   // Use Shortcuts+Actions to handle keyboard shortcuts (avoids deprecated RawKeyboard APIs)
   void _handleBoldIntent() => _wrapSelection('**', '**');
   void _handleItalicIntent() => _wrapSelection('*', '*');
+  void _handleStrikeIntent() => _wrapSelection('~~', '~~');
+  
+  void _handleHeadingCycleIntent() {
+    final text = widget.controller.text;
+    final sel = widget.controller.selection;
+    if (!sel.isValid) return;
+    
+    final lineStart = text.lastIndexOf('\n', sel.baseOffset - 1) + 1;
+    final lineEnd = text.indexOf('\n', sel.baseOffset);
+    final actualLineEnd = lineEnd == -1 ? text.length : lineEnd;
+    final line = text.substring(lineStart, actualLineEnd);
+    
+    // Detect current heading level
+    final headingMatch = RegExp(r'^(#{1,6})\s*').firstMatch(line);
+    String newLine;
+    
+    if (headingMatch != null) {
+      final currentLevel = headingMatch.group(1)!.length;
+      final nextLevel = currentLevel >= 6 ? 0 : currentLevel + 1;
+      final content = line.substring(headingMatch.end);
+      newLine = nextLevel == 0 ? content : '${'#' * nextLevel} $content';
+    } else {
+      // Not a heading, make it H1
+      newLine = '# $line';
+    }
+    
+    widget.controller.value = widget.controller.value.copyWith(
+      text: text.replaceRange(lineStart, actualLineEnd, newLine),
+      selection: TextSelection.collapsed(offset: lineStart + newLine.length),
+    );
+  }
+  
+  void _handleToggleListIntent() {
+    final text = widget.controller.text;
+    final sel = widget.controller.selection;
+    if (!sel.isValid) return;
+    
+    final lineStart = text.lastIndexOf('\n', sel.baseOffset - 1) + 1;
+    final lineEnd = text.indexOf('\n', sel.baseOffset);
+    final actualLineEnd = lineEnd == -1 ? text.length : lineEnd;
+    final line = text.substring(lineStart, actualLineEnd);
+    
+    String newLine;
+    if (line.startsWith('- ')) {
+      // Remove bullet
+      newLine = line.substring(2);
+    } else if (line.startsWith('* ')) {
+      // Remove bullet (alternative)
+      newLine = line.substring(2);
+    } else {
+      // Add bullet
+      newLine = '- $line';
+    }
+    
+    widget.controller.value = widget.controller.value.copyWith(
+      text: text.replaceRange(lineStart, actualLineEnd, newLine),
+      selection: TextSelection.collapsed(offset: lineStart + newLine.length),
+    );
+  }
+  
+  void _handleCodeBlockIntent() => _insertBlock('```\n', '\n```');
+  void _handleToggleSplitIntent() => setState(() => _split = !_split);
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +211,21 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
         // Ctrl/Cmd + I -> italic
         LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyI): const ItalicIntent(),
         LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyI): const ItalicIntent(),
+        // Ctrl/Cmd + Shift + X -> strike
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift, LogicalKeyboardKey.keyX): const StrikeIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.shift, LogicalKeyboardKey.keyX): const StrikeIntent(),
+        // Ctrl/Cmd + Shift + H -> heading cycle
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift, LogicalKeyboardKey.keyH): const HeadingCycleIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.shift, LogicalKeyboardKey.keyH): const HeadingCycleIntent(),
+        // Ctrl/Cmd + Shift + L -> toggle list
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift, LogicalKeyboardKey.keyL): const ToggleListIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.shift, LogicalKeyboardKey.keyL): const ToggleListIntent(),
+        // Ctrl/Cmd + Alt + K -> code block
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.alt, LogicalKeyboardKey.keyK): const CodeBlockIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.alt, LogicalKeyboardKey.keyK): const CodeBlockIntent(),
+        // Ctrl/Cmd + / -> toggle split
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.slash): const ToggleSplitIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.slash): const ToggleSplitIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -138,19 +237,62 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
             _handleItalicIntent();
             return null;
           }),
+          StrikeIntent: CallbackAction<StrikeIntent>(onInvoke: (intent) {
+            _handleStrikeIntent();
+            return null;
+          }),
+          HeadingCycleIntent: CallbackAction<HeadingCycleIntent>(onInvoke: (intent) {
+            _handleHeadingCycleIntent();
+            return null;
+          }),
+          ToggleListIntent: CallbackAction<ToggleListIntent>(onInvoke: (intent) {
+            _handleToggleListIntent();
+            return null;
+          }),
+          CodeBlockIntent: CallbackAction<CodeBlockIntent>(onInvoke: (intent) {
+            _handleCodeBlockIntent();
+            return null;
+          }),
+          ToggleSplitIntent: CallbackAction<ToggleSplitIntent>(onInvoke: (intent) {
+            if (widget.splitEnabled) _handleToggleSplitIntent();
+            return null;
+          }),
         },
         child: Focus(
           focusNode: _focus,
           child: TextField(
             controller: widget.controller,
+            readOnly: widget.readOnly,
             maxLines: null,
             minLines: widget.minLines,
             keyboardType: TextInputType.multiline,
-            style: const TextStyle(fontFamily: 'monospace', height: 1.35),
-            decoration: const InputDecoration(
-              hintText: '# Escribe en Markdown…',
+            style: TextStyle(
+              fontFamily: 'monospace', 
+              height: 1.4,
+              fontSize: 14,
+              color: widget.readOnly 
+                ? Theme.of(context).disabledColor
+                : Theme.of(context).textTheme.bodyLarge?.color,
+            ),
+            decoration: InputDecoration(
+              hintText: widget.readOnly ? 'Solo lectura' : '# Escribe en Markdown…',
               alignLabelWithHint: true,
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Theme.of(context).dividerColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2),
+              ),
+              filled: true,
+              fillColor: widget.readOnly 
+                ? Theme.of(context).disabledColor.withValues(alpha: 0.1)
+                : Theme.of(context).cardColor,
             ),
           ),
         ),
@@ -173,8 +315,42 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
       blockSyntaxes: [BlockMathSyntax()],
       styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
         codeblockDecoration: BoxDecoration(
-          color: Colors.black12,
+          color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.grey[900] 
+            : Colors.grey[100],
           borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+          ),
+        ),
+        code: TextStyle(
+          backgroundColor: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.grey[800] 
+            : Colors.grey[200],
+          fontFamily: 'monospace',
+          fontSize: 13,
+        ),
+        h1: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).textTheme.headlineLarge?.color,
+        ),
+        h2: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).textTheme.headlineMedium?.color,
+        ),
+        blockquote: TextStyle(
+          color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+          fontStyle: FontStyle.italic,
+        ),
+        blockquoteDecoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: Theme.of(context).primaryColor,
+              width: 4,
+            ),
+          ),
         ),
       ),
     );
@@ -182,15 +358,34 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.readOnly)
+          Container(
+            padding: const EdgeInsets.all(8),
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.visibility, color: Colors.orange, size: 16),
+                const SizedBox(width: 6),
+                Text('Solo lectura', style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
         MarkdownToolbar(
-          onWrapSelection: _wrapSelection,
-          onInsertAtLineStart: _insertAtLineStart,
-          onInsertBlock: _insertBlock,
+          onWrapSelection: widget.readOnly ? (_, [__='']) {} : _wrapSelection,
+          onInsertAtLineStart: widget.readOnly ? (_) {} : _insertAtLineStart,
+          onInsertBlock: widget.readOnly ? (_, [__='']) {} : _insertBlock,
           onToggleSplit: () => setState(() => _split = !_split),
           isSplit: widget.splitEnabled && _split,
-          onPickImage: widget.onPickImage,
-          onPickWiki: widget.onPickWiki,
+          onPickImage: widget.readOnly ? null : widget.onPickImage,
+          onPickWiki: widget.readOnly ? null : widget.onPickWiki,
           showSplitToggle: widget.splitEnabled,
+          readOnly: widget.readOnly,
+          controller: widget.controller,
         ),
         const SizedBox(height: 8),
         LayoutBuilder(
@@ -206,10 +401,13 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white10),
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: preview,
                   ),
@@ -228,19 +426,34 @@ class CodeElementBuilder extends MarkdownElementBuilder {
   Widget visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     final text = element.textContent;
     final lang = element.attributes['class']?.replaceFirst('language-', '') ?? '';
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.black12,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: HighlightView(
-        text,
-        language: lang.isEmpty ? 'plaintext' : lang,
-        theme: githubTheme,
-        padding: EdgeInsets.zero,
-        textStyle: const TextStyle(fontFamily: 'monospace', fontSize: 13, height: 1.35),
+    
+    return Builder(
+      builder: (context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.grey[900] 
+            : Colors.grey[50],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+          ),
+        ),
+        child: HighlightView(
+          text,
+          language: lang.isEmpty ? 'plaintext' : lang,
+          theme: githubTheme, // Mantener tema claro por ahora
+          padding: EdgeInsets.zero,
+          textStyle: TextStyle(
+            fontFamily: 'monospace', 
+            fontSize: 13, 
+            height: 1.4,
+            color: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.grey[300] 
+              : Colors.grey[800],
+          ),
+        ),
       ),
     );
   }

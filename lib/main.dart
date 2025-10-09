@@ -10,7 +10,6 @@ import 'auth/login_page.dart';
 import 'auth/register_page.dart';
 import 'auth/forgot_password_page.dart';
 import 'home_page.dart';
-import 'theme/app_theme.dart';
 import 'notes/tasks_page.dart';
 import 'notes/export_page.dart';
 import 'notes/interactive_graph_page.dart';
@@ -39,6 +38,7 @@ Future<void> main() async {
   } catch (e) {
     initError = e;
   }
+  
   runApp(MyApp(initError: initError));
 }
 
@@ -52,8 +52,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  ThemeMode _themeMode = ThemeMode.system;
   Locale _locale = const Locale('es', '');
+  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   void initState() {
@@ -68,12 +68,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _loadPreferences() async {
-    final themeMode = await PreferencesService.getThemeMode();
     final locale = await PreferencesService.getLocale();
     
     if (mounted) {
       setState(() {
-        _themeMode = themeMode;
         _locale = locale;
       });
     }
@@ -84,7 +82,6 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _themeMode = themeMode;
     });
-    PreferencesService.setThemeMode(themeMode);
   }
 
   /// Método para cambiar el idioma desde otras pantallas
@@ -100,8 +97,15 @@ class _MyAppState extends State<MyApp> {
     return ToastProvider(
       child: MaterialApp(
         title: 'Nootes',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          useMaterial3: true,
+        ),
+        darkTheme: ThemeData(
+          brightness: Brightness.dark,
+          primarySwatch: Colors.blue,
+          useMaterial3: true,
+        ),
         themeMode: _themeMode,
         locale: _locale,
         localizationsDelegates: const [
@@ -117,7 +121,6 @@ class _MyAppState extends State<MyApp> {
           '/login': (_) => const LoginPage(),
           '/register': (_) => const RegisterPage(),
           '/forgot': (_) => const ForgotPasswordPage(),
-          // Alias para compatibilidad con navegaciones existentes
           '/forgot-password': (_) => const ForgotPasswordPage(),
           '/home': (_) => const HomePage(),
           '/tasks': (_) => const TasksPage(),
@@ -129,13 +132,13 @@ class _MyAppState extends State<MyApp> {
         },
         onGenerateRoute: (settings) {
           final name = settings.name ?? '';
-            if (name.startsWith('/p/')) {
-              final token = name.substring(3);
-              if (token.isNotEmpty) {
-                return MaterialPageRoute(builder: (_) => PublicNotePage(token: token));
-              }
+          if (name.startsWith('/p/')) {
+            final token = name.substring(3);
+            if (token.isNotEmpty) {
+              return MaterialPageRoute(builder: (_) => PublicNotePage(token: token));
             }
-          return null; // fallback to unknown route handling if needed
+          }
+          return null;
         },
         home: widget.initError == null ? const AuthGate() : SetupHelpPage(error: widget.initError!),
       ),
@@ -151,6 +154,7 @@ class AuthGate extends StatelessWidget {
     if (defaultTargetPlatform == TargetPlatform.linux && !kIsWeb) {
       return const UnsupportedAuthPage();
     }
+    
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
@@ -173,43 +177,42 @@ class UnsupportedAuthPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const webUrl = String.fromEnvironment('WEB_APP_URL');
     return Scaffold(
-      appBar: AppBar(title: const Text('Abrir versión Web')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Esta app se ejecuta como Web en Windows y macOS.\n'
-                'Abre el navegador para continuar.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              if (webUrl.isNotEmpty)
-                FilledButton.icon(
-                  onPressed: () async {
-                    final uri = Uri.parse(webUrl);
-                    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('No se pudo abrir el navegador.')),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.open_in_browser),
-                  label: const Text('Abrir en navegador'),
-                )
-              else
-                const Text(
-                  'Configura la URL de la app web con:\n'
-                  'flutter run -d windows --dart-define=WEB_APP_URL=http://localhost:5000\n'
-                  'o publica tu web y pasa su URL.',
-                  textAlign: TextAlign.center,
-                ),
-            ],
-          ),
+      appBar: AppBar(
+        title: const Text('Authentication Not Supported'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.orange,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Authentication Not Supported on Linux',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Firebase Authentication is not available on Linux desktop applications. '
+              'Please use the web version or mobile app.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () async {
+                const url = 'https://nootes-app.web.app'; // Replace with your web app URL
+                if (await canLaunchUrl(Uri.parse(url))) {
+                  await launchUrl(Uri.parse(url));
+                }
+              },
+              child: const Text('Open Web Version'),
+            ),
+          ],
         ),
       ),
     );
@@ -218,33 +221,43 @@ class UnsupportedAuthPage extends StatelessWidget {
 
 class SetupHelpPage extends StatelessWidget {
   const SetupHelpPage({super.key, required this.error});
+
   final Object error;
 
   @override
   Widget build(BuildContext context) {
-    final message = error.toString();
     return Scaffold(
-      appBar: AppBar(title: const Text('Configurar Firebase')),
+      appBar: AppBar(
+        title: const Text('Setup Error'),
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'No se pudo inicializar Firebase en esta plataforma.\n'
-              'Sigue estos pasos para iOS/Android/macOS, o ejecuta en Web:',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red,
             ),
-            const SizedBox(height: 12),
-            const Text('1) Instala la CLI: dart pub global activate flutterfire_cli'),
-            const Text('2) Ejecuta: flutterfire configure (elige el proyecto smartnotes-d0bdd)'),
-            const Text('3) Asegúrate de colocar google-services.json (Android) y GoogleService-Info.plist (iOS).'),
-            const SizedBox(height: 12),
-            Text('Detalle del error:\n$message'),
+            const SizedBox(height: 16),
+            const Text(
+              'Firebase Setup Error',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Error: $error',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Please check your Firebase configuration and try again.',
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
     );
   }
 }
-

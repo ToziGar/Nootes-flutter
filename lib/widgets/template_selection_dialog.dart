@@ -136,7 +136,7 @@ class _TemplateSelectionDialogState extends State<TemplateSelectionDialog> {
                 // Category filter
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedCategory,
+                    initialValue: _selectedCategory,
                     dropdownColor: AppColors.surface,
                     style: const TextStyle(color: AppColors.textPrimary),
                     decoration: InputDecoration(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:math' as math;
 import 'dart:async';
 import 'dart:ui' as ui;
@@ -43,7 +44,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
   double _scale = 1.0;
   Offset _offset = Offset.zero;
   bool _is3DMode = true;
-  bool _showParticles = true;
+  bool _showParticles = !kIsWeb; // Disable particles on web by default for better performance
   bool _autoLayout = true;
   
   // IA settings
@@ -60,6 +61,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
   
   // Particles
   Timer? _layoutTimer;
+  Timer? _particleTimer;
   final List<FloatingParticle> _floatingParticles = [];
   
   Map<String, double> _centrality = {};
@@ -101,20 +103,34 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
   }
 
   void _startParticleSystem() {
-    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    // Cancel previous timer if exists
+    _particleTimer?.cancel();
+    
+    // Reduce frequency on web for better performance
+    final duration = kIsWeb ? const Duration(milliseconds: 200) : const Duration(milliseconds: 100);
+    
+    _particleTimer = Timer.periodic(duration, (timer) {
       if (!mounted) {
         timer.cancel();
         return;
       }
       _updateParticles();
-      if (_showParticles) setState(() {});
+      
+      // Only update particles if they're visible and we're not on web or have few particles
+      if (_showParticles && (!kIsWeb || _floatingParticles.length < 20)) {
+        if (mounted) setState(() {});
+      }
     });
   }
 
   void _updateParticles() {
-  _floatingParticles.removeWhere((p) => p.life <= 0);
-  for (var particle in _floatingParticles) { particle.update(); }
-    if (_floatingParticles.length < 50 && _showParticles) {
+    _floatingParticles.removeWhere((p) => p.life <= 0);
+    for (var particle in _floatingParticles) { particle.update(); }
+    
+    // Reduce particle count on web for better performance
+    final maxParticles = kIsWeb ? 20 : 50;
+    
+    if (_floatingParticles.length < maxParticles && _showParticles) {
       final size = MediaQuery.of(context).size;
       _floatingParticles.add(FloatingParticle(
         position: Offset(
@@ -1280,6 +1296,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
     _rotationController.dispose();
     _particleController.dispose();
     _layoutTimer?.cancel();
+    _particleTimer?.cancel();
     super.dispose();
   }
 }

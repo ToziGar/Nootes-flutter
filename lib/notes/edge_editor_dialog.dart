@@ -154,7 +154,7 @@ class _EdgeEditorDialogState extends State<EdgeEditorDialog> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             // From note selection
             DropdownButtonFormField<String>(
-              value: _selectedFromId,
+              initialValue: _selectedFromId,
               decoration: const InputDecoration(labelText: 'Desde'),
               items: _availableNotes.map((note) {
                 final id = note['id'].toString();
@@ -171,7 +171,7 @@ class _EdgeEditorDialogState extends State<EdgeEditorDialog> {
             
             // To note selection
             DropdownButtonFormField<String>(
-              value: _selectedToId,
+              initialValue: _selectedToId,
               decoration: const InputDecoration(labelText: 'Hacia'),
               items: _availableNotes.map((note) {
                 final id = note['id'].toString();
@@ -194,7 +194,7 @@ class _EdgeEditorDialogState extends State<EdgeEditorDialog> {
               Text('${(_strength * 100).toInt()}%')
             ]),
             DropdownButtonFormField<String>(
-              value: _type, 
+              initialValue: _type, 
               items: [
                 const DropdownMenuItem(value: 'manual', child: Text('🔗 Manual')),
                 const DropdownMenuItem(value: 'semantic', child: Text('🧠 Semántico')),

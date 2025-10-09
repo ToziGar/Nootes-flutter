@@ -358,17 +358,45 @@ class EnhancedContextMenuBuilder {
         value: 'newNote',
         shortcut: 'Ctrl+N',
       ),
+      ContextMenuAction(
+        label: 'Nueva subcarpeta',
+        icon: Icons.create_new_folder_rounded,
+        value: 'newSubfolder',
+        shortcut: 'Ctrl+Shift+N',
+      ),
       ContextMenuAction.divider,
+      ContextMenuAction(
+        label: 'Duplicar carpeta',
+        icon: Icons.content_copy_rounded,
+        value: 'duplicate',
+        description: noteCount > 0 ? 'Duplicar con $noteCount notas' : 'Duplicar carpeta vacía',
+      ),
       ContextMenuAction(
         label: 'Cambiar color',
         icon: Icons.palette_rounded,
         value: 'changeColor',
       ),
       ContextMenuAction(
+        label: 'Cambiar icono',
+        icon: Icons.emoji_emotions_rounded,
+        value: 'changeIcon',
+      ),
+      ContextMenuAction.divider,
+      ContextMenuAction(
         label: 'Exportar carpeta',
         icon: Icons.download_rounded,
         value: 'export',
         description: noteCount > 0 ? '$noteCount notas' : 'Carpeta vacía',
+      ),
+      ContextMenuAction(
+        label: 'Compartir carpeta',
+        icon: Icons.share_rounded,
+        value: 'share',
+      ),
+      ContextMenuAction(
+        label: 'Copiar enlace',
+        icon: Icons.link_rounded,
+        value: 'copyLink',
       ),
       ContextMenuAction.divider,
       ContextMenuAction(
@@ -379,12 +407,12 @@ class EnhancedContextMenuBuilder {
       ),
       ContextMenuAction.divider,
       ContextMenuAction(
-        label: 'Eliminar carpeta',
+        label: noteCount > 0 ? 'Eliminar carpeta (mover notas)' : 'Eliminar carpeta',
         icon: Icons.delete_rounded,
         value: 'delete',
         isDanger: true,
         shortcut: 'Del',
-        enabled: noteCount == 0,
+        description: noteCount > 0 ? 'Las notas se moverán fuera de la carpeta' : null,
       ),
     ];
   }

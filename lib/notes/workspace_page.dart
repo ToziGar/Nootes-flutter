@@ -157,9 +157,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         final logicalId = data['folderId']?.toString() ?? data['id'].toString();
         if (!seen.contains(logicalId)) {
           seen.add(logicalId);
-          // Crear folder usando el ID lógico
+          // Crear folder usando el ID lógico y preservando el docId original
           final folderData = Map<String, dynamic>.from(data);
+          // Preservar el docId original (que viene del documento de Firestore)
+          final originalDocId = data['id']?.toString() ?? '';
           folderData['id'] = logicalId; // Usar el ID lógico
+          folderData['docId'] = originalDocId; // Preservar el docId original para Firestore
           final folder = Folder.fromJson(folderData);
           uniqueFolders.add(folder);
         } else {
@@ -717,7 +720,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       
       // 🔥 ACTUALIZACIÓN INSTANTÁNEA: Actualizar la nota en la lista local sin recargar desde Firestore
       final noteIndex = _allNotes.indexWhere((n) => n['id'] == _selectedId);
-      if (noteIndex >= 0 && noteIndex < _allNotes.length) {
+      if (noteIndex >= 0) {
         _allNotes[noteIndex] = {
           ..._allNotes[noteIndex],
           'title': _title.text,
@@ -1335,7 +1338,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           if (noteId != null) await _select(noteId);
           break;
         case 'duplicate':
-          if (noteId != null) await _duplicateNote(noteId);
+          if (noteId != null) {
+            await _duplicateNote(noteId);
+          } else if (folderId != null) {
+            await _duplicateFolder(folderId);
+          }
           break;
         case 'removeFromFolder':
           if (noteId != null && folderId != null) {
@@ -1419,7 +1426,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           }
           break;
         case 'copyLink':
-          if (noteId != null) _copyNoteLink(noteId);
+          if (noteId != null) {
+            _copyNoteLink(noteId);
+          } else if (folderId != null) {
+            _copyFolderLink(folderId);
+          }
           break;
         case 'properties':
           if (noteId != null) {
@@ -1430,6 +1441,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           break;
         case 'changeColor':
           if (folderId != null) await _showFolderColorPicker(folderId);
+          break;
+        case 'changeIcon':
+          if (folderId != null) await _showFolderIconPicker(folderId);
+          break;
+        case 'newSubfolder':
+          await _showCreateSubfolderDialog(folderId);
           break;
         default:
           debugPrint('⚠️ Acción no implementada: $action');
@@ -1529,47 +1546,263 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     try {
       final folder = _folders.firstWhere((f) => f.id == folderId);
       if (folder.noteIds.isEmpty) {
-        ToastService.info('Carpeta vacía');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text('La carpeta está vacía'),
+                ],
+              ),
+              backgroundColor: AppColors.info,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
         return;
       }
-      // Exportar notas secuencialmente (podría optimizarse en el futuro)
+
+      // Mostrar diálogo de progreso
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Exportando carpeta "${folder.name}"...',
+                  style: const TextStyle(color: AppColors.textPrimary),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      // Exportar notas secuencialmente
       final notes = await FirestoreService.instance.listNotes(uid: _uid);
       final byId = { for (final n in notes) n['id'].toString() : n };
       int exported = 0;
+      int failed = 0;
+      
       for (final id in folder.noteIds) {
-        final note = byId[id];
-        if (note != null) {
-          await ExportImportService.exportSingleNoteToMarkdown(note);
-          exported++;
+        try {
+          final note = byId[id];
+          if (note != null) {
+            await ExportImportService.exportSingleNoteToMarkdown(note);
+            exported++;
+          } else {
+            failed++;
+            debugPrint('⚠️ Nota no encontrada para exportar: $id');
+          }
+        } catch (e) {
+          failed++;
+          debugPrint('⚠️ Error exportando nota $id: $e');
         }
       }
-      ToastService.success('Carpeta exportada ($exported notas)');
+
+      // Cerrar diálogo de progreso
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Mostrar resultado
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  exported > 0 ? Icons.check_circle : Icons.error_outline,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    failed == 0
+                        ? 'Carpeta "${folder.name}" exportada ($exported notas)'
+                        : 'Exportación completada: $exported exitosas, $failed fallidas',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: failed == 0 ? AppColors.success : AppColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     } catch (e) {
+      // Cerrar diálogo de progreso si está abierto
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      
       debugPrint('⚠️ Error exportando carpeta: $e');
-      ToastService.error('Error exportando carpeta');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Error exportando carpeta: $e')),
+              ],
+            ),
+            backgroundColor: AppColors.danger,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
   void _showFolderProperties(String folderId) {
     final folder = _folders.firstWhere((f) => f.id == folderId);
+    final notes = _allNotes.where((n) => folder.noteIds.contains(n['id'].toString())).toList();
+    
+    // Calcular estadísticas
+    final totalNotes = folder.noteIds.length;
+    final pinnedNotes = notes.where((n) => n['pinned'] == true).length;
+    final archivedNotes = notes.where((n) => n['archived'] == true).length;
+    final favoriteNotes = notes.where((n) => n['favorite'] == true).length;
+    
+    // Calcular tamaño total aproximado
+    int totalSize = 0;
+    for (final note in notes) {
+      final content = note['content']?.toString() ?? '';
+      final title = note['title']?.toString() ?? '';
+      totalSize += (content.length + title.length);
+    }
+    
+    final sizeText = totalSize < 1024 
+        ? '$totalSize bytes'
+        : totalSize < 1024 * 1024
+            ? '${(totalSize / 1024).toStringAsFixed(1)} KB'
+            : '${(totalSize / (1024 * 1024)).toStringAsFixed(1)} MB';
+    
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Propiedades de la carpeta'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        backgroundColor: AppColors.surface,
+        title: Row(
           children: [
-            Text('Nombre: ${folder.name}'),
-            const SizedBox(height: 8),
-            Text('ID: ${folder.id}'),
-            const SizedBox(height: 8),
-            Text('Notas: ${folder.noteIds.length}'),
+            Icon(Icons.folder_rounded, color: folder.color, size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Propiedades: ${folder.name}',
+                style: const TextStyle(color: AppColors.textPrimary),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar'))],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildPropertyRow('Nombre', folder.name),
+              _buildPropertyRow('ID', folder.id),
+              _buildPropertyRow('DocID', folder.docId),
+              const Divider(color: AppColors.borderColor),
+              _buildPropertyRow('Total de notas', totalNotes.toString()),
+              if (pinnedNotes > 0) _buildPropertyRow('Notas fijadas', pinnedNotes.toString()),
+              if (favoriteNotes > 0) _buildPropertyRow('Notas favoritas', favoriteNotes.toString()),
+              if (archivedNotes > 0) _buildPropertyRow('Notas archivadas', archivedNotes.toString()),
+              const Divider(color: AppColors.borderColor),
+              _buildPropertyRow('Tamaño total', sizeText),
+              _buildPropertyRow('Orden', folder.order.toString()),
+              const Divider(color: AppColors.borderColor),
+              _buildPropertyRow('Creada', _formatDate(folder.createdAt)),
+              _buildPropertyRow('Modificada', _formatDate(folder.updatedAt)),
+              const SizedBox(height: 16),
+              // Color preview
+              Row(
+                children: [
+                  const Text('Color: ', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: folder.color,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: AppColors.borderColor),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '#${folder.color.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontFamily: 'monospace'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showEditFolderDialog(folder);
+            },
+            child: const Text('Editar'),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildPropertyRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            ),
+          ),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays == 0) {
+      return 'Hoy ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays == 1) {
+      return 'Ayer ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays < 7) {
+      const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+      return '${days[date.weekday - 1]} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else {
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    }
   }
 
   // --- New helper methods for extended context menu actions ---
@@ -1584,11 +1817,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       if (mounted) {
         setState(() {
           final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
-          if (idx != -1) {
+          if (idx >= 0) {
             _allNotes[idx]['pinned'] = pin;
           }
           final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
-          if (idx2 != -1) {
+          if (idx2 >= 0) {
             _notes[idx2]['pinned'] = pin;
           }
         });
@@ -1605,11 +1838,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       if (mounted) {
         setState(() {
           final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
-          if (idx != -1) {
+          if (idx >= 0) {
             _allNotes[idx]['favorite'] = fav;
           }
           final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
-          if (idx2 != -1) {
+          if (idx2 >= 0) {
             _notes[idx2]['favorite'] = fav;
           }
         });
@@ -1626,11 +1859,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       if (mounted) {
         setState(() {
           final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
-          if (idx != -1) {
+          if (idx >= 0) {
             _allNotes[idx]['archived'] = archive;
           }
           final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
-          if (idx2 != -1) {
+          if (idx2 >= 0) {
             _notes[idx2]['archived'] = archive;
           }
         });
@@ -1666,11 +1899,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         if (mounted) {
           setState(() {
             final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
-            if (idx != -1) {
+            if (idx >= 0) {
               _allNotes[idx]['tags'] = tags;
             }
             final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
-            if (idx2 != -1) {
+            if (idx2 >= 0) {
               _notes[idx2]['tags'] = tags;
             }
           });
@@ -1722,11 +1955,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     );
         if (chosen != null) {
       try {
-        await FirestoreService.instance.updateFolder(uid: _uid, folderId: folderId, data: {'color': chosen.value.toRadixString(16)});
+        await FirestoreService.instance.updateFolder(uid: _uid, folderId: folderId, data: {'color': chosen.toARGB32().toRadixString(16)});
         if (mounted) {
           setState(() {
             final idx = _folders.indexWhere((f) => f.id == folderId);
-            if (idx != -1) {
+            if (idx >= 0) {
               _folders[idx] = _folders[idx].copyWith(color: chosen);
             }
           });
@@ -1749,7 +1982,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           children: [
             Text('Título: ${note['title'] ?? ''}'),
             const SizedBox(height: 8),
-            Text('ID: ${noteId}'),
+            Text('ID: $noteId'),
             const SizedBox(height: 8),
             Text('Creado: ${note['createdAt'] ?? '—'}'),
           ],
@@ -1852,14 +2085,67 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
 
   // Confirmar eliminación de carpeta
   Future<void> _confirmDeleteFolder(Folder folder) async {
+    final hasNotes = folder.noteIds.isNotEmpty;
+    final noteCountText = hasNotes ? ' (${folder.noteIds.length} notas)' : '';
+    
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Text('Eliminar carpeta', style: TextStyle(color: AppColors.textPrimary)),
-        content: Text(
-          '¿Estás seguro que deseas eliminar "${folder.name}"?\n\nLas notas no se eliminarán, solo se quitarán de la carpeta.',
-          style: const TextStyle(color: AppColors.textSecondary),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¿Estás seguro que deseas eliminar "${folder.name}"$noteCountText?',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            if (hasNotes) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: AppColors.warning, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Las ${folder.noteIds.length} notas se moverán fuera de la carpeta y quedarán sin organizar.',
+                        style: TextStyle(color: AppColors.warning.withValues(alpha: 0.9), fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle_outline, color: AppColors.success, size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'La carpeta está vacía y se puede eliminar de forma segura.',
+                        style: TextStyle(color: AppColors.success, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
         actions: [
           TextButton(
@@ -1869,7 +2155,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-            child: const Text('Eliminar'),
+            child: Text(hasNotes ? 'Eliminar y mover notas' : 'Eliminar'),
           ),
         ],
       ),
@@ -1879,14 +2165,33 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       try {
         debugPrint('🗑️ Eliminando carpeta (docId): ${folder.docId}');
 
-        // 1. Eliminar de Firestore primero (usar docId, que es el doc ID en Firestore)
+        // 1. Si tiene notas, moverlas fuera de la carpeta primero
+        if (hasNotes) {
+          debugPrint('📦 Moviendo ${folder.noteIds.length} notas fuera de la carpeta...');
+          for (final noteId in folder.noteIds) {
+            try {
+              await FirestoreService.instance.removeNoteFromFolder(
+                uid: _uid,
+                folderId: folder.docId, // Usar docId consistentemente
+                noteId: noteId,
+              );
+              debugPrint('✅ Nota $noteId movida fuera de la carpeta');
+            } catch (e) {
+              debugPrint('⚠️ Error moviendo nota $noteId: $e');
+            }
+          }
+          await Future.delayed(const Duration(milliseconds: 300));
+        }
+
+        // 2. Eliminar de Firestore
+        debugPrint('🔥 Intentando eliminar carpeta de Firestore (uid: $_uid, folderId: ${folder.docId})');
         await FirestoreService.instance.deleteFolder(
           uid: _uid,
           folderId: folder.docId,
         );
-        debugPrint('✅ Carpeta eliminada de Firestore');
+        debugPrint('✅ Carpeta eliminada de Firestore - ${folder.docId}');
 
-        // 2. Verificar que realmente se eliminó (comprobar por docId)
+        // 3. Verificar que realmente se eliminó
         await Future.delayed(const Duration(milliseconds: 500));
         final deletedFolder = await FirestoreService.instance.getFolder(
           uid: _uid,
@@ -1898,7 +2203,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         }
         debugPrint('✅ Verificación: Carpeta realmente eliminada de Firestore');
         
-        // 3. Actualizar estado local inmediatamente (UI optimista)
+        // 4. Actualizar estado local inmediatamente
         setState(() {
           _folders.removeWhere((f) => f.id == folder.id);
           _expandedFolders.remove(folder.id);
@@ -1908,13 +2213,10 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         });
         debugPrint('✅ Carpeta eliminada del estado local');
         
-        // 3. Esperar un poco para que Firestore propague el cambio
-        await Future.delayed(const Duration(milliseconds: 300));
+        // 5. Verificar integridad y hacer limpieza final
+        await _verifyFolderIntegrity(folder.docId);
         
-  // 4. Verificar integridad y hacer limpieza final (usar docId)
-  await _verifyFolderIntegrity(folder.docId);
-        
-        // 5. Recargar carpetas Y notas para sincronizar con Firestore
+        // 6. Recargar carpetas Y notas para sincronizar con Firestore
         await _loadFolders();
         await _loadNotes();
         
@@ -1923,9 +2225,21 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Carpeta "${folder.name}" eliminada'),
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      hasNotes 
+                          ? 'Carpeta "${folder.name}" eliminada y ${folder.noteIds.length} notas movidas'
+                          : 'Carpeta "${folder.name}" eliminada'
+                    ),
+                  ),
+                ],
+              ),
               backgroundColor: AppColors.success,
-              duration: const Duration(seconds: 2),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -2580,5 +2894,335 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   void _debouncedSave() {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 600), _save);
+  }
+
+  // Nuevas funciones para el menú contextual mejorado
+
+  Future<void> _showFolderIconPicker(String folderId) async {
+    final folder = _folders.firstWhere((f) => f.id == folderId);
+    
+    final iconList = [
+      Icons.folder_rounded,
+      Icons.work_rounded,
+      Icons.school_rounded,
+      Icons.home_rounded,
+      Icons.favorite_rounded,
+      Icons.star_rounded,
+      Icons.lightbulb_rounded,
+      Icons.code_rounded,
+      Icons.book_rounded,
+      Icons.music_note_rounded,
+      Icons.sports_esports_rounded,
+      Icons.fitness_center_rounded,
+      Icons.restaurant_rounded,
+      Icons.travel_explore_rounded,
+      Icons.shopping_cart_rounded,
+    ];
+
+    final selectedIcon = await showDialog<IconData>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Seleccionar icono', style: TextStyle(color: AppColors.textPrimary)),
+        content: SizedBox(
+          width: 300,
+          height: 200,
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 5,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+            ),
+            itemCount: iconList.length,
+            itemBuilder: (context, index) {
+              final icon = iconList[index];
+              final isSelected = folder.icon == icon;
+              return InkWell(
+                onTap: () => Navigator.pop(context, icon),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primary.withValues(alpha: 0.2) : AppColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(8),
+                    border: isSelected 
+                        ? Border.all(color: AppColors.primary, width: 2)
+                        : Border.all(color: AppColors.borderColor),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedIcon != null && selectedIcon != folder.icon) {
+      try {
+        await FirestoreService.instance.updateFolder(
+          uid: _uid,
+          folderId: folderId,
+          data: {'icon': _iconToString(selectedIcon)},
+        );
+        
+        if (mounted) {
+          setState(() {
+            final idx = _folders.indexWhere((f) => f.id == folderId);
+            if (idx >= 0) {
+              _folders[idx] = _folders[idx].copyWith(icon: selectedIcon);
+            }
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Icono de carpeta actualizado'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al actualizar icono: $e'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  String _iconToString(IconData icon) {
+    final iconMap = {
+      Icons.folder_rounded: 'folder',
+      Icons.work_rounded: 'work',
+      Icons.school_rounded: 'school',
+      Icons.home_rounded: 'home',
+      Icons.favorite_rounded: 'favorite',
+      Icons.star_rounded: 'star',
+      Icons.lightbulb_rounded: 'lightbulb',
+      Icons.code_rounded: 'code',
+      Icons.book_rounded: 'book',
+      Icons.music_note_rounded: 'music',
+      Icons.sports_esports_rounded: 'games',
+      Icons.fitness_center_rounded: 'fitness',
+      Icons.restaurant_rounded: 'food',
+      Icons.travel_explore_rounded: 'travel',
+      Icons.shopping_cart_rounded: 'shopping',
+    };
+    return iconMap[icon] ?? 'folder';
+  }
+
+  Future<void> _showCreateSubfolderDialog(String? parentFolderId) async {
+    final nameController = TextEditingController();
+    final colorNotifier = ValueNotifier<Color>(AppColors.primary);
+    
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Nueva subcarpeta', style: TextStyle(color: AppColors.textPrimary)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Nombre de la subcarpeta',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ValueListenableBuilder<Color>(
+              valueListenable: colorNotifier,
+              builder: (context, color, _) => Row(
+                children: [
+                  const Text('Color: ', style: TextStyle(color: AppColors.textSecondary)),
+                  GestureDetector(
+                    onTap: () async {
+                      final newColor = await _showColorPicker(color);
+                      if (newColor != null) {
+                        colorNotifier.value = newColor;
+                      }
+                    },
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.borderColor),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Crear'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && nameController.text.trim().isNotEmpty) {
+      try {
+        final folderData = {
+          'name': nameController.text.trim(),
+          'icon': 'folder',
+          'color': colorNotifier.value.toARGB32().toRadixString(16),
+          'noteIds': <String>[],
+          'parentFolderId': parentFolderId,
+          'createdAt': DateTime.now().toIso8601String(),
+          'updatedAt': DateTime.now().toIso8601String(),
+          'order': _folders.length,
+        };
+
+        await FirestoreService.instance.createFolder(uid: _uid, data: folderData);
+        await _loadFolders();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Subcarpeta "${nameController.text.trim()}" creada'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al crear subcarpeta: $e'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<Color?> _showColorPicker(Color currentColor) async {
+    return showDialog<Color>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Seleccionar color', style: TextStyle(color: AppColors.textPrimary)),
+        content: SizedBox(
+          width: 250,
+          height: 150,
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 6,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+            ),
+            itemCount: 18,
+            itemBuilder: (context, index) {
+              final colors = [
+                AppColors.primary, Colors.red, Colors.green, Colors.blue,
+                Colors.orange, Colors.purple, Colors.teal, Colors.pink,
+                Colors.indigo, Colors.cyan, Colors.lime, Colors.amber,
+                Colors.brown, Colors.grey, Colors.deepOrange, Colors.lightBlue,
+                Colors.lightGreen, Colors.deepPurple,
+              ];
+              final color = colors[index];
+              return InkWell(
+                onTap: () => Navigator.pop(context, color),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: color == currentColor ? Colors.white : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _duplicateFolder(String folderId) async {
+    try {
+      final folder = _folders.firstWhere((f) => f.id == folderId);
+      
+      final folderData = {
+        'name': '${folder.name} (copia)',
+        'icon': _iconToString(folder.icon),
+        'color': folder.color.toARGB32().toRadixString(16),
+        'noteIds': folder.noteIds.toList(), // Copia las referencias a las mismas notas
+        'createdAt': DateTime.now().toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
+        'order': _folders.length,
+      };
+
+      await FirestoreService.instance.createFolder(uid: _uid, data: folderData);
+      await _loadFolders();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Carpeta "${folder.name}" duplicada con ${folder.noteIds.length} notas'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al duplicar carpeta: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  void _copyFolderLink(String folderId) {
+    final folder = _folders.firstWhere((f) => f.id == folderId);
+    final link = 'nootes://folder/$folderId';
+    
+    Clipboard.setData(ClipboardData(text: link));
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Enlace de "${folder.name}" copiado al portapapeles'),
+          backgroundColor: AppColors.primary,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 }

@@ -129,7 +129,7 @@ class DuplicateCleanupService {
             .where((entry) => entry.value.length > 1)
             .length;
         
-        print('🔍 Verificación: ${stillDuplicated} grupos aún tienen duplicados');
+        print('🔍 Verificación: $stillDuplicated grupos aún tienen duplicados');
       }
       
       final result = DuplicateCleanupResult(

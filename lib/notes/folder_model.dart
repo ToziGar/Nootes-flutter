@@ -58,7 +58,7 @@ class Folder {
       'docId': docId,
       'name': name,
       'icon': _iconToString(icon),
-      'color': color.value,
+      'color': color.toARGB32(),
       'noteIds': noteIds,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),

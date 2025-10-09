@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'markdown_table_parser.dart';
 
 typedef InsertPattern = void Function(String left, [String right]);
 typedef InsertLine = void Function(String linePrefix);
@@ -15,6 +16,8 @@ class MarkdownToolbar extends StatelessWidget {
     this.onPickImage,
     this.onPickWiki,
     this.showSplitToggle = true,
+    this.readOnly = false,
+    this.controller,
   });
 
   final InsertPattern onWrapSelection;
@@ -25,6 +28,8 @@ class MarkdownToolbar extends StatelessWidget {
   final Future<String?> Function(BuildContext context)? onPickImage;
   final Future<String?> Function(BuildContext context)? onPickWiki;
   final bool showSplitToggle;
+  final bool readOnly;
+  final TextEditingController? controller;
 
   @override
   Widget build(BuildContext context) {
@@ -62,10 +67,11 @@ class MarkdownToolbar extends StatelessWidget {
         _headerMenu(context),
         const SizedBox(width: 8),
         _btn(context, Icons.table_chart, 'Tabla', () => _insertTable(context)),
-  _btn(context, Icons.border_bottom, 'Añadir fila debajo', () => onInsertBlock('\n|   |   |   |')),
-  _btn(context, Icons.border_top, 'Añadir fila arriba', () => onInsertBlock('|   |   |   |\n')),
-  _btn(context, Icons.border_left, 'Columna (placeholder)', () => onInsertBlock(' <!--TODO:ADD_COL--> ')),
-  _btn(context, Icons.border_right, 'Eliminar fila (placeholder)', () => onInsertBlock(' <!--TODO:DEL_ROW--> ')),
+        _btn(context, Icons.table_rows, 'Añadir fila debajo', () => _addRowBelow(context)),
+        _btn(context, Icons.keyboard_arrow_up, 'Añadir fila arriba', () => _addRowAbove(context)),
+        _btn(context, Icons.view_column, 'Añadir columna derecha', () => _addColumnRight(context)),
+        _btn(context, Icons.keyboard_arrow_left, 'Añadir columna izquierda', () => _addColumnLeft(context)),
+        _btn(context, Icons.delete_outline, 'Eliminar fila', () => _deleteRow(context)),
         const Spacer(),
         if (showSplitToggle)
           IconButton(
@@ -77,11 +83,25 @@ class MarkdownToolbar extends StatelessWidget {
     );
   }
 
-  Widget _btn(BuildContext context, IconData icon, String tip, VoidCallback onPressed) {
+  Widget _btn(BuildContext context, IconData icon, String tip, VoidCallback? onPressed) {
+    final isEnabled = !readOnly && onPressed != null;
     return IconButton(
-      onPressed: onPressed,
+      onPressed: isEnabled ? onPressed : null,
       tooltip: tip,
-      icon: Icon(icon),
+      icon: Icon(
+        icon, 
+        color: isEnabled 
+          ? Theme.of(context).iconTheme.color 
+          : Theme.of(context).disabledColor,
+      ),
+      style: IconButton.styleFrom(
+        backgroundColor: isEnabled 
+          ? Theme.of(context).cardColor.withValues(alpha: 0.5)
+          : Colors.transparent,
+        foregroundColor: isEnabled 
+          ? Theme.of(context).iconTheme.color 
+          : Theme.of(context).disabledColor,
+      ),
       constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
     );
   }
@@ -164,5 +184,60 @@ class MarkdownToolbar extends StatelessWidget {
     final body = List.generate(rows - 1, (_) => List.generate(cols, (i) => ' ').join(' | ')).join('\n');
     final table = '| $header |\n| $separator |\n$body\n';
     onInsertBlock(table);
+  }
+
+  // === Table manipulation methods ===
+  void _addRowBelow(BuildContext context) => _manipulateTable(context, 'addRowBelow');
+  void _addRowAbove(BuildContext context) => _manipulateTable(context, 'addRowAbove');
+  void _addColumnRight(BuildContext context) => _manipulateTable(context, 'addColumnRight');
+  void _addColumnLeft(BuildContext context) => _manipulateTable(context, 'addColumnLeft');
+  void _deleteRow(BuildContext context) => _manipulateTable(context, 'deleteRow');
+
+  void _manipulateTable(BuildContext context, String operation) {
+    if (controller == null) return;
+    
+    final text = controller!.text;
+    final cursor = controller!.selection.baseOffset;
+    final table = MarkdownTableParser.parseTableAt(text, cursor);
+    
+    if (table == null) {
+      // No hay tabla en el cursor, insertar mensaje
+      onInsertBlock('<!-- No hay tabla en el cursor -->');
+      return;
+    }
+
+    ParsedTable? newTable;
+    final estimatedRow = 0; // Para simplificar, usar fila 0
+    final estimatedCol = 0; // Para simplificar, usar columna 0
+
+    switch (operation) {
+      case 'addRowBelow':
+        newTable = MarkdownTableParser.addRowBelow(table, estimatedRow);
+        break;
+      case 'addRowAbove':
+        newTable = MarkdownTableParser.addRowAbove(table, estimatedRow);
+        break;
+      case 'addColumnRight':
+        newTable = MarkdownTableParser.addColumnRight(table, estimatedCol);
+        break;
+      case 'addColumnLeft':
+        newTable = MarkdownTableParser.addColumnLeft(table, estimatedCol);
+        break;
+      case 'deleteRow':
+        newTable = MarkdownTableParser.deleteRow(table, estimatedRow);
+        break;
+    }
+
+    if (newTable != null) {
+      final newTableText = MarkdownTableParser.tableToMarkdown(newTable);
+      final beforeTable = text.substring(0, table.startIndex);
+      final afterTable = text.substring(table.endIndex + 1);
+      final newText = beforeTable + newTableText + afterTable;
+      
+      controller!.value = controller!.value.copyWith(
+        text: newText,
+        selection: TextSelection.collapsed(offset: table.startIndex + newTableText.length ~/ 2),
+      );
+    }
   }
 }

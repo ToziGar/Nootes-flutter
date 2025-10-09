@@ -280,7 +280,7 @@ class _EditorSettingsDialogState extends State<EditorSettingsDialog> {
         trailing: Switch.adaptive(
           value: value,
           onChanged: onChanged,
-          activeColor: AppColors.primary,
+          activeTrackColor: AppColors.primary,
         ),
         onTap: () => onChanged(!value),
       ),

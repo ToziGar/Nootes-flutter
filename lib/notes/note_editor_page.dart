@@ -86,6 +86,20 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     final svc = FirestoreService.instance;
     final uid = _uid;
     final n = await svc.getNote(uid: uid, noteId: widget.noteId);
+    
+    // Check permissions for this note
+    String? noteOwnerId;
+    if (n != null) {
+      // For owned notes, owner is current user
+      noteOwnerId = uid;
+    } else {
+      // Try to find note via sharing (shared with current user)
+      // For now, we'll handle this case later - assume owned if found
+      noteOwnerId = uid;
+    }
+    
+    _accessInfo = await SharingService().checkNoteAccess(widget.noteId, noteOwnerId);
+    
     final cols = await svc.listCollections(uid: uid);
     final allNotes = await svc.listNotes(uid: uid);
     final outgoing = await svc.listOutgoingLinks(uid: uid, noteId: widget.noteId);
@@ -358,10 +372,11 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                               )
                             : MarkdownEditor(
                                 controller: _content,
-                                onChanged: (_) => _scheduleAutoSave(),
-                                onPickImage: _pickAndUploadImage,
-                                onPickWiki: _pickWiki,
+                                onChanged: _isReadOnly ? null : (_) => _scheduleAutoSave(),
+                                onPickImage: _isReadOnly ? null : _pickAndUploadImage,
+                                onPickWiki: _isReadOnly ? null : _pickWiki,
                                 wikiIndex: _wikiIndex,
+                                readOnly: _isReadOnly,
                                 onOpenNote: (id) async {
                                   if (id == widget.noteId) return;
                                   await Navigator.of(context).push(

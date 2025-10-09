@@ -274,12 +274,12 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
             const SizedBox(height: 16),
             _buildStatRow(
               'Hora más activa', 
-              '${mostActiveHour}:00 ($maxActivity eventos)', 
+              '$mostActiveHour:00 ($maxActivity eventos)', 
               Icons.schedule
             ),
             const SizedBox(height: 12),
             // Mostrar barras de actividad por hora simplificadas
-            Container(
+            SizedBox(
               height: 60,
               child: Row(
                 children: _hourlyActivity.map((hourly) {
@@ -368,7 +368,7 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
                     ],
                   ),
                 );
-              }).toList(),
+              }),
           ],
         ),
       ),
