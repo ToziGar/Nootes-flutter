@@ -54,6 +54,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   Locale _locale = const Locale('es', '');
   ThemeMode _themeMode = ThemeMode.system;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
@@ -65,6 +66,15 @@ class _MyAppState extends State<MyApp> {
       onChangeTheme: changeTheme,
       onChangeLocale: changeLocale,
     );
+    
+    // Register ToastService context after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _navigatorKey.currentContext;
+      if (context != null) {
+        ToastService.registerContext(context);
+      }
+      ToastService.registerNavigatorKey(_navigatorKey);
+    });
   }
 
   Future<void> _loadPreferences() async {
@@ -94,54 +104,53 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return ToastProvider(
-      child: MaterialApp(
-        title: 'Nootes',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          useMaterial3: true,
-        ),
-        darkTheme: ThemeData(
-          brightness: Brightness.dark,
-          primarySwatch: Colors.blue,
-          useMaterial3: true,
-        ),
-        themeMode: _themeMode,
-        locale: _locale,
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('en', ''), // Inglés
-          Locale('es', ''), // Español
-        ],
-        routes: {
-          '/login': (_) => const LoginPage(),
-          '/register': (_) => const RegisterPage(),
-          '/forgot': (_) => const ForgotPasswordPage(),
-          '/forgot-password': (_) => const ForgotPasswordPage(),
-          '/home': (_) => const HomePage(),
-          '/tasks': (_) => const TasksPage(),
-          '/export': (_) => const ExportPage(),
-          '/graph': (_) => const InteractiveGraphPage(),
-          '/advanced-search': (_) => const AdvancedSearchPage(),
-          '/shared-notes': (_) => const SharedNotesPage(),
-          '/toast-demo': (_) => const ToastDemoPage(),
-        },
-        onGenerateRoute: (settings) {
-          final name = settings.name ?? '';
-          if (name.startsWith('/p/')) {
-            final token = name.substring(3);
-            if (token.isNotEmpty) {
-              return MaterialPageRoute(builder: (_) => PublicNotePage(token: token));
-            }
-          }
-          return null;
-        },
-        home: widget.initError == null ? const AuthGate() : SetupHelpPage(error: widget.initError!),
+    return MaterialApp(
+      navigatorKey: _navigatorKey,
+      title: 'Nootes',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
       ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
+      themeMode: _themeMode,
+      locale: _locale,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''), // Inglés
+        Locale('es', ''), // Español
+      ],
+      routes: {
+        '/login': (_) => const LoginPage(),
+        '/register': (_) => const RegisterPage(),
+        '/forgot': (_) => const ForgotPasswordPage(),
+        '/forgot-password': (_) => const ForgotPasswordPage(),
+        '/home': (_) => const HomePage(),
+        '/tasks': (_) => const TasksPage(),
+        '/export': (_) => const ExportPage(),
+        '/graph': (_) => const InteractiveGraphPage(),
+        '/advanced-search': (_) => const AdvancedSearchPage(),
+        '/shared-notes': (_) => const SharedNotesPage(),
+        '/toast-demo': (_) => const ToastDemoPage(),
+      },
+      onGenerateRoute: (settings) {
+        final name = settings.name ?? '';
+        if (name.startsWith('/p/')) {
+          final token = name.substring(3);
+          if (token.isNotEmpty) {
+            return MaterialPageRoute(builder: (_) => PublicNotePage(token: token));
+          }
+        }
+        return null;
+      },
+      home: widget.initError == null ? const AuthGate() : SetupHelpPage(error: widget.initError!),
     );
   }
 }

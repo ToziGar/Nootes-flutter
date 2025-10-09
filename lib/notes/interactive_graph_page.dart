@@ -1003,13 +1003,18 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
       top: 16,
       right: 16,
       child: Card(
-  color: Colors.black.withOpacityCompat(0.8),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        color: Colors.black.withOpacityCompat(0.8),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 280,
+            maxHeight: 420,
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
               const Text('🔗 Filtros de Enlaces', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text('Fuerza mínima: ${(_minEdgeStrength * 100).toInt()}%', style: const TextStyle(fontSize: 12)),
@@ -1045,6 +1050,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
                 controlAffinity: ListTileControlAffinity.leading,
               ),
             ],
+            ),
           ),
         ),
       ),

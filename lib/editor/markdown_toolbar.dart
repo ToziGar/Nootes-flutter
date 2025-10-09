@@ -33,8 +33,10 @@ class MarkdownToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
         _btn(context, Icons.format_bold, 'Negrita', () => onWrapSelection('**', '**')),
         _btn(context, Icons.format_italic, 'Itálica', () => onWrapSelection('*', '*')),
         _btn(context, Icons.code, 'Código', () => onWrapSelection('`', '`')),
@@ -72,15 +74,16 @@ class MarkdownToolbar extends StatelessWidget {
         _btn(context, Icons.view_column, 'Añadir columna derecha', () => _addColumnRight(context)),
         _btn(context, Icons.keyboard_arrow_left, 'Añadir columna izquierda', () => _addColumnLeft(context)),
         _btn(context, Icons.delete_outline, 'Eliminar fila', () => _deleteRow(context)),
-        const Spacer(),
+        const SizedBox(width: 8),
         if (showSplitToggle)
           IconButton(
             tooltip: isSplit ? 'Vista editor' : 'Vista dividida',
             onPressed: onToggleSplit,
             icon: Icon(isSplit ? Icons.view_compact_alt_rounded : Icons.vertical_split_rounded),
           ),
-      ],
-    );
+        ],
+        ),
+      );
   }
 
   Widget _btn(BuildContext context, IconData icon, String tip, VoidCallback? onPressed) {

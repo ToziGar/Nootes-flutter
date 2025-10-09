@@ -45,6 +45,8 @@ class ToastService {
   final List<ToastConfig> _queue = [];
   bool _isShowing = false;
   BuildContext? _context;
+  GlobalKey<NavigatorState>? _navigatorKey;
+  bool _retryScheduled = false;
 
   /// Muestra un toast de éxito
   static void success(String message, {Duration? duration, VoidCallback? onTap}) {
@@ -136,8 +138,36 @@ class ToastService {
   }
 
   void _createOverlay(ToastConfig config) {
-    final context = _getContext();
-    if (context == null) return;
+    // Prefer getting Overlay from navigatorKey to ensure it's created
+    OverlayState? overlay = _navigatorKey?.currentState?.overlay;
+
+    if (overlay == null) {
+      // Fallback to using a registered BuildContext
+      final context = _getContext();
+      if (context != null) {
+        try {
+          overlay = Overlay.of(context, rootOverlay: true);
+        } catch (_) {
+          // ignore and handle below
+        }
+      }
+    }
+
+    if (overlay == null) {
+      // Overlay not ready yet. Schedule a one-shot retry shortly and bail out gracefully.
+      if (!_retryScheduled) {
+        _retryScheduled = true;
+        Future.delayed(const Duration(milliseconds: 50), () {
+          _retryScheduled = false;
+          // Only retry if still showing this toast and overlay entry not yet inserted
+          if (_isShowing && _overlayEntry == null) {
+            _createOverlay(config);
+          }
+        });
+      }
+      debugPrint('⚠️ ToastService: Overlay not ready yet, will retry shortly.');
+      return;
+    }
 
     _overlayEntry = OverlayEntry(
       builder: (context) => _ToastWidget(
@@ -146,7 +176,7 @@ class ToastService {
       ),
     );
 
-    Overlay.of(context).insert(_overlayEntry!);
+    overlay.insert(_overlayEntry!);
 
     // Auto-hide después de la duración especificada
     if (config.type != ToastType.loading) {
@@ -176,6 +206,11 @@ class ToastService {
   /// Método para registrar el contexto
   static void registerContext(BuildContext context) {
     instance._context = context;
+  }
+
+  /// Método para registrar el navigatorKey (recomendado)
+  static void registerNavigatorKey(GlobalKey<NavigatorState> key) {
+    instance._navigatorKey = key;
   }
 
   /// Método para inicializar el servicio con un contexto

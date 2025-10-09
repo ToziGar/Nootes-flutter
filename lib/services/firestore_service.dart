@@ -977,7 +977,12 @@ class _RestFirestoreService implements FirestoreService {
     return docs.map((d) {
       final id = (d['name'] as String).split('/').last;
       final fields = _decodeFields(d['fields'] as Map<String, dynamic>?);
-      return {'id': id, ...fields};
+      return {
+        'id': id,
+        'docId': id,  // Firestore document ID (needed for delete operations)
+        'folderId': fields['id'] ?? id,  // Logical folder ID (may differ from docId)
+        ...fields
+      };
     }).toList();
   }
   

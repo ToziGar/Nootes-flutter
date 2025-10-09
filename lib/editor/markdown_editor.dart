@@ -388,33 +388,41 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
           controller: widget.controller,
         ),
         const SizedBox(height: 8),
-        LayoutBuilder(
-          builder: (context, c) {
-            final useSplit = widget.splitEnabled && _split && c.maxWidth >= 720;
-            if (!useSplit) {
-              return editor;
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: editor),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+        // Expanded must be a direct child of a Flex (Column). Place the
+        // Expanded here so its child (LayoutBuilder) can return either the
+        // editor (which will size to the available space) or a Row with two
+        // Expanded children when in split mode.
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, c) {
+              final useSplit = widget.splitEnabled && _split && c.maxWidth >= 720;
+              if (!useSplit) {
+                // In single-column mode just show the editor and let the
+                // surrounding Expanded provide the vertical constraints.
+                return editor;
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: editor),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                        ),
                       ),
+                      child: preview,
                     ),
-                    child: preview,
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         )
       ],
     );

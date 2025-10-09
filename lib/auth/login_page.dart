@@ -269,25 +269,40 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                             _buildModernButton(),
                             const SizedBox(height: 20),
                             
-                            // Enlaces
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                TextButton(
-                                  onPressed: () => Navigator.pushNamed(context, '/register'),
-                                  child: Text(
-                                    'Crear cuenta',
-                                    style: TextStyle(color: AppColors.primary),
+                            // Enlaces (responsivo, evita overflow horizontal)
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final isNarrow = constraints.maxWidth < 380;
+                                final children = [
+                                  TextButton(
+                                    onPressed: () => Navigator.pushNamed(context, '/register'),
+                                    child: Text(
+                                      'Crear cuenta',
+                                      style: TextStyle(color: AppColors.primary),
+                                    ),
                                   ),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
-                                  child: Text(
-                                    'Olvidé mi contraseña',
-                                    style: TextStyle(color: AppColors.secondary),
+                                  TextButton(
+                                    onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
+                                    child: Text(
+                                      'Olvidé mi contraseña',
+                                      style: TextStyle(color: AppColors.secondary),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ];
+                                if (isNarrow) {
+                                  return Wrap(
+                                    alignment: WrapAlignment.spaceBetween,
+                                    runAlignment: WrapAlignment.center,
+                                    spacing: 12,
+                                    runSpacing: 8,
+                                    children: children,
+                                  );
+                                }
+                                return Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: children,
+                                );
+                              },
                             ),
                           ],
                         ),

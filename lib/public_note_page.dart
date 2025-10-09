@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'services/sharing_service.dart';
 import 'services/firestore_service.dart';
 import 'theme/app_theme.dart';
@@ -57,6 +58,16 @@ class _PublicNotePageState extends State<PublicNotePage> {
               tooltip: 'Recargar',
               onPressed: _load,
               icon: const Icon(Icons.refresh),
+            ),
+          if (!_loading && !_notFound)
+            IconButton(
+              tooltip: 'Compartir nota',
+              onPressed: () {
+                final title = _note?['title']?.toString() ?? 'Nota';
+                final content = _note?['content']?.toString() ?? '';
+                Share.share('$title\n\n$content');
+              },
+              icon: const Icon(Icons.share),
             ),
         ],
       ),

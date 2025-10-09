@@ -157,13 +157,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         final logicalId = data['folderId']?.toString() ?? data['id'].toString();
         if (!seen.contains(logicalId)) {
           seen.add(logicalId);
-          // Crear folder usando el ID lógico y preservando el docId original
-          final folderData = Map<String, dynamic>.from(data);
-          // Preservar el docId original (que viene del documento de Firestore)
-          final originalDocId = data['id']?.toString() ?? '';
-          folderData['id'] = logicalId; // Usar el ID lógico
-          folderData['docId'] = originalDocId; // Preservar el docId original para Firestore
-          final folder = Folder.fromJson(folderData);
+          // Crear folder usando los datos originales del documento. Usamos
+          // `logicalId` únicamente para detectar duplicados, pero no
+          // sobrescribimos el campo 'id' ni 'docId' para mantener el
+          // Document ID que Firestore usa para operaciones como delete.
+          final folder = Folder.fromJson(Map<String, dynamic>.from(data));
           uniqueFolders.add(folder);
         } else {
           debugPrint('⚠️ Carpeta duplicada ignorada: ${data['name']} ($logicalId)');
