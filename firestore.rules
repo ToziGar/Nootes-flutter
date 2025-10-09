@@ -1,0 +1,160 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Funciones auxiliares ---
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthed() && request.auth.uid == uid;
+    }
+
+    function validUsername(u) {
+      return u is string
+        && u.size() >= 3 && u.size() <= 20
+        && u.matches('^[a-z0-9._]{3,20}$');
+    }
+
+    function hasSharedAccess(ownerId, itemId) {
+      return exists(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + ownerId + '_' + itemId))
+        && get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + ownerId + '_' + itemId)).data.status == 'accepted'
+        && get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + ownerId + '_' + itemId)).data.recipientId == request.auth.uid;
+    }
+
+    function canReadSharedNote(ownerId, noteId) {
+      return isAuthed() && (
+        isOwner(ownerId) || 
+        hasSharedAccess(ownerId, noteId)
+      );
+    }
+
+    function canWriteSharedNote(ownerId, noteId) {
+      return isAuthed() && (
+        isOwner(ownerId) || 
+        (hasSharedAccess(ownerId, noteId) && 
+         get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + ownerId + '_' + noteId)).data.permission in ['edit'])
+      );
+    }
+
+    // --- Perfil del usuario ---
+    match /users/{uid} {
+      // Solo el dueño puede leer su perfil completo
+      allow read: if isOwner(uid);
+
+      // Permitir lectura limitada para búsqueda de usuarios (solo campos públicos)
+      allow read: if isAuthed() && 
+                     resource.data.keys().hasAll(['email', 'username', 'fullName']);
+
+      // Creación inicial del perfil
+      allow create: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && validUsername(request.resource.data.username);
+
+      // Actualización: permite si uid/username son válidos o no cambian
+      allow update: if isOwner(uid)
+        && (!('uid' in request.resource.data) || request.resource.data.uid == uid)
+        && (!('username' in request.resource.data) || validUsername(request.resource.data.username));
+
+      // Eliminación del perfil: solo el dueño
+      allow delete: if isOwner(uid);
+    }
+
+    // --- Notas del usuario (con soporte para compartir) ---
+    match /users/{uid}/notes/{noteId} {
+      // Lectura: propietario o usuario con acceso compartido
+      allow read: if canReadSharedNote(uid, noteId);
+
+      // Escritura: propietario o usuario con permisos de edición
+      allow write: if canWriteSharedNote(uid, noteId);
+
+      // Creación: solo el propietario
+      allow create: if isOwner(uid);
+
+      // Eliminación: solo el propietario
+      allow delete: if isOwner(uid);
+    }
+
+    // --- Otras subcolecciones del usuario ---
+    match /users/{uid}/folders/{document=**} {
+      allow read, write: if isOwner(uid);
+    }
+
+    match /users/{uid}/collections/{document=**} {
+      allow read, write: if isOwner(uid);
+    }
+
+    match /users/{uid}/edges/{document=**} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // --- Handles públicos ---
+    match /handles/{username} {
+      // Cualquiera puede leer handles (necesario para búsqueda de usuarios)
+      allow read: if isAuthed();
+
+      // Creación: requiere autenticación y que el handle sea único
+      allow create: if isAuthed()
+        && username.matches('^[a-z0-9._]{3,20}$')
+        && request.resource.data.uid == request.auth.uid
+        && !exists(/databases/$(database)/documents/handles/$(username));
+
+      // Actualización y eliminación: solo el dueño del handle
+      allow update, delete: if isAuthed()
+        && resource.data.uid == request.auth.uid;
+    }
+
+    // --- Elementos compartidos (shared_items) ---
+    match /shared_items/{shareId} {
+      // Crear compartición: solo el propietario del elemento
+      allow create: if isAuthed() && 
+                       request.resource.data.ownerId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['itemId', 'type', 'ownerId', 'recipientId', 'permission', 'status']);
+
+      // Leer compartición: propietario o destinatario
+      allow read: if isAuthed() && 
+                     (resource.data.ownerId == request.auth.uid || 
+                      resource.data.recipientId == request.auth.uid);
+
+      // Actualizar compartición: propietario (cambiar permisos) o destinatario (cambiar estado)
+      allow update: if isAuthed() && (
+        (resource.data.ownerId == request.auth.uid) ||
+        (resource.data.recipientId == request.auth.uid && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
+      );
+
+      // Eliminar compartición: solo el propietario
+      allow delete: if isAuthed() && 
+                       resource.data.ownerId == request.auth.uid;
+    }
+
+    // --- Enlaces públicos (public_links) ---
+    match /public_links/{token} {
+      // Crear enlace público: solo el propietario de la nota
+      allow create: if isAuthed() && 
+                       request.resource.data.ownerId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['noteId', 'ownerId', 'token', 'enabled']);
+
+      // Leer enlace público: todos (necesario para acceso público)
+      allow read: if true;
+
+      // Actualizar enlace público: solo el propietario
+      allow update: if isAuthed() && 
+                       resource.data.ownerId == request.auth.uid;
+
+      // Eliminar enlace público: solo el propietario
+      allow delete: if isAuthed() && 
+                       resource.data.ownerId == request.auth.uid;
+    }
+
+    // --- Acceso a notas públicas ---
+    match /users/{uid}/notes/{noteId} {
+      // Permitir lectura de notas con enlace público válido
+      allow read: if exists(/databases/$(database)/documents/public_links/$(request.query.token)) &&
+                     get(/databases/$(database)/documents/public_links/$(request.query.token)).data.noteId == noteId &&
+                     get(/databases/$(database)/documents/public_links/$(request.query.token)).data.ownerId == uid &&
+                     get(/databases/$(database)/documents/public_links/$(request.query.token)).data.enabled == true;
+    }
+  }
+}

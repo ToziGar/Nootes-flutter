@@ -257,75 +257,164 @@ class SharingService {
     required PermissionLevel permission,
     String? message,
   }) async {
+    print('🔄 SharingService.shareNote iniciado');
+    print('📝 noteId: $noteId');
+    print('👤 recipientIdentifier: $recipientIdentifier');
+    
     final currentUser = _authService.currentUser;
-    if (currentUser == null) throw Exception('Usuario no autenticado');
+    if (currentUser == null) {
+      print('❌ Usuario no autenticado');
+      throw Exception('No has iniciado sesión. Por favor, inicia sesión e intenta de nuevo.');
+    }
+    
+    print('✅ Usuario actual: ${currentUser.uid}');
+
+    // Verificar token de autenticación
+    try {
+      await _authService.getIdToken();
+      print('✅ Token de autenticación válido');
+    } catch (e) {
+      print('❌ Error de autenticación: $e');
+      throw Exception('Tu sesión ha expirado. Por favor, cierra sesión e inicia sesión nuevamente.');
+    }
 
     // Buscar usuario destinatario
+    print('🔍 Buscando destinatario...');
     Map<String, dynamic>? recipient;
-    if (recipientIdentifier.contains('@')) {
-      recipient = await findUserByEmail(recipientIdentifier);
-    } else {
-      recipient = await findUserByUsername(recipientIdentifier);
+    try {
+      if (recipientIdentifier.contains('@')) {
+        recipient = await findUserByEmail(recipientIdentifier);
+      } else {
+        recipient = await findUserByUsername(recipientIdentifier);
+      }
+    } catch (e) {
+      print('❌ Error buscando destinatario: $e');
+      throw Exception('Error buscando destinatario: $e');
     }
 
     if (recipient == null) {
+      print('❌ Usuario destinatario no encontrado');
       throw Exception('Usuario no encontrado');
     }
+    
+    print('✅ Destinatario encontrado: ${recipient['uid']}');
 
     if (recipient['uid'] == currentUser.uid) {
+      print('❌ Intento de compartir consigo mismo');
       throw Exception('No puedes compartir contigo mismo');
     }
 
     // Verificar que la nota existe y pertenece al usuario actual
-    final note = await FirestoreService.instance.getNote(
-      uid: currentUser.uid,
-      noteId: noteId,
-    );
-
-    if (note == null) {
-      throw Exception('Nota no encontrada');
+    print('🔍 Verificando nota...');
+    Map<String, dynamic>? note;
+    try {
+      // Primero intentar obtener la nota
+      note = await FirestoreService.instance.getNote(
+        uid: currentUser.uid,
+        noteId: noteId,
+      );
+      
+      if (note == null) {
+        print('❌ Nota no encontrada');
+        throw Exception('La nota no existe o ha sido eliminada');
+      }
+    } catch (e) {
+      print('❌ Error accediendo a la nota: $e');
+      
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('permission') || errorStr.contains('denied') || 
+          errorStr.contains('unauthorized') || errorStr.contains('403')) {
+        throw Exception('No tienes permisos para compartir esta nota. Verifica que seas el propietario.');
+      } else if (errorStr.contains('not found') || errorStr.contains('404')) {
+        throw Exception('La nota no existe o ha sido eliminada.');
+      } else if (errorStr.contains('network') || errorStr.contains('connection')) {
+        throw Exception('Error de conexión. Verifica tu internet e intenta de nuevo.');
+      } else if (errorStr.contains('auth') || errorStr.contains('token')) {
+        throw Exception('Sesión expirada. Cierra sesión e inicia sesión nuevamente.');
+      } else {
+        throw Exception('Error inesperado al verificar la nota: ${e.toString()}');
+      }
     }
+    
+    print('✅ Nota verificada: ${note['title'] ?? 'Sin título'}');
 
     // Verificar si ya existe una compartición pendiente o activa
-    final existing = await _firestore
-        .collection('shared_items')
-        .where('itemId', isEqualTo: noteId)
-        .where('ownerId', isEqualTo: currentUser.uid)
-        .where('recipientId', isEqualTo: recipient['uid'])
-        .where('status', whereIn: ['pending', 'accepted'])
-        .get();
+    print('🔍 Verificando comparticiones existentes...');
+    try {
+      final existing = await _firestore
+          .collection('shared_items')
+          .where('itemId', isEqualTo: noteId)
+          .where('ownerId', isEqualTo: currentUser.uid)
+          .where('recipientId', isEqualTo: recipient['uid'])
+          .where('status', whereIn: ['pending', 'accepted'])
+          .get();
 
-    if (existing.docs.isNotEmpty) {
-      throw Exception('Esta nota ya está compartida con este usuario');
+      if (existing.docs.isNotEmpty) {
+        print('❌ Nota ya compartida con este usuario');
+        throw Exception('Esta nota ya está compartida con este usuario');
+      }
+    } catch (e) {
+      print('❌ Error verificando comparticiones existentes: $e');
+      if (e.toString().contains('Esta nota ya está compartida')) {
+        rethrow;
+      }
+      
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('permission') || errorStr.contains('denied') || 
+          errorStr.contains('unauthorized') || errorStr.contains('403')) {
+        throw Exception('No tienes permisos para crear comparticiones.');
+      } else if (errorStr.contains('network') || errorStr.contains('connection')) {
+        throw Exception('Error de conexión al verificar comparticiones existentes.');
+      } else {
+        throw Exception('Error verificando comparticiones: ${e.toString()}');
+      }
     }
+    
+    print('✅ No hay comparticiones duplicadas');
 
     // Obtener perfil del propietario
-    final ownerProfile = await FirestoreService.instance.getUserProfile(uid: currentUser.uid);
+    print('🔍 Obteniendo perfil del propietario...');
+    Map<String, dynamic>? ownerProfile;
+    try {
+      ownerProfile = await FirestoreService.instance.getUserProfile(uid: currentUser.uid);
+    } catch (e) {
+      print('❌ Error obteniendo perfil: $e');
+      throw Exception('Error obteniendo perfil del usuario: $e');
+    }
+    
+    print('✅ Perfil obtenido');
 
     // Crear compartición
-    final sharedItem = SharedItem(
-      id: '',
-      itemId: noteId,
-      type: SharedItemType.note,
-      ownerId: currentUser.uid,
-      ownerEmail: ownerProfile?['email'] ?? currentUser.email ?? '',
-      recipientId: recipient['uid'],
-      recipientEmail: recipient['email'],
-      permission: permission,
-      status: SharingStatus.pending,
-      createdAt: DateTime.now(),
-      message: message,
-      metadata: {
-        'noteTitle': note['title'] ?? 'Sin título',
-        'ownerName': ownerProfile?['fullName'] ?? 'Usuario',
-      },
-    );
+    print('📝 Creando compartición...');
+    try {
+      final sharedItem = SharedItem(
+        id: '',
+        itemId: noteId,
+        type: SharedItemType.note,
+        ownerId: currentUser.uid,
+        ownerEmail: ownerProfile?['email'] ?? currentUser.email ?? '',
+        recipientId: recipient['uid'],
+        recipientEmail: recipient['email'],
+        permission: permission,
+        status: SharingStatus.pending,
+        createdAt: DateTime.now(),
+        message: message,
+        metadata: {
+          'noteTitle': note['title'] ?? 'Sin título',
+          'ownerName': ownerProfile?['fullName'] ?? 'Usuario',
+        },
+      );
 
-    final docRef = await _firestore
-        .collection('shared_items')
-        .add(sharedItem.toMap());
+      final docRef = await _firestore
+          .collection('shared_items')
+          .add(sharedItem.toMap());
 
-    return docRef.id;
+      print('✅ Compartición creada exitosamente: ${docRef.id}');
+      return docRef.id;
+    } catch (e) {
+      print('❌ Error creando documento de compartición: $e');
+      throw Exception('Error creando compartición: $e');
+    }
   }
 
   /// Comparte una carpeta con otro usuario
