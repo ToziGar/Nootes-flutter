@@ -270,9 +270,7 @@ class WorkspaceHeader extends StatelessWidget {
   const WorkspaceHeader({
     super.key,
     required this.saving,
-    required this.richMode,
     this.focusMode = false,
-    required this.onToggleMode,
     this.onToggleFocus,
     required this.onSave,
     this.onSettings,
@@ -280,9 +278,7 @@ class WorkspaceHeader extends StatelessWidget {
   });
 
   final bool saving;
-  final bool richMode;
   final bool focusMode;
-  final ValueChanged<bool> onToggleMode;
   final VoidCallback? onToggleFocus;
   final VoidCallback onSave;
   final VoidCallback? onSettings;
@@ -336,59 +332,6 @@ class WorkspaceHeader extends StatelessWidget {
           ),
           
           const Spacer(),
-          
-          // Mode Toggle
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(AppColors.radiusSm),
-            ),
-            child: SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(
-                  value: false,
-                  label: Text('Markdown', style: TextStyle(fontSize: 12)),
-                  icon: Icon(Icons.code_rounded, size: 16),
-                ),
-                ButtonSegment(
-                  value: true,
-                  label: Text('Rich', style: TextStyle(fontSize: 12)),
-                  icon: Icon(Icons.format_paint_rounded, size: 16),
-                ),
-              ],
-              selected: {richMode},
-              onSelectionChanged: (s) => onToggleMode(s.first),
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return AppColors.primary;
-                  }
-                  return Colors.transparent;
-                }),
-                foregroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return Colors.white;
-                  }
-                  return AppColors.textSecondary;
-                }),
-              ),
-            ),
-          ),
-          
-          const SizedBox(width: AppColors.space16),
-          
-          // Botón de notas compartidas
-          IconButton(
-            tooltip: 'Notas compartidas',
-            onPressed: () => Navigator.of(context).pushNamed('/shared-notes'),
-            icon: const Icon(Icons.people_rounded),
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.info.withValues(alpha: 0.15),
-              foregroundColor: AppColors.info,
-            ),
-          ),
-          
-          const SizedBox(width: AppColors.space16),
           
           // Save button
           if (saving)
@@ -449,10 +392,10 @@ class WorkspaceHeader extends StatelessWidget {
                 Navigator.of(context).pushNamed('/graph');
               } else if (value == 'tasks') {
                 Navigator.of(context).pushNamed('/tasks');
-              } else if (value == 'export') {
-                Navigator.of(context).pushNamed('/export');
               } else if (value == 'shared') {
                 Navigator.of(context).pushNamed('/shared-notes');
+              } else if (value == 'export') {
+                Navigator.of(context).pushNamed('/export');
               } else if (value == 'settings' && onSettings != null) {
                 onSettings!();
               }
@@ -502,6 +445,16 @@ class WorkspaceHeader extends StatelessWidget {
                 ),
               ),
               const PopupMenuItem(
+                value: 'shared',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.people_alt_rounded, color: Color(0xFFEF4444)),
+                  title: Text('Notas Compartidas'),
+                  subtitle: Text('Gestionar contenido colaborativo', style: TextStyle(fontSize: 11)),
+                ),
+              ),
+              const PopupMenuItem(
                 value: 'export',
                 child: ListTile(
                   dense: true,
@@ -509,16 +462,6 @@ class WorkspaceHeader extends StatelessWidget {
                   leading: Icon(Icons.file_download_rounded, color: Color(0xFF3B82F6)),
                   title: Text('Exportar'),
                   subtitle: Text('Guardar tus notas', style: TextStyle(fontSize: 11)),
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'shared',
-                child: ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.share_rounded, color: Color(0xFFFF8A65)),
-                  title: Text('Notas Compartidas'),
-                  subtitle: Text('Ver contenido compartido', style: TextStyle(fontSize: 11)),
                 ),
               ),
               const PopupMenuDivider(),

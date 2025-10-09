@@ -755,7 +755,7 @@ class _ShareDialogState extends State<ShareDialog> {
                   bottomLeft: Radius.circular(16),
                   bottomRight: Radius.circular(16),
                 ),
-                border: Border(top: BorderSide(color: AppColors.borderColor)),
+                border: Border(top: BorderSide(color: AppColors.borderColor, width: 1.0)),
               ),
               child: Row(
                 children: [

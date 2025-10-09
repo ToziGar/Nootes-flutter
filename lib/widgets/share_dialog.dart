@@ -237,11 +237,15 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
               maxHeight: MediaQuery.of(context).size.height * 0.9,
             ),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: AppColors.borderColor,
+                width: 1,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
+                  color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 32,
                   offset: const Offset(0, 16),
                 ),
@@ -286,15 +290,15 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.25),
+                color: AppColors.textPrimary.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+                border: Border.all(color: AppColors.textPrimary.withValues(alpha: 0.2), width: 2),
               ),
               child: Icon(
                 widget.itemType == SharedItemType.note
                     ? Icons.share_rounded
                     : Icons.folder_shared_rounded,
-                color: Colors.white,
+                color: AppColors.textPrimary,
                 size: 28,
               ),
             ),
@@ -306,8 +310,8 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
               children: [
                 Text(
                   'Compartir ${widget.itemType == SharedItemType.note ? 'Nota' : 'Carpeta'}',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
@@ -317,13 +321,13 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: AppColors.textPrimary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     widget.itemTitle,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
@@ -336,12 +340,12 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
           ),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: AppColors.textPrimary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(14),
             ),
             child: IconButton(
               onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+              icon: Icon(Icons.close_rounded, color: AppColors.textPrimary, size: 24),
               padding: const EdgeInsets.all(12),
             ),
           ),
@@ -468,7 +472,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
       margin: const EdgeInsets.only(left: 24, right: 24, bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.borderColor.withValues(alpha: 0.3)),
       ),
@@ -585,7 +589,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
               Switch(
                 value: _publicToken != null,
                 onChanged: _publicBusy ? null : (value) => _togglePublicLink(),
-                activeColor: AppColors.secondary,
+                activeThumbColor: AppColors.secondary,
               ),
             ],
           ),
@@ -594,7 +598,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.borderColor.withValues(alpha: 0.3)),
               ),
@@ -603,7 +607,10 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
                   Expanded(
                     child: Text(
                       'https://nootes.app/public/$_publicToken',
-                      style: const TextStyle(fontFamily: 'monospace'),
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        color: AppColors.textPrimary,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -652,8 +659,8 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.white,
-            AppColors.surfaceLight3,
+            AppColors.surface,
+            AppColors.surfaceLight,
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -662,7 +669,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
         border: Border.all(color: AppColors.borderColor.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -737,7 +744,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: _foundUser != null 
@@ -871,12 +878,12 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 28),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderColor.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -946,7 +953,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
         children: [
           CircleAvatar(
             backgroundColor: AppColors.success,
-            child: const Icon(Icons.person, color: Colors.white),
+            child: Icon(Icons.person, color: AppColors.textPrimary),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -988,13 +995,14 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
           ...PermissionLevel.values.map((level) {
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
-              child: RadioListTile<PermissionLevel>(
-                value: level,
-                groupValue: _selectedPermission,
-                onChanged: (value) => setState(() => _selectedPermission = value!),
+              child: ListTile(
+                leading: Radio<PermissionLevel>(
+                  value: level,
+                  groupValue: _selectedPermission,
+                  onChanged: (value) => setState(() => _selectedPermission = value!),
+                ),
                 title: Text(_getPermissionTitle(level)),
                 subtitle: Text(_getPermissionDescription(level)),
-                activeColor: AppColors.primary,
               ),
             );
           }),
@@ -1045,19 +1053,19 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
           onPressed: _isLoading || _foundUser == null ? null : _share,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.textPrimary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             elevation: 4,
           ),
           child: _isLoading
-              ? const SizedBox(
+              ? SizedBox(
                   width: 24,
                   height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.textPrimary),
                   ),
                 )
               : const Text(

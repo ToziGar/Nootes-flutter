@@ -12,10 +12,11 @@ import 'auth/forgot_password_page.dart';
 import 'home_page.dart';
 import 'notes/tasks_page.dart';
 import 'notes/export_page.dart';
+import 'notes/note_editor_page.dart';
 import 'notes/interactive_graph_page.dart';
 import 'notes/advanced_search_page.dart';
-import 'pages/toast_demo_page.dart';
 import 'pages/shared_notes_page.dart';
+import 'pages/toast_demo_page.dart';
 import 'services/preferences_service.dart';
 import 'services/app_service.dart';
 import 'services/toast_service.dart';
@@ -146,6 +147,14 @@ class _MyAppState extends State<MyApp> {
           final token = name.substring(3);
           if (token.isNotEmpty) {
             return MaterialPageRoute(builder: (_) => PublicNotePage(token: token));
+          }
+        }
+        if (name == '/note') {
+          final arguments = settings.arguments as Map<String, dynamic>?;
+          if (arguments != null && arguments['noteId'] != null) {
+            return MaterialPageRoute(
+              builder: (_) => NoteEditorPage(noteId: arguments['noteId'] as String),
+            );
           }
         }
         return null;

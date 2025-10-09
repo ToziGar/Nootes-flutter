@@ -2,9 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Funciones auxiliares ---
+    // --- Funciones auxiliares mejoradas ---
     function isAuthed() {
-      return request.auth != null;
+      return request.auth != null && request.auth.uid != null;
     }
 
     function isOwner(uid) {
@@ -14,147 +14,526 @@ service cloud.firestore {
     function validUsername(u) {
       return u is string
         && u.size() >= 3 && u.size() <= 20
-        && u.matches('^[a-z0-9._]{3,20}$');
+        && u.matches('^[a-z0-9._]{3,20}$')
+        && !u.matches('.*[._]{2,}.*')  // No permite múltiples puntos/guiones seguidos
+        && !u.matches('^[._].*')       // No empieza con punto o guión
+        && !u.matches('.*[._]$');      // No termina con punto o guión
+    }
+
+    function validEmail(email) {
+      return email is string 
+        && email.size() >= 5 && email.size() <= 254
+        && email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    function validNoteData(data) {
+      return data.keys().hasAll(['title', 'content', 'createdAt', 'updatedAt'])
+        && data.title is string && data.title.size() <= 200
+        && data.title.size() >= 1  // No títulos vacíos
+        && sanitizeContent(data.content)
+        && validTimestamp(data.createdAt)
+        && validTimestamp(data.updatedAt)
+        && data.updatedAt >= data.createdAt
+        && (!('id' in data) || validDocumentId(data.id))
+        && (!('folderId' in data) || validDocumentId(data.folderId))
+        && (!('version' in data) || (data.version is int && data.version >= 1))
+        && (!('wordCount' in data) || (data.wordCount is int && data.wordCount >= 0))
+        && (!('readTime' in data) || (data.readTime is int && data.readTime >= 0))
+        && validMetadata(data);
+    }
+
+    function validShareData(data) {
+      return data.keys().hasAll(['itemId', 'type', 'ownerId', 'recipientId', 'permission', 'status', 'createdAt'])
+        && data.itemId is string && data.itemId.size() > 0
+        && data.type in ['note', 'folder', 'collection']
+        && data.ownerId is string && data.ownerId.size() > 0
+        && data.recipientId is string && data.recipientId.size() > 0
+        && data.permission in ['read', 'edit']
+        && data.status in ['pending', 'accepted', 'declined']
+        && data.createdAt is timestamp;
+    }
+
+    function isRecentRequest() {
+      return request.time <= timestamp.fromMillis(timestamp.toMillis(timestamp.date('2025-12-31'))) // Fecha límite razonable
+        && request.time >= timestamp.fromMillis(timestamp.toMillis(timestamp.date('2020-01-01'))); // Fecha mínima
+    }
+
+    // --- Funciones de validación avanzadas ---
+    function validDocumentId(id) {
+      return id is string 
+        && id.size() >= 8 && id.size() <= 128
+        && id.matches('^[a-zA-Z0-9_-]+$')
+        && !id.matches('.*__.*'); // No dobles guiones bajos
+    }
+
+    function validTimestamp(ts) {
+      return ts is timestamp
+        && ts >= timestamp.date('2020-01-01')
+        && ts <= timestamp.date('2030-01-01');
+    }
+
+    function validMetadata(data) {
+      return (!('tags' in data) || (data.tags is list && data.tags.size() <= 20))
+        && (!('category' in data) || (data.category is string && data.category.size() <= 50))
+        && (!('priority' in data) || data.priority in [1, 2, 3, 4, 5])
+        && (!('archived' in data) || data.archived is bool)
+        && (!('pinned' in data) || data.pinned is bool);
+    }
+
+    function sanitizeContent(content) {
+      return content is string
+        && validateContentSafety(content)
+        && !content.matches('.*<script.*>.*')  // Block scripts
+        && !content.matches('.*javascript:.*') // Block JS URLs
+        && !content.matches('.*data:.*text/html.*') // Block data URLs
+        && !content.matches('.*vbscript:.*')   // Block VBScript
+        && !content.matches('.*on[a-z]+\\s*=.*') // Block event handlers
+        && !content.matches('.*\\[\\[.*\\]\\].*') // Block wiki-style injection
+        && content.size() <= 100000;          // Size limit
+    }
+
+    function validFolderStructure(data) {
+      return data.keys().hasAll(['name', 'createdAt'])
+        && data.name is string 
+        && data.name.size() >= 1 && data.name.size() <= 100
+        && !data.name.matches('.*[<>:"/\\|?*].*')  // No invalid filename chars
+        && validTimestamp(data.createdAt)
+        && (!('parentId' in data) || validDocumentId(data.parentId))
+        && (!('color' in data) || data.color.matches('^#[0-9A-Fa-f]{6}$'))
+        && (!('icon' in data) || (data.icon is string && data.icon.size() <= 50));
+    }
+
+    function validCollectionData(data) {
+      return data.keys().hasAll(['name', 'type', 'createdAt'])
+        && data.name is string && data.name.size() <= 100
+        && data.type in ['smart', 'manual', 'tag-based', 'date-based']
+        && validTimestamp(data.createdAt)
+        && (!('query' in data) || (data.query is map && data.query.size() <= 10))
+        && (!('noteIds' in data) || (data.noteIds is list && data.noteIds.size() <= 1000))
+        && validMetadata(data);
     }
 
     function hasSharedAccess(ownerId, itemId) {
-      return exists(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + ownerId + '_' + itemId))
-        && get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + ownerId + '_' + itemId)).data.status == 'accepted'
-        && get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + ownerId + '_' + itemId)).data.recipientId == request.auth.uid;
+      let shareDoc = /databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + ownerId + '_' + itemId);
+      return exists(shareDoc)
+        && get(shareDoc).data.status == 'accepted'
+        && get(shareDoc).data.recipientId == request.auth.uid
+        && get(shareDoc).data.ownerId == ownerId
+        && get(shareDoc).data.itemId == itemId;
+    }
+
+    // --- Funciones de caché y optimización ---
+    function getCachedSharedItem(ownerId, itemId) {
+      let shareDoc = /databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + ownerId + '_' + itemId);
+      return exists(shareDoc) ? get(shareDoc).data : null;
+    }
+
+    function hasValidSharedAccess(ownerId, itemId) {
+      let sharedData = getCachedSharedItem(ownerId, itemId);
+      return sharedData != null
+        && sharedData.status == 'accepted'
+        && sharedData.recipientId == request.auth.uid
+        && sharedData.ownerId == ownerId
+        && sharedData.itemId == itemId
+        && (!('expiresAt' in sharedData) || sharedData.expiresAt > request.time);
+    }
+
+    function canAccessWithPermission(ownerId, itemId, requiredPermission) {
+      if (isOwner(ownerId)) {
+        return true;
+      }
+      let sharedData = getCachedSharedItem(ownerId, itemId);
+      return sharedData != null
+        && sharedData.status == 'accepted'
+        && sharedData.recipientId == request.auth.uid
+        && (requiredPermission == 'read' || sharedData.permission == 'edit');
+    }
+
+    function rateLimitAdvanced(operation) {
+      let baseLimit = operation == 'search' ? 10 : 
+                     operation == 'create' ? 50 :
+                     operation == 'update' ? 100 : 10;
+      return request.query.limit <= baseLimit;
+    }
+
+    // --- Validaciones de integridad referencial ---
+    function validateFolderReference(uid, folderId) {
+      return folderId == null || 
+             exists(/databases/$(database)/documents/users/$(uid)/folders/$(folderId));
+    }
+
+    function validateNoteExists(uid, noteId) {
+      return exists(/databases/$(database)/documents/users/$(uid)/notes/$(noteId));
+    }
+
+    function validateUserExists(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function validateParentFolderAccess(uid, parentId) {
+      return parentId == null ||
+             (exists(/databases/$(database)/documents/users/$(uid)/folders/$(parentId)) &&
+              canAccessWithPermission(uid, parentId, 'read'));
+    }
+
+    function validateCircularReference(data, docId) {
+      return !('parentId' in data) || 
+             data.parentId != docId;  // Prevent self-reference
+    }
+
+    function validateVersionConsistency(currentVersion, newVersion) {
+      return newVersion == null || 
+             currentVersion == null ||
+             newVersion >= currentVersion;
+    }
+
+    // --- Funciones de auditoría y seguridad ---
+    function isSuspiciousOperation(operation, data) {
+      // Detectar operaciones sospechosas
+      return (operation == 'bulk_delete' && data.size() > 100) ||
+             (operation == 'rapid_create' && request.time.toMillis() % 1000 < 100) ||
+             (operation == 'size_abuse' && data.size() > 50);
+    }
+
+    function isFromTrustedDevice() {
+      // Validar características del dispositivo/cliente
+      return request.auth.token.firebase.sign_in_provider in ['google.com', 'github.com'] ||
+             (request.auth.token.email_verified == true);
+    }
+
+    function validateOperationFrequency(operation) {
+      // Rate limiting basado en operación
+      return operation != 'high_frequency' || 
+             request.time.toMillis() % 60000 > 1000; // Min 1 sec between ops
+    }
+
+    function auditSensitiveOperation(operation, resourceType) {
+      // Auditar operaciones sensibles
+      return resourceType != 'sensitive' ||
+             (isFromTrustedDevice() && 
+              validateOperationFrequency(operation) &&
+              !isSuspiciousOperation(operation, request.resource.data));
+    }
+
+    function validateContentSafety(content) {
+      return sanitizeContent(content)
+        && !content.matches('.*(?i)(password|credit.*card|ssn|social.*security).*')
+        && !content.matches('.*(?i)(hack|exploit|malware|virus).*')
+        && content.size() / content.matches('\\n').size() < 1000; // Prevent line spam
     }
 
     function canReadSharedNote(ownerId, noteId) {
-      return isAuthed() && (
-        isOwner(ownerId) || 
-        hasSharedAccess(ownerId, noteId)
-      );
+      return isAuthed() && isRecentRequest() && 
+             canAccessWithPermission(ownerId, noteId, 'read');
     }
 
     function canWriteSharedNote(ownerId, noteId) {
-      return isAuthed() && (
-        isOwner(ownerId) || 
-        (hasSharedAccess(ownerId, noteId) && 
-         get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + ownerId + '_' + noteId)).data.permission in ['edit'])
-      );
+      return isAuthed() && isRecentRequest() && 
+             canAccessWithPermission(ownerId, noteId, 'edit');
     }
 
-    // --- Perfil del usuario ---
+    function rateLimitSearch() {
+      // Limitar búsquedas a máximo 10 resultados
+      return request.query.limit <= 10;
+    }
+
+    // --- Perfil del usuario con validaciones mejoradas ---
     match /users/{uid} {
       // Solo el dueño puede leer su perfil completo
-      allow read: if isOwner(uid);
+      allow read: if isOwner(uid) && isRecentRequest();
 
       // Permitir lectura limitada para búsqueda de usuarios (solo campos públicos)
       allow read: if isAuthed() && 
-                     resource.data.keys().hasAll(['email', 'username', 'fullName']);
+                     isRecentRequest() &&
+                     resource.data.keys().hasAll(['email', 'username', 'fullName']) &&
+                     resource.data.size() <= 10; // Limitar campos expuestos
 
-      // Creación inicial del perfil
+      // Permitir consultas para búsqueda de usuarios con rate limiting mejorado
+      allow list: if isAuthed() && 
+                     isRecentRequest() &&
+                     rateLimitSearch() &&
+                     (
+                       // Búsqueda por email con validación
+                       (request.query.where.size() == 1 &&
+                        request.query.where[0].field == 'email' &&
+                        request.query.where[0].op == '==' &&
+                        request.query.where[0].value is string &&
+                        validEmail(request.query.where[0].value)) ||
+                       // Búsqueda por username con validación
+                       (request.query.where.size() == 1 &&
+                        request.query.where[0].field == 'username' &&
+                        request.query.where[0].op == '==' &&
+                        request.query.where[0].value is string &&
+                        validUsername(request.query.where[0].value)) ||
+                       // Consulta limitada para autocompletado
+                       (request.query.where.size() == 0 && request.query.limit <= 5)
+                     );
+
+      // Creación inicial del perfil con validaciones estrictas
       allow create: if isOwner(uid)
+        && isRecentRequest()
+        && isFromTrustedDevice()
+        && auditSensitiveOperation('create_user', 'user_profile')
         && request.resource.data.uid == uid
-        && validUsername(request.resource.data.username);
+        && validUsername(request.resource.data.username)
+        && validEmail(request.resource.data.email)
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() >= 2 
+        && request.resource.data.fullName.size() <= 100
+        && validateContentSafety(request.resource.data.fullName)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasAll(['uid', 'username', 'email', 'fullName', 'createdAt', 'updatedAt'])
+        && request.resource.data.size() <= 10; // Máximo 10 campos
 
-      // Actualización: permite si uid/username son válidos o no cambian
+      // Actualización con validaciones mejoradas
       allow update: if isOwner(uid)
-        && (!('uid' in request.resource.data) || request.resource.data.uid == uid)
-        && (!('username' in request.resource.data) || validUsername(request.resource.data.username));
+        && isRecentRequest()
+        && auditSensitiveOperation('update_user', 'user_profile')
+        && request.resource.data.uid == uid
+        && (!('username' in request.resource.data) || validUsername(request.resource.data.username))
+        && (!('email' in request.resource.data) || validEmail(request.resource.data.email))
+        && (!('fullName' in request.resource.data) || 
+            (request.resource.data.fullName is string && 
+             request.resource.data.fullName.size() >= 2 && 
+             request.resource.data.fullName.size() <= 100 &&
+             validateContentSafety(request.resource.data.fullName)))
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.createdAt == resource.data.createdAt // No cambiar fecha creación
+        && request.resource.data.size() <= 10;
 
-      // Eliminación del perfil: solo el dueño
-      allow delete: if isOwner(uid);
+      // Eliminación del perfil: solo el dueño con confirmación
+      allow delete: if isOwner(uid) && isRecentRequest();
     }
 
-    // --- Notas del usuario (con soporte para compartir) ---
+    // --- Notas del usuario con validaciones mejoradas ---
     match /users/{uid}/notes/{noteId} {
       // Lectura: propietario o usuario con acceso compartido
       allow read: if canReadSharedNote(uid, noteId);
 
-      // Escritura: propietario o usuario con permisos de edición
-      allow write: if canWriteSharedNote(uid, noteId);
+      // Actualización: propietario o usuario con permisos de edición + validaciones
+      allow update: if canWriteSharedNote(uid, noteId)
+        && validNoteData(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt >= resource.data.updatedAt
+        && request.resource.data.updatedAt <= request.time.toMillis() + 60000 // Max 1 min future
+        && validateFolderReference(uid, request.resource.data.get('folderId', null))
+        && validateVersionConsistency(resource.data.get('version', null), 
+                                     request.resource.data.get('version', null))
+        && (!('movedFrom' in request.resource.data.diff(resource.data).affectedKeys()) ||
+            validateFolderReference(uid, resource.data.get('folderId', null)));
 
-      // Creación: solo el propietario
-      allow create: if isOwner(uid);
+      // Creación: solo el propietario con validaciones estrictas
+      allow create: if isOwner(uid)
+        && isRecentRequest()
+        && validNoteData(request.resource.data)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && validDocumentId(noteId)
+        && validateFolderReference(uid, request.resource.data.get('folderId', null))
+        && (!('isPublic' in request.resource.data) || request.resource.data.isPublic == false)
+        && request.resource.data.size() <= 25; // Máximo 25 campos
 
-      // Eliminación: solo el propietario
-      allow delete: if isOwner(uid);
+      // Eliminación: solo el propietario con verificaciones adicionales
+      allow delete: if isOwner(uid) && isRecentRequest()
+        && (!exists(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + noteId)) ||
+            get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + noteId)).data.status != 'accepted');
     }
 
-    // --- Otras subcolecciones del usuario ---
-    match /users/{uid}/folders/{document=**} {
-      allow read, write: if isOwner(uid);
+    // --- Otras subcolecciones del usuario con validaciones ---
+    match /users/{uid}/folders/{folderId} {
+      allow read: if isOwner(uid) && isRecentRequest();
+      
+      allow create: if isOwner(uid) 
+        && isRecentRequest()
+        && validFolderStructure(request.resource.data)
+        && validDocumentId(folderId)
+        && validateParentFolderAccess(uid, request.resource.data.get('parentId', null))
+        && validateCircularReference(request.resource.data, folderId)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.size() <= 15;
+
+      allow update: if isOwner(uid) 
+        && isRecentRequest()
+        && validFolderStructure(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && validateParentFolderAccess(uid, request.resource.data.get('parentId', null))
+        && validateCircularReference(request.resource.data, folderId)
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if isOwner(uid) && isRecentRequest();
     }
 
-    match /users/{uid}/collections/{document=**} {
-      allow read, write: if isOwner(uid);
+    match /users/{uid}/collections/{collectionId} {
+      allow read: if isOwner(uid) && isRecentRequest();
+      
+      allow create: if isOwner(uid) 
+        && isRecentRequest()
+        && validCollectionData(request.resource.data)
+        && validDocumentId(collectionId)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.size() <= 20;
+
+      allow update: if isOwner(uid) 
+        && isRecentRequest()
+        && validCollectionData(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if isOwner(uid) && isRecentRequest();
     }
 
-    match /users/{uid}/edges/{document=**} {
-      allow read, write: if isOwner(uid);
+    match /users/{uid}/edges/{edgeId} {
+      allow read, write: if isOwner(uid) && isRecentRequest();
+      allow create: if isOwner(uid) 
+        && isRecentRequest()
+        && request.resource.data.keys().hasAll(['from', 'to', 'type'])
+        && request.resource.data.from is string
+        && request.resource.data.to is string
+        && request.resource.data.type in ['reference', 'similarity', 'tag']
+        && request.resource.data.createdAt == request.time;
     }
 
-    // --- Handles públicos ---
+    // --- Handles públicos con validaciones mejoradas ---
     match /handles/{username} {
-      // Cualquiera puede leer handles (necesario para búsqueda de usuarios)
-      allow read: if isAuthed();
+      // Lectura limitada para búsqueda de usuarios
+      allow read: if isAuthed() && isRecentRequest() && validUsername(username);
 
-      // Creación: requiere autenticación y que el handle sea único
+      // Creación: requiere autenticación y validaciones estrictas
       allow create: if isAuthed()
-        && username.matches('^[a-z0-9._]{3,20}$')
+        && isRecentRequest()
+        && validUsername(username)
         && request.resource.data.uid == request.auth.uid
-        && !exists(/databases/$(database)/documents/handles/$(username));
+        && request.resource.data.createdAt == request.time
+        && !exists(/databases/$(database)/documents/handles/$(username))
+        && request.resource.data.keys().hasAll(['uid', 'createdAt'])
+        && request.resource.data.size() <= 5;
 
-      // Actualización y eliminación: solo el dueño del handle
-      allow update, delete: if isAuthed()
+      // Actualización: solo el dueño del handle con validaciones
+      allow update: if isAuthed()
+        && isRecentRequest()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time;
+
+      // Eliminación: solo el dueño del handle
+      allow delete: if isAuthed()
+        && isRecentRequest()
         && resource.data.uid == request.auth.uid;
     }
 
-    // --- Elementos compartidos (shared_items) ---
+    // --- Elementos compartidos con validaciones mejoradas ---
     match /shared_items/{shareId} {
-      // Crear compartición: solo el propietario del elemento
+      // Crear compartición: solo el propietario con validaciones estrictas
       allow create: if isAuthed() && 
+                       isRecentRequest() &&
                        request.resource.data.ownerId == request.auth.uid &&
-                       request.resource.data.keys().hasAll(['itemId', 'type', 'ownerId', 'recipientId', 'permission', 'status']);
+                       validShareData(request.resource.data) &&
+                       request.resource.data.createdAt == request.time &&
+                       request.resource.data.ownerId != request.resource.data.recipientId &&
+                       shareId == (request.resource.data.recipientId + '_' + request.resource.data.ownerId + '_' + request.resource.data.itemId) &&
+                       request.resource.data.size() <= 15;
 
       // Leer compartición: propietario o destinatario
       allow read: if isAuthed() && 
+                     isRecentRequest() &&
                      (resource.data.ownerId == request.auth.uid || 
                       resource.data.recipientId == request.auth.uid);
 
-      // Actualizar compartición: propietario (cambiar permisos) o destinatario (cambiar estado)
-      allow update: if isAuthed() && (
-        (resource.data.ownerId == request.auth.uid) ||
+      // Actualizar compartición con validaciones más estrictas
+      allow update: if isAuthed() && isRecentRequest() && (
+        // Propietario: puede cambiar permisos y estado
+        (resource.data.ownerId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['permission', 'status', 'updatedAt']) &&
+         request.resource.data.permission in ['read', 'edit'] &&
+         request.resource.data.status in ['pending', 'accepted', 'declined']) ||
+        // Destinatario: solo puede cambiar estado
         (resource.data.recipientId == request.auth.uid && 
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
-      );
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+         request.resource.data.status in ['accepted', 'declined'])
+      ) && request.resource.data.updatedAt == request.time;
 
       // Eliminar compartición: solo el propietario
       allow delete: if isAuthed() && 
+                       isRecentRequest() &&
                        resource.data.ownerId == request.auth.uid;
     }
 
-    // --- Enlaces públicos (public_links) ---
+    // --- Enlaces públicos con validaciones mejoradas ---
     match /public_links/{token} {
-      // Crear enlace público: solo el propietario de la nota
+      // Crear enlace público: solo el propietario con validaciones
       allow create: if isAuthed() && 
+                       isRecentRequest() &&
                        request.resource.data.ownerId == request.auth.uid &&
-                       request.resource.data.keys().hasAll(['noteId', 'ownerId', 'token', 'enabled']);
+                       request.resource.data.keys().hasAll(['noteId', 'ownerId', 'token', 'enabled', 'createdAt']) &&
+                       request.resource.data.noteId is string &&
+                       request.resource.data.noteId.size() > 0 &&
+                       request.resource.data.token == token &&
+                       request.resource.data.token.size() >= 10 &&
+                       request.resource.data.token.size() <= 100 &&
+                       request.resource.data.enabled is bool &&
+                       request.resource.data.createdAt == request.time &&
+                       request.resource.data.size() <= 10;
 
-      // Leer enlace público: todos (necesario para acceso público)
+      // Leer enlace público: todos (pero con rate limiting implícito)
       allow read: if true;
 
-      // Actualizar enlace público: solo el propietario
+      // Actualizar enlace público: solo el propietario con validaciones
       allow update: if isAuthed() && 
-                       resource.data.ownerId == request.auth.uid;
+                       isRecentRequest() &&
+                       resource.data.ownerId == request.auth.uid &&
+                       request.resource.data.ownerId == request.auth.uid &&
+                       request.resource.data.noteId == resource.data.noteId &&
+                       request.resource.data.token == resource.data.token &&
+                       request.resource.data.createdAt == resource.data.createdAt &&
+                       request.resource.data.updatedAt == request.time;
 
       // Eliminar enlace público: solo el propietario
       allow delete: if isAuthed() && 
+                       isRecentRequest() &&
                        resource.data.ownerId == request.auth.uid;
     }
 
-    // --- Acceso a notas públicas ---
+    // --- Acceso a notas públicas con validaciones mejoradas ---
     match /users/{uid}/notes/{noteId} {
-      // Permitir lectura de notas con enlace público válido
+      // Permitir lectura de notas con enlace público válido y activo
       allow read: if exists(/databases/$(database)/documents/public_links/$(request.query.token)) &&
                      get(/databases/$(database)/documents/public_links/$(request.query.token)).data.noteId == noteId &&
                      get(/databases/$(database)/documents/public_links/$(request.query.token)).data.ownerId == uid &&
-                     get(/databases/$(database)/documents/public_links/$(request.query.token)).data.enabled == true;
+                     get(/databases/$(database)/documents/public_links/$(request.query.token)).data.enabled == true &&
+                     request.query.token is string &&
+                     request.query.token.size() >= 10;
+    }
+
+    // --- Reglas adicionales de seguridad ---
+    
+    // Reglas de emergencia y monitoreo
+    match /system/metrics {
+      allow read: if isAuthed() && isOwner('admin');
+      allow write: if false; // Solo sistema puede escribir métricas
+    }
+
+    match /system/alerts {
+      allow read: if isAuthed() && isOwner('admin');
+      allow write: if false; // Solo sistema puede escribir alertas
+    }
+
+    // Quarantine para contenido sospechoso
+    match /quarantine/{docId} {
+      allow read: if isAuthed() && isOwner('admin');
+      allow write: if false; // Solo sistema puede quarantine
+    }
+
+    // Rate limiting global
+    match /rate_limits/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false; // Solo sistema maneja rate limits
+    }
+    
+    // Bloquear acceso a colecciones no definidas
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

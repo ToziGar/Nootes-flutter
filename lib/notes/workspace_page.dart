@@ -740,7 +740,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       'tags': <String>[],
       'links': <String>[],
       'icon': '📝',
-      'iconColor': const Color(0xFF6B7280).value, // Color gris independiente
+      'iconColor': const Color(0xFF6B7280).toARGB32(), // Color gris independiente
     });
     
     await _loadNotes();
@@ -782,7 +782,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         'tags': result['tags'] ?? <String>[],
         'links': <String>[],
         'icon': '📝',
-        'iconColor': const Color(0xFF6B7280).value, // Color gris independiente
+        'iconColor': const Color(0xFF6B7280).toARGB32(), // Color gris independiente
       });
       
       await _loadNotes();
@@ -1441,7 +1441,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           'tags': originalNote['tags'] ?? [],
           'pinned': false,
           'icon': originalNote['icon'] ?? '📝',
-          'iconColor': originalNote['iconColor'] ?? const Color(0xFF6B7280).value,
+          'iconColor': originalNote['iconColor'] ?? const Color(0xFF6B7280).toARGB32(),
         },
       );
       
@@ -2351,9 +2351,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                 preferredSize: const Size.fromHeight(64),
                 child: WorkspaceHeader(
                   saving: _saving,
-                  richMode: _richMode,
-                  // focusMode removed
-                  onToggleMode: (mode) => setState(() => _richMode = mode),
+                  focusMode: _richMode,
+                  onToggleFocus: () => setState(() => _richMode = !_richMode),
                   onSave: _save,
                   onSettings: _openSettings,
                   saveScale: _saveScale,
@@ -2956,7 +2955,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         List<MapEntry<String, IconData>> filtered = allIcons;
         int tabIndex = 0;
         String emojiInput = '';
-        String hexInput = selectedColor.value.toRadixString(16).padLeft(8, '0').toUpperCase();
+        String hexInput = selectedColor.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase();
 
         return StatefulBuilder(
           builder: (ctx, setState) => AlertDialog(
@@ -3143,7 +3142,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           'iconColor': selectedColor.toARGB32(),
         },
       );
-      await _loadNotes();
+      // ✅ CORRECCIÓN: Actualizar solo la nota específica en lugar de recargar todo
+      _updateNoteInList(noteId, {
+        'icon': selectedIcon,
+        'iconColor': selectedColor.toARGB32(),
+      });
     }
   }
 
@@ -3156,7 +3159,30 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         'iconColor': null,
       },
     );
-    await _loadNotes();
+    // ✅ CORRECCIÓN: Actualizar solo la nota específica en lugar de recargar todo
+    _updateNoteInList(noteId, {
+      'icon': null,
+      'iconColor': null,
+    });
+  }
+
+  /// Actualiza una nota específica en las listas locales sin recargar todo
+  void _updateNoteInList(String noteId, Map<String, dynamic> updates) {
+    if (!mounted) return;
+    
+    setState(() {
+      // Actualizar en _allNotes
+      final allIndex = _allNotes.indexWhere((note) => note['id'].toString() == noteId);
+      if (allIndex >= 0) {
+        _allNotes[allIndex] = {..._allNotes[allIndex], ...updates};
+      }
+      
+      // Actualizar en _notes (lista filtrada)
+      final notesIndex = _notes.indexWhere((note) => note['id'].toString() == noteId);
+      if (notesIndex >= 0) {
+        _notes[notesIndex] = {..._notes[notesIndex], ...updates};
+      }
+    });
   }
 
   Future<void> _showFolderIconPicker(String folderId) async {
@@ -3174,7 +3200,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         List<MapEntry<String, IconData>> filtered = allIcons;
         int tabIndex = selectedEmoji != null ? 1 : 0;
         String emojiInput = selectedEmoji ?? '';
-        String hexInput = selectedColor.value.toRadixString(16).padLeft(8, '0').toUpperCase();
+        String hexInput = selectedColor.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase();
 
         return StatefulBuilder(
           builder: (ctx, setState) => AlertDialog(

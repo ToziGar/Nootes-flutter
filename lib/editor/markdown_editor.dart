@@ -7,7 +7,6 @@ import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'markdown_toolbar.dart';
 import '../widgets/safe_network_image.dart';
-
 // Simple Intents for editor shortcuts
 class BoldIntent extends Intent {
   const BoldIntent();

@@ -1,4 +1,6 @@
-/// Implementación web de export/import usando dart:html
+/// Implementación web de export/import usando dart:html (legacy)
+/// TODO: Migrar a package:web cuando sea necesario
+// ignore: deprecated_member_use
 import 'dart:html' as html;
 
 class PlatformExportImport {

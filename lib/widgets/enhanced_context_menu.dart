@@ -19,52 +19,42 @@ class EnhancedContextMenuRegion extends StatelessWidget {
     this.enabled = true,
   });
 
+  // Prevenir activaciones múltiples con debounce
+  static DateTime? _lastMenuTime;
+  static const _debounceDelay = Duration(milliseconds: 300);
+
+  /// Resetear el estado del debounce (útil para testing o casos especiales)
+  static void resetDebounceState() {
+    _lastMenuTime = null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Listener(
-      // Track pointer id to avoid nested regions both opening a menu.
-      onPointerDown: (details) {
-        // Detectar click derecho y prevenir menú nativo
-        if (details.kind == PointerDeviceKind.mouse &&
-            details.buttons == kSecondaryMouseButton) {
-          _handleRightClick(context, details.position, pointer: details.pointer);
-        }
-      },
-      child: GestureDetector(
-        onSecondaryTapDown: enabled ? (details) {
-          // También manejar con GestureDetector como respaldo (no tenemos id aquí)
-          _handleRightClick(context, details.globalPosition, pointer: null);
-        } : null,
-        onLongPress: enabled ? () {
-          // Para dispositivos táctiles
-          final RenderBox box = context.findRenderObject() as RenderBox;
-          final Offset position = box.localToGlobal(box.size.center(Offset.zero));
-          _handleRightClick(context, position, pointer: null);
-        } : null,
-        child: child,
-      ),
+    return GestureDetector(
+      behavior: HitTestBehavior.deferToChild,
+      onSecondaryTapDown: enabled ? (details) {
+        // Solo procesar si no hay otros gestores activos
+        _handleRightClick(context, details.globalPosition);
+      } : null,
+      onLongPress: enabled ? () {
+        // Para dispositivos táctiles - solo en móviles
+        final RenderBox box = context.findRenderObject() as RenderBox;
+        final Offset position = box.localToGlobal(box.size.center(Offset.zero));
+        _handleRightClick(context, position);
+      } : null,
+      child: child,
     );
   }
 
-  // Keep track of recently consumed pointer ids so nested regions don't both react.
-  static final Set<int> _consumedPointerIds = <int>{};
-
-  void _markPointerConsumed(int pointer) {
-    _consumedPointerIds.add(pointer);
-    // Remove after short delay to avoid permanently blocking other interactions.
-    Future.delayed(const Duration(milliseconds: 600), () {
-      _consumedPointerIds.remove(pointer);
-    });
-  }
-
-  void _unmarkPointer(int pointer) {
-    _consumedPointerIds.remove(pointer);
-  }
-
-  void _handleRightClick(BuildContext context, Offset position, {int? pointer}) async {
-    // If this pointer was already consumed by a nested EnhancedContextMenuRegion, ignore.
-    if (pointer != null && _consumedPointerIds.contains(pointer)) return;
+  void _handleRightClick(BuildContext context, Offset position) async {
     if (!enabled || actions == null) return;
+
+    // Prevenir activaciones múltiples con debounce
+    final now = DateTime.now();
+    if (_lastMenuTime != null && now.difference(_lastMenuTime!) < _debounceDelay) {
+      return;
+    }
+    _lastMenuTime = now;
 
     // Feedback háptico
     HapticFeedback.lightImpact();
@@ -73,15 +63,11 @@ class EnhancedContextMenuRegion extends StatelessWidget {
     if (contextActions.isEmpty) return;
 
     try {
-      if (pointer != null) _markPointerConsumed(pointer);
-
       final selectedAction = await _showEnhancedMenu(
         context: context,
         position: position,
         actions: contextActions,
       );
-
-      if (pointer != null) _unmarkPointer(pointer);
 
       if (selectedAction != null && onActionSelected != null) {
         onActionSelected!(selectedAction);
@@ -96,7 +82,10 @@ class EnhancedContextMenuRegion extends StatelessWidget {
     required BuildContext context,
     required Offset position,
     required List<ContextMenuAction> actions,
-  }) {
+  }) async {
+    // Verificar que el context aún sea válido
+    if (!context.mounted) return null;
+    
     return showMenu<ContextMenuAction>(
       context: context,
       position: RelativeRect.fromLTRB(
