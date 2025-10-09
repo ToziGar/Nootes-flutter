@@ -26,6 +26,7 @@ import '../services/preferences_service.dart';
 import '../services/keyboard_shortcuts_service.dart';
 import '../services/sharing_service.dart';
 import '../widgets/share_dialog.dart';
+import '../theme/icon_registry.dart';
 import 'folder_model.dart';
 import 'folder_dialog.dart';
 import 'template_picker_dialog.dart';
@@ -168,23 +169,26 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         }
       }
       
-      setState(() {
-        _folders = uniqueFolders;
-        debugPrint('✅ Carpetas únicas: ${_folders.length}');
-        for (var folder in _folders) {
-          debugPrint('  - ${folder.name} (${folder.noteIds.length} notas)');
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _folders = uniqueFolders;
+          debugPrint('✅ Carpetas únicas: ${_folders.length}');
+          for (var folder in _folders) {
+            debugPrint('  - ${folder.name} (${folder.noteIds.length} notas)');
+          }
+        });
+      }
       
       // 🧹 LIMPIEZA AUTOMÁTICA: Verificar y limpiar referencias a notas inexistentes
       await _cleanOrphanedNoteReferences();
       
-      // 🧹 LIMPIEZA ADICIONAL: Eliminar carpetas duplicadas en Firestore
-      await _cleanDuplicateFoldersInFirestore();
+  // 🧹 LIMPIEZA ADICIONAL: (Desactivado) Eliminación de duplicados en Firestore
+  // Temporalmente desactivado para evitar borrar carpetas principales por colisiones
+  // await _cleanDuplicateFoldersInFirestore();
     } catch (e) {
       debugPrint('❌ Error loading folders: $e');
       if (!mounted) return;
-      setState(() => _folders = []);
+  if (mounted) setState(() => _folders = []);
     }
   }
   
@@ -224,6 +228,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       // Actualizar UI si se hicieron cambios
       if (mounted) {
         setState(() {
+          // UI update after cleaning orphaned notes
           for (var folder in _folders) {
             debugPrint('  - ${folder.name} (${folder.noteIds.length} notas)');
           }
@@ -270,81 +275,6 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     }
   }
 
-  /// Limpia carpetas duplicadas directamente en Firestore
-  Future<void> _cleanDuplicateFoldersInFirestore() async {
-    try {
-      debugPrint('🧹 Iniciando limpieza automática de duplicados...');
-      
-      final foldersData = await FirestoreService.instance.listFolders(uid: _uid);
-      
-      // Agrupar por folderId (el ID lógico de la carpeta)
-      final folderGroups = <String, List<Map<String, dynamic>>>{};
-      for (var data in foldersData) {
-        final folderId = (data['folderId'] ?? data['id']).toString();
-        if (!folderGroups.containsKey(folderId)) {
-          folderGroups[folderId] = [];
-        }
-        folderGroups[folderId]!.add(data);
-      }
-      
-      // Eliminar duplicados automáticamente
-      int deletedCount = 0;
-      for (var entry in folderGroups.entries) {
-        final folderId = entry.key;
-        final documents = entry.value;
-        
-        if (documents.length > 1) {
-          debugPrint('📁 Eliminando ${documents.length - 1} duplicados de carpeta $folderId');
-          
-          // Mantener solo el primer documento (más reciente)
-          documents.sort((a, b) {
-            final aDate = a['updatedAt']?.toDate() ?? DateTime.now();
-            final bDate = b['updatedAt']?.toDate() ?? DateTime.now();
-            return bDate.compareTo(aDate); // Más reciente primero
-          });
-          
-          // Eliminar todos excepto el primero
-          for (int i = 1; i < documents.length; i++) {
-            final docId = documents[i]['docId'] ?? documents[i]['id'];
-            try {
-              await FirestoreService.instance.deleteFolder(
-                uid: _uid,
-                folderId: docId.toString(),
-              );
-              deletedCount++;
-              debugPrint('✅ Duplicado eliminado: $docId');
-            } catch (e) {
-              debugPrint('❌ Error eliminando duplicado $docId: $e');
-            }
-          }
-        }
-      }
-      
-      if (deletedCount > 0) {
-        debugPrint('🎉 Limpieza automática completada: $deletedCount duplicados eliminados');
-        
-        // Esperar para que Firestore se sincronice
-        await Future.delayed(const Duration(milliseconds: 1500));
-        
-        // Forzar recarga después de limpiar duplicados
-        await _loadFolders();
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('🧹 Limpieza automática: $deletedCount duplicados eliminados'),
-              backgroundColor: AppColors.success,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      } else {
-        debugPrint('✅ No se detectaron duplicados para eliminar');
-      }
-    } catch (e) {
-      debugPrint('⚠️ Error en limpieza automática: $e');
-    }
-  }
 
   @override
   void dispose() {
@@ -809,6 +739,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       'content': '',
       'tags': <String>[],
       'links': <String>[],
+      'icon': '📝',
+      'iconColor': const Color(0xFF6B7280).value, // Color gris independiente
     });
     
     await _loadNotes();
@@ -849,6 +781,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         'content': result['content'] ?? '',
         'tags': result['tags'] ?? <String>[],
         'links': <String>[],
+        'icon': '📝',
+        'iconColor': const Color(0xFF6B7280).value, // Color gris independiente
       });
       
       await _loadNotes();
@@ -998,12 +932,23 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         ),
                         const SizedBox(width: 4),
                         
-                        // Icono de carpeta
-                        Icon(
-                          isExpanded ? Icons.folder_open_rounded : Icons.folder_rounded,
-                          color: folder.color,
-                          size: 18,
-                        ),
+                        // Icono de carpeta o emoji
+                        if (folder.emoji != null)
+                          Container(
+                            width: 24,
+                            height: 24,
+                            alignment: Alignment.center,
+                            child: Text(
+                              folder.emoji!,
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          )
+                        else
+                          Icon(
+                            isExpanded ? Icons.folder_open_rounded : Icons.folder_rounded,
+                            color: folder.color,
+                            size: 18,
+                          ),
                         const SizedBox(width: AppColors.space8),
                         
                         // Nombre y contador
@@ -1043,10 +988,10 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         
                         // Botón editar
                         IconButton(
-                          icon: Icon(Icons.edit, size: 16, color: AppColors.textMuted),
+                          icon: Icon(Icons.brush_rounded, size: 16, color: AppColors.textMuted),
                           padding: EdgeInsets.zero,
                           constraints: BoxConstraints(),
-                          onPressed: () => _showEditFolderDialog(folder),
+                          onPressed: () => _showFolderIconPicker(folder.id),
                         ),
                       ],
                     ),
@@ -1067,6 +1012,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                     isPinned: note['pinned'] == true,
                     isFavorite: note['favorite'] == true,
                     isArchived: note['archived'] == true,
+                    hasIcon: note['icon'] != null,
                   ),
                   onActionSelected: (action) => _handleEnhancedContextMenuAction(
                     action.value, 
@@ -1089,6 +1035,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         await _loadNotes();
                       },
                       onDelete: () => _delete(id),
+                      onSetIcon: () => _showNoteIconPicker(noteId: id, initialIcon: note['icon']?.toString(), initialColor: note['iconColor'] is int ? Color(note['iconColor']) : null),
+                      onClearIcon: () async => _clearNoteIcon(id),
                       enableDrag: true, // ✅ HABILITAR drag para poder mover notas entre carpetas o sacarlas
                       compact: true,
                     ),
@@ -1416,6 +1364,21 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             await _toggleArchiveNote(noteId, !current);
           }
           break;
+        case 'changeNoteIcon':
+          if (noteId != null) {
+            final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId, orElse: () => {});
+            await _showNoteIconPicker(
+              noteId: noteId,
+              initialIcon: note['icon']?.toString(),
+              initialColor: note['iconColor'] is int ? Color(note['iconColor']) : null,
+            );
+          }
+          break;
+        case 'clearNoteIcon':
+          if (noteId != null) {
+            await _clearNoteIcon(noteId);
+          }
+          break;
         case 'share':
           if (noteId != null) {
             await _shareNote(noteId);
@@ -1430,15 +1393,17 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             _copyFolderLink(folderId);
           }
           break;
+        case 'generatePublicLink':
+          if (noteId != null) {
+            await _generatePublicLink(noteId);
+          }
+          break;
         case 'properties':
           if (noteId != null) {
             _showNoteProperties(noteId);
           } else if (folderId != null) {
             _showFolderProperties(folderId);
           }
-          break;
-        case 'changeColor':
-          if (folderId != null) await _showFolderColorPicker(folderId);
           break;
         case 'changeIcon':
           if (folderId != null) await _showFolderIconPicker(folderId);
@@ -1475,6 +1440,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           'richContent': originalNote['richContent'],
           'tags': originalNote['tags'] ?? [],
           'pinned': false,
+          'icon': originalNote['icon'] ?? '📝',
+          'iconColor': originalNote['iconColor'] ?? const Color(0xFF6B7280).value,
         },
       );
       
@@ -1692,7 +1659,18 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         backgroundColor: AppColors.surface,
         title: Row(
           children: [
-            Icon(Icons.folder_rounded, color: folder.color, size: 24),
+            if (folder.emoji != null)
+              Container(
+                width: 24,
+                height: 24,
+                alignment: Alignment.center,
+                child: Text(
+                  folder.emoji!,
+                  style: const TextStyle(fontSize: 20),
+                ),
+              )
+            else
+              Icon(Icons.folder_rounded, color: folder.color, size: 24),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -1737,9 +1715,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    '#${folder.color.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontFamily: 'monospace'),
+                  Flexible(
+                    child: Text(
+                      '#${folder.color.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontFamily: 'monospace'),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -1924,6 +1905,60 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     }
   }
 
+  // Generar enlace público para compartir fácilmente
+  Future<void> _generatePublicLink(String noteId) async {
+    try {
+      final sharingService = SharingService();
+      final token = await sharingService.generatePublicLink(noteId: noteId);
+      final publicUrl = '${Uri.base.toString()}public/$token';
+      
+      await Clipboard.setData(ClipboardData(text: publicUrl));
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.link_rounded, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Enlace público copiado al portapapeles')),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            action: SnackBarAction(
+              label: 'Ver',
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Enlace público'),
+                    content: SelectableText(publicUrl),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cerrar'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error generando enlace público: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al generar enlace: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
   void _showNoteHistory(String noteId) {
     // Simple placeholder — open history page or dialog if available
     showDialog<void>(
@@ -1953,7 +1988,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     );
         if (chosen != null) {
       try {
-        await FirestoreService.instance.updateFolder(uid: _uid, folderId: folderId, data: {'color': chosen.toARGB32().toRadixString(16)});
+  await FirestoreService.instance.updateFolder(uid: _uid, folderId: folderId, data: {'color': chosen.toARGB32()});
         if (mounted) {
           setState(() {
             final idx = _folders.indexWhere((f) => f.id == folderId);
@@ -2779,6 +2814,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                 },
               ),
             ),
+
+          // Sidebar sin botones extra ni dropzones: mantener limpio el menú
           
           // Lista unificada de carpetas y notas con tarjetas modernas
           Expanded(
@@ -2855,6 +2892,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                     isPinned: note['pinned'] == true,
                                     isFavorite: note['favorite'] == true,
                                     isArchived: note['archived'] == true,
+                                    hasIcon: note['icon'] != null,
                                   ),
                                   onActionSelected: (action) => _handleEnhancedContextMenuAction(
                                     action.value, 
@@ -2874,6 +2912,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                       await _loadNotes();
                                     },
                                     onDelete: () => _delete(id),
+                                    onSetIcon: () => _showNoteIconPicker(noteId: id, initialIcon: note['icon']?.toString(), initialColor: note['iconColor'] is int ? Color(note['iconColor']) : null),
+                                    onClearIcon: () async => _clearNoteIcon(id),
                                     enableDrag: true,
                                     compact: _compactMode,
                                   ),
@@ -2895,93 +2935,454 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   }
 
   // Nuevas funciones para el menú contextual mejorado
+  
+  // Icon registry for large icon/color sets
+  // ignore_for_file: unused_import
+  
+
+  Future<void> _showNoteIconPicker({
+    required String noteId,
+    String? initialIcon,
+    Color? initialColor,
+  }) async {
+    Color selectedColor = initialColor ?? AppColors.primary;
+    String? selectedIcon = initialIcon ?? 'note';
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        String query = '';
+        final allIcons = NoteIconRegistry.icons.entries.toList();
+        List<MapEntry<String, IconData>> filtered = allIcons;
+        int tabIndex = 0;
+        String emojiInput = '';
+        String hexInput = selectedColor.value.toRadixString(16).padLeft(8, '0').toUpperCase();
+
+        return StatefulBuilder(
+          builder: (ctx, setState) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: const Text('Icono de nota', style: TextStyle(color: AppColors.textPrimary)),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Tabs: Iconos, Emoji, HEX
+                  Row(
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Iconos'),
+                        selected: tabIndex == 0,
+                        onSelected: (_) => setState(() => tabIndex = 0),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('Emoji'),
+                        selected: tabIndex == 1,
+                        onSelected: (_) => setState(() => tabIndex = 1),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('HEX'),
+                        selected: tabIndex == 2,
+                        onSelected: (_) => setState(() => tabIndex = 2),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (tabIndex == 0) ...[
+                    // Search
+                    TextField(
+                      decoration: const InputDecoration(
+                        hintText: 'Buscar icono…',
+                        prefixIcon: Icon(Icons.search_rounded),
+                      ),
+                      onChanged: (v) {
+                        setState(() {
+                          query = v.trim().toLowerCase();
+                          filtered = allIcons.where((e) => e.key.toLowerCase().contains(query)).toList();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // Icon grid (scrollable)
+                    SizedBox(
+                      height: 220,
+                      child: GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 6,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (gctx, i) {
+                          final entry = filtered[i];
+                          final isSel = entry.key == selectedIcon;
+                          return InkWell(
+                            onTap: () => setState(() => selectedIcon = entry.key),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isSel ? AppColors.primary.withValues(alpha: 0.2) : AppColors.surfaceLight,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: isSel ? AppColors.primary : AppColors.borderColor),
+                              ),
+                              child: Icon(entry.value, color: isSel ? AppColors.primary : AppColors.textSecondary),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ] else if (tabIndex == 1) ...[
+                    // Emoji input
+                    TextField(
+                      decoration: const InputDecoration(
+                        hintText: 'Pega o escribe un emoji…',
+                        prefixIcon: Icon(Icons.emoji_emotions_outlined),
+                      ),
+                      maxLength: 2,
+                      onChanged: (v) => setState(() => emojiInput = v),
+                    ),
+                    const SizedBox(height: 16),
+                    if (emojiInput.isNotEmpty)
+                      Container(
+                        width: 48,
+                        height: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.primary, width: 2),
+                        ),
+                        child: Text(emojiInput, style: const TextStyle(fontSize: 32)),
+                      ),
+                  ] else if (tabIndex == 2) ...[
+                    // HEX color input
+                    TextField(
+                      decoration: const InputDecoration(
+                        hintText: 'Color HEX (AARRGGBB)',
+                        prefixIcon: Icon(Icons.colorize),
+                      ),
+                      maxLength: 8,
+                      controller: TextEditingController(text: hexInput),
+                      onChanged: (v) {
+                        setState(() {
+                          hexInput = v.toUpperCase();
+                          if (hexInput.length == 8) {
+                            try {
+                              selectedColor = Color(int.parse(hexInput, radix: 16));
+                            } catch (_) {}
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: selectedColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.primary, width: 2),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  // Color palette (only for icon/emoji)
+                  if (tabIndex != 2)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          const Text('Color:', style: TextStyle(color: AppColors.textSecondary)),
+                          ...NoteIconRegistry.palette.map((c) {
+                            final sel = selectedColor == c;
+                            return GestureDetector(
+                              onTap: () => setState(() => selectedColor = c),
+                              child: Container(
+                                width: 22,
+                                height: 22,
+                                margin: const EdgeInsets.only(left: 8),
+                                decoration: BoxDecoration(
+                                  color: c,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: sel ? Colors.white : AppColors.borderColor, width: sel ? 2 : 1),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Guardar'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (result == true && selectedIcon != null) {
+      await FirestoreService.instance.updateNote(
+        uid: _uid,
+        noteId: noteId,
+        data: {
+          'icon': selectedIcon,
+          'iconColor': selectedColor.toARGB32(),
+        },
+      );
+      await _loadNotes();
+    }
+  }
+
+  Future<void> _clearNoteIcon(String noteId) async {
+    await FirestoreService.instance.updateNote(
+      uid: _uid,
+      noteId: noteId,
+      data: {
+        'icon': null,
+        'iconColor': null,
+      },
+    );
+    await _loadNotes();
+  }
 
   Future<void> _showFolderIconPicker(String folderId) async {
     final folder = _folders.firstWhere((f) => f.id == folderId);
     
-    final iconList = [
-      Icons.folder_rounded,
-      Icons.work_rounded,
-      Icons.school_rounded,
-      Icons.home_rounded,
-      Icons.favorite_rounded,
-      Icons.star_rounded,
-      Icons.lightbulb_rounded,
-      Icons.code_rounded,
-      Icons.book_rounded,
-      Icons.music_note_rounded,
-      Icons.sports_esports_rounded,
-      Icons.fitness_center_rounded,
-      Icons.restaurant_rounded,
-      Icons.travel_explore_rounded,
-      Icons.shopping_cart_rounded,
-    ];
+    Color selectedColor = folder.color;
+    String? selectedIcon = folder.emoji == null ? _iconToString(folder.icon) : null;
+    String? selectedEmoji = folder.emoji;
 
-    final selectedIcon = await showDialog<IconData>(
+    final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Seleccionar icono', style: TextStyle(color: AppColors.textPrimary)),
-        content: SizedBox(
-          width: 300,
-          height: 200,
-          child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 5,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
+      builder: (context) {
+        String query = '';
+        final allIcons = NoteIconRegistry.icons.entries.toList();
+        List<MapEntry<String, IconData>> filtered = allIcons;
+        int tabIndex = selectedEmoji != null ? 1 : 0;
+        String emojiInput = selectedEmoji ?? '';
+        String hexInput = selectedColor.value.toRadixString(16).padLeft(8, '0').toUpperCase();
+
+        return StatefulBuilder(
+          builder: (ctx, setState) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: const Text('Icono y color de carpeta', style: TextStyle(color: AppColors.textPrimary)),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Tabs: Iconos, Emoji, HEX
+                  Row(
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Iconos'),
+                        selected: tabIndex == 0,
+                        onSelected: (_) => setState(() => tabIndex = 0),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('Emoji'),
+                        selected: tabIndex == 1,
+                        onSelected: (_) => setState(() => tabIndex = 1),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('HEX'),
+                        selected: tabIndex == 2,
+                        onSelected: (_) => setState(() => tabIndex = 2),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (tabIndex == 0) ...[
+                    // Search
+                    TextField(
+                      decoration: const InputDecoration(
+                        hintText: 'Buscar icono…',
+                        prefixIcon: Icon(Icons.search_rounded),
+                      ),
+                      onChanged: (v) {
+                        setState(() {
+                          query = v.trim().toLowerCase();
+                          filtered = allIcons.where((e) => e.key.toLowerCase().contains(query)).toList();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // Icon grid (scrollable)
+                    SizedBox(
+                      height: 220,
+                      child: GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 6,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (gctx, i) {
+                          final entry = filtered[i];
+                          final isSel = entry.key == selectedIcon;
+                          return InkWell(
+                            onTap: () => setState(() {
+                              selectedIcon = entry.key;
+                              selectedEmoji = null;
+                            }),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isSel ? AppColors.primary.withValues(alpha: 0.2) : AppColors.surfaceLight,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: isSel ? AppColors.primary : AppColors.borderColor),
+                              ),
+                              child: Icon(entry.value, color: isSel ? AppColors.primary : AppColors.textSecondary),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ] else if (tabIndex == 1) ...[
+                    // Emoji input
+                    TextField(
+                      decoration: const InputDecoration(
+                        hintText: 'Pega o escribe un emoji…',
+                        prefixIcon: Icon(Icons.emoji_emotions_outlined),
+                      ),
+                      maxLength: 2,
+                      onChanged: (v) => setState(() {
+                        emojiInput = v;
+                        selectedEmoji = v.isNotEmpty ? v : null;
+                        selectedIcon = null;
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                    if (emojiInput.isNotEmpty)
+                      Container(
+                        width: 48,
+                        height: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.primary, width: 2),
+                        ),
+                        child: Text(emojiInput, style: const TextStyle(fontSize: 32)),
+                      ),
+                  ] else if (tabIndex == 2) ...[
+                    // HEX color input
+                    TextField(
+                      decoration: const InputDecoration(
+                        hintText: 'Color HEX (AARRGGBB)',
+                        prefixIcon: Icon(Icons.colorize),
+                      ),
+                      maxLength: 8,
+                      controller: TextEditingController(text: hexInput),
+                      onChanged: (v) {
+                        setState(() {
+                          hexInput = v.toUpperCase();
+                          if (hexInput.length == 8) {
+                            try {
+                              selectedColor = Color(int.parse(hexInput, radix: 16));
+                            } catch (_) {}
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: selectedColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.primary, width: 2),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  // Color palette (only for icon/emoji)
+                  if (tabIndex != 2)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          const Text('Color:', style: TextStyle(color: AppColors.textSecondary)),
+                          ...NoteIconRegistry.palette.map((c) {
+                            final sel = selectedColor == c;
+                            return GestureDetector(
+                              onTap: () => setState(() => selectedColor = c),
+                              child: Container(
+                                width: 22,
+                                height: 22,
+                                margin: const EdgeInsets.only(left: 8),
+                                decoration: BoxDecoration(
+                                  color: c,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: sel ? Colors.white : AppColors.borderColor, width: sel ? 2 : 1),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
-            itemCount: iconList.length,
-            itemBuilder: (context, index) {
-              final icon = iconList[index];
-              final isSelected = folder.icon == icon;
-              return InkWell(
-                onTap: () => Navigator.pop(context, icon),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary.withValues(alpha: 0.2) : AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(8),
-                    border: isSelected 
-                        ? Border.all(color: AppColors.primary, width: 2)
-                        : Border.all(color: AppColors.borderColor),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                  ),
-                ),
-              );
-            },
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Guardar'),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
-    if (selectedIcon != null && selectedIcon != folder.icon) {
+    if (result == true) {
       try {
+        final updateData = <String, dynamic>{
+          'color': selectedColor.toARGB32(),
+        };
+        
+        if (selectedEmoji != null) {
+          updateData['emoji'] = selectedEmoji;
+          updateData['icon'] = null; // Clear icon when emoji is set
+        } else if (selectedIcon != null) {
+          updateData['icon'] = selectedIcon;
+          updateData['emoji'] = null; // Clear emoji when icon is set
+        }
+        
         await FirestoreService.instance.updateFolder(
           uid: _uid,
           folderId: folderId,
-          data: {'icon': _iconToString(selectedIcon)},
+          data: updateData,
         );
-        
+        await _loadFolders();
         if (mounted) {
-          setState(() {
-            final idx = _folders.indexWhere((f) => f.id == folderId);
-            if (idx >= 0) {
-              _folders[idx] = _folders[idx].copyWith(icon: selectedIcon);
-            }
-          });
-          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Icono de carpeta actualizado'),
+              content: Text('Icono y color de carpeta actualizados'),
               backgroundColor: AppColors.success,
             ),
           );
@@ -2990,7 +3391,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error al actualizar icono: $e'),
+              content: Text('Error al actualizar: $e'),
               backgroundColor: AppColors.danger,
             ),
           );
@@ -3000,24 +3401,25 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   }
 
   String _iconToString(IconData icon) {
+    // Usar los mismos tokens que Folder.fromJson/_iconFromString espera
     final iconMap = {
-      Icons.folder_rounded: 'folder',
-      Icons.work_rounded: 'work',
-      Icons.school_rounded: 'school',
-      Icons.home_rounded: 'home',
-      Icons.favorite_rounded: 'favorite',
-      Icons.star_rounded: 'star',
-      Icons.lightbulb_rounded: 'lightbulb',
-      Icons.code_rounded: 'code',
-      Icons.book_rounded: 'book',
-      Icons.music_note_rounded: 'music',
-      Icons.sports_esports_rounded: 'games',
-      Icons.fitness_center_rounded: 'fitness',
-      Icons.restaurant_rounded: 'food',
-      Icons.travel_explore_rounded: 'travel',
-      Icons.shopping_cart_rounded: 'shopping',
+      Icons.folder_rounded: 'folder_rounded',
+      Icons.work_rounded: 'work_rounded',
+      Icons.school_rounded: 'school_rounded',
+      Icons.home_rounded: 'home_rounded',
+      Icons.favorite_rounded: 'favorite_rounded',
+      Icons.star_rounded: 'star_rounded',
+      Icons.bookmark_rounded: 'bookmark_rounded',
+      Icons.lightbulb_rounded: 'lightbulb_rounded',
+      Icons.code_rounded: 'code_rounded',
+      Icons.palette_rounded: 'palette_rounded',
+      Icons.music_note_rounded: 'music_note_rounded',
+      Icons.sports_esports_rounded: 'sports_esports_rounded',
+      Icons.restaurant_rounded: 'restaurant_rounded',
+      Icons.flight_rounded: 'flight_rounded',
+      Icons.shopping_bag_rounded: 'shopping_bag_rounded',
     };
-    return iconMap[icon] ?? 'folder';
+    return iconMap[icon] ?? 'folder_rounded';
   }
 
   Future<void> _showCreateSubfolderDialog(String? parentFolderId) async {
@@ -3087,7 +3489,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         final folderData = {
           'name': nameController.text.trim(),
           'icon': 'folder',
-          'color': colorNotifier.value.toARGB32().toRadixString(16),
+          'color': colorNotifier.value.toARGB32(),
           'noteIds': <String>[],
           'parentFolderId': parentFolderId,
           'createdAt': DateTime.now().toIso8601String(),
@@ -3177,7 +3579,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       final folderData = {
         'name': '${folder.name} (copia)',
         'icon': _iconToString(folder.icon),
-        'color': folder.color.toARGB32().toRadixString(16),
+        'color': folder.color.toARGB32(),
         'noteIds': folder.noteIds.toList(), // Copia las referencias a las mismas notas
         'createdAt': DateTime.now().toIso8601String(),
         'updatedAt': DateTime.now().toIso8601String(),

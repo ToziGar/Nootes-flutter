@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../theme/icon_registry.dart';
 import 'folder_model.dart';
 
 /// Diálogo para crear o editar una carpeta
@@ -25,7 +26,7 @@ class _FolderDialogState extends State<FolderDialog> {
     super.initState();
     _nameController = TextEditingController(text: widget.folder?.name ?? '');
     _selectedIcon = widget.folder?.icon ?? Icons.folder_rounded;
-    _selectedColor = widget.folder?.color ?? Folder.availableColors[0];
+    _selectedColor = widget.folder?.color ?? NoteIconRegistry.palette[0];
   }
 
   @override
@@ -68,12 +69,13 @@ class _FolderDialogState extends State<FolderDialog> {
         borderRadius: BorderRadius.circular(AppColors.radiusLg),
       ),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
         padding: const EdgeInsets.all(AppColors.space24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             // Header
             Row(
               children: [
@@ -190,7 +192,7 @@ class _FolderDialogState extends State<FolderDialog> {
             Wrap(
               spacing: AppColors.space12,
               runSpacing: AppColors.space12,
-              children: Folder.availableColors.map((color) {
+              children: NoteIconRegistry.palette.map((color) {
                 final isSelected = color == _selectedColor;
                 return InkWell(
                   onTap: () => setState(() => _selectedColor = color),
@@ -249,6 +251,7 @@ class _FolderDialogState extends State<FolderDialog> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

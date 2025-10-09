@@ -216,6 +216,8 @@ class _FirebaseFirestoreService implements FirestoreService {
         'id': d.id,
         'title': data['title'] ?? '',
         'pinned': data['pinned'] ?? false,
+        'icon': data['icon'],
+        'iconColor': data['iconColor'],
         'collectionId': data['collectionId'],
         'tags': data['tags'] ?? <String>[],
         'updatedAt': data['updatedAt'],
@@ -420,11 +422,15 @@ class _FirebaseFirestoreService implements FirestoreService {
   @override
   Future<List<Map<String, dynamic>>> listFolders({required String uid}) async {
     final snap = await _db.collection('users').doc(uid).collection('folders').orderBy('order').get();
-    return snap.docs.map((d) => {
-      'id': d.id,           // Document ID (para eliminar)
-      'docId': d.id,        // Document ID explícito  
-      'folderId': d.data()['id'] ?? d.id, // ID de la carpeta (puede ser diferente)
-      ...d.data()
+    return snap.docs.map((d) {
+      final data = d.data();
+      return {
+        ...data,
+        'logicalId': data['id'], // conservar si existe
+        'id': d.id,              // Forzar id = docId para operaciones
+        'docId': d.id,
+        'folderId': d.id,
+      };
     }).toList();
   }
   
@@ -711,6 +717,8 @@ class _RestFirestoreService implements FirestoreService {
       'id': d['id'],
       'title': d['title'] ?? '',
       'pinned': d['pinned'] ?? false,
+      'icon': d['icon'],
+      'iconColor': d['iconColor'],
       'collectionId': d['collectionId'],
       'tags': d['tags'] ?? <String>[],
       'updatedAt': d['updatedAt'],
@@ -921,6 +929,7 @@ class _RestFirestoreService implements FirestoreService {
   }
 
   dynamic _encodeValue(dynamic value) {
+    if (value == null) return {'nullValue': null};
     if (value is String) return {'stringValue': value};
     if (value is bool) return {'booleanValue': value};
     if (value is num) return {'doubleValue': value};
@@ -953,6 +962,8 @@ class _RestFirestoreService implements FirestoreService {
           result[key] = int.tryParse(value['integerValue'].toString());
         } else if (value.containsKey('timestampValue')) {
           result[key] = value['timestampValue'];
+        } else if (value.containsKey('nullValue')) {
+          result[key] = null;
         } else if (value.containsKey('arrayValue')) {
           final arr = value['arrayValue'] as Map<String, dynamic>?;
           final vals = arr?['values'] as List? ?? [];
@@ -978,10 +989,11 @@ class _RestFirestoreService implements FirestoreService {
       final id = (d['name'] as String).split('/').last;
       final fields = _decodeFields(d['fields'] as Map<String, dynamic>?);
       return {
+        ...fields,
+        'logicalId': fields['id'],
         'id': id,
-        'docId': id,  // Firestore document ID (needed for delete operations)
-        'folderId': fields['id'] ?? id,  // Logical folder ID (may differ from docId)
-        ...fields
+        'docId': id,   // Firestore document ID (needed for delete operations)
+        'folderId': id, // Usar SIEMPRE el ID de documento
       };
     }).toList();
   }

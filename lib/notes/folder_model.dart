@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../theme/icon_registry.dart';
 
 /// Modelo de carpeta para organizar notas
 class Folder {
   final String id;
   final String name;
   final IconData icon;
+  final String? emoji; // Emoji personalizado, tiene prioridad sobre icon
   final Color color;
   final List<String> noteIds; // IDs de las notas en esta carpeta
   final String docId;
@@ -16,6 +18,7 @@ class Folder {
     required this.id,
     required this.name,
     this.icon = Icons.folder_rounded,
+    this.emoji,
     this.color = const Color(0xFFF59E0B),
     this.noteIds = const [],
     this.docId = '',
@@ -42,7 +45,8 @@ class Folder {
       id: json['id'] as String,
       name: json['name'] as String,
       icon: _iconFromString(json['icon'] as String? ?? 'folder_rounded'),
-      color: Color(json['color'] as int? ?? 0xFFF59E0B),
+      emoji: json['emoji'] as String?,
+      color: _parseColor(json['color']),
       noteIds: List<String>.from(json['noteIds'] as List? ?? []),
       docId: json['docId'] as String? ?? (json['id'] as String),
       createdAt: parseDateTime(json['createdAt']),
@@ -50,10 +54,26 @@ class Folder {
       order: json['order'] as int? ?? 0,
     );
   }
+
+  static Color _parseColor(dynamic value) {
+    if (value is int) return Color(value);
+    if (value is double) return Color(value.toInt());
+    if (value is String) {
+      // Try parse hex string like 'ff00ff00' or '#ff00ff00' or '00ff00' (RGB)
+      var cleaned = value.replaceAll('#', '').toLowerCase();
+      if (cleaned.length == 6) {
+        // If only RGB provided, assume fully opaque
+        cleaned = 'ff$cleaned';
+      }
+      final parsed = int.tryParse(cleaned, radix: 16);
+      if (parsed != null) return Color(parsed);
+    }
+    return const Color(0xFFF59E0B);
+  }
   
   /// Convertir carpeta a JSON para Firestore
   Map<String, dynamic> toJson() {
-    return {
+    final result = {
       'id': id,
       'docId': docId,
       'name': name,
@@ -64,6 +84,12 @@ class Folder {
       'updatedAt': updatedAt.toIso8601String(),
       'order': order,
     };
+    
+    if (emoji != null) {
+      result['emoji'] = emoji!;
+    }
+    
+    return result;
   }
   
   /// Copiar carpeta con cambios
@@ -71,6 +97,7 @@ class Folder {
     String? id,
     String? name,
     IconData? icon,
+    String? emoji,
     Color? color,
     List<String>? noteIds,
     DateTime? createdAt,
@@ -81,6 +108,7 @@ class Folder {
       id: id ?? this.id,
       name: name ?? this.name,
       icon: icon ?? this.icon,
+      emoji: emoji ?? this.emoji,
       color: color ?? this.color,
       noteIds: noteIds ?? this.noteIds,
       createdAt: createdAt ?? this.createdAt,
@@ -106,47 +134,13 @@ class Folder {
     );
   }
   
-  // Mapeo de strings a IconData
+  // Mapeo de strings a IconData - ahora usa NoteIconRegistry
   static IconData _iconFromString(String iconName) {
-    final iconMap = {
-      'folder_rounded': Icons.folder_rounded,
-      'work_rounded': Icons.work_rounded,
-      'school_rounded': Icons.school_rounded,
-      'home_rounded': Icons.home_rounded,
-      'favorite_rounded': Icons.favorite_rounded,
-      'star_rounded': Icons.star_rounded,
-      'bookmark_rounded': Icons.bookmark_rounded,
-      'lightbulb_rounded': Icons.lightbulb_rounded,
-      'code_rounded': Icons.code_rounded,
-      'palette_rounded': Icons.palette_rounded,
-      'music_note_rounded': Icons.music_note_rounded,
-      'sports_esports_rounded': Icons.sports_esports_rounded,
-      'restaurant_rounded': Icons.restaurant_rounded,
-      'flight_rounded': Icons.flight_rounded,
-      'shopping_bag_rounded': Icons.shopping_bag_rounded,
-    };
-    return iconMap[iconName] ?? Icons.folder_rounded;
+    return NoteIconRegistry.iconFromName(iconName) ?? Icons.folder_rounded;
   }
   
   static String _iconToString(IconData icon) {
-    final iconMap = {
-      Icons.folder_rounded.codePoint: 'folder_rounded',
-      Icons.work_rounded.codePoint: 'work_rounded',
-      Icons.school_rounded.codePoint: 'school_rounded',
-      Icons.home_rounded.codePoint: 'home_rounded',
-      Icons.favorite_rounded.codePoint: 'favorite_rounded',
-      Icons.star_rounded.codePoint: 'star_rounded',
-      Icons.bookmark_rounded.codePoint: 'bookmark_rounded',
-      Icons.lightbulb_rounded.codePoint: 'lightbulb_rounded',
-      Icons.code_rounded.codePoint: 'code_rounded',
-      Icons.palette_rounded.codePoint: 'palette_rounded',
-      Icons.music_note_rounded.codePoint: 'music_note_rounded',
-      Icons.sports_esports_rounded.codePoint: 'sports_esports_rounded',
-      Icons.restaurant_rounded.codePoint: 'restaurant_rounded',
-      Icons.flight_rounded.codePoint: 'flight_rounded',
-      Icons.shopping_bag_rounded.codePoint: 'shopping_bag_rounded',
-    };
-    return iconMap[icon.codePoint] ?? 'folder_rounded';
+    return NoteIconRegistry.nameFromIcon(icon);
   }
   
   /// Colores predefinidos para carpetas
@@ -161,22 +155,6 @@ class Folder {
     Color(0xFFF97316), // Orange
   ];
   
-  /// Iconos disponibles para carpetas
-  static const List<IconData> availableIcons = [
-    Icons.folder_rounded,
-    Icons.work_rounded,
-    Icons.school_rounded,
-    Icons.home_rounded,
-    Icons.favorite_rounded,
-    Icons.star_rounded,
-    Icons.bookmark_rounded,
-    Icons.lightbulb_rounded,
-    Icons.code_rounded,
-    Icons.palette_rounded,
-    Icons.music_note_rounded,
-    Icons.sports_esports_rounded,
-    Icons.restaurant_rounded,
-    Icons.flight_rounded,
-    Icons.shopping_bag_rounded,
-  ];
+  /// Iconos disponibles para carpetas - ahora usa todo el NoteIconRegistry
+  static List<IconData> get availableIcons => NoteIconRegistry.icons.values.toList();
 }

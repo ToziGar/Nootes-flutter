@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../theme/icon_registry.dart';
 
 /// Sidebar moderno para lista de notas con soporte de drag & drop
 class NotesSidebarCard extends StatelessWidget {
@@ -10,6 +11,8 @@ class NotesSidebarCard extends StatelessWidget {
     required this.onTap,
     required this.onPin,
     required this.onDelete,
+    this.onSetIcon,
+    this.onClearIcon,
     this.enableDrag = false,
     this.compact = false,
   });
@@ -19,6 +22,8 @@ class NotesSidebarCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onPin;
   final VoidCallback onDelete;
+  final VoidCallback? onSetIcon;
+  final VoidCallback? onClearIcon;
   final bool enableDrag;
   final bool compact;
 
@@ -28,10 +33,14 @@ class NotesSidebarCard extends StatelessWidget {
         ? 'Sin título' 
         : note['title'].toString();
     final isPinned = note['pinned'] == true;
-    final preview = (note['content']?.toString() ?? '').isEmpty
+  final preview = (note['content']?.toString() ?? '').isEmpty
         ? 'Nota vacía'
         : note['content'].toString();
     final noteId = note['id']?.toString() ?? '';
+  final iconName = note['icon']?.toString();
+  final iconColorInt = note['iconColor'] as int?;
+  final Color? iconColor = iconColorInt != null ? Color(iconColorInt) : null;
+  final IconData? noteIcon = NoteIconRegistry.iconFromName(iconName);
 
     final cardWidget = Container(
       margin: const EdgeInsets.only(bottom: AppColors.space8),
@@ -65,6 +74,21 @@ class NotesSidebarCard extends StatelessWidget {
                     ),
                   ),
                 if (!compact) const SizedBox(width: AppColors.space12),
+
+                // Optional note icon
+                if (noteIcon != null) ...[
+                  Container(
+                    width: 28,
+                    height: 28,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: (iconColor ?? AppColors.primary).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(noteIcon, size: 16, color: iconColor ?? AppColors.primary),
+                  ),
+                  const SizedBox(width: AppColors.space8),
+                ],
                 
                 // Content
                 Expanded(
@@ -123,6 +147,10 @@ class NotesSidebarCard extends StatelessWidget {
                       onPin();
                     } else if (value == 'delete') {
                       onDelete();
+                    } else if (value == 'setIcon') {
+                      if (onSetIcon != null) onSetIcon!();
+                    } else if (value == 'clearIcon') {
+                      if (onClearIcon != null) onClearIcon!();
                     }
                   },
                   itemBuilder: (context) => [
@@ -141,10 +169,32 @@ class NotesSidebarCard extends StatelessWidget {
                       ),
                     ),
                     const PopupMenuDivider(),
-                    const PopupMenuItem(
-                      value: 'delete',
+                    PopupMenuItem(
+                      value: 'setIcon',
                       child: Row(
                         children: [
+                          const Icon(Icons.brush_rounded, size: 18, color: AppColors.textPrimary),
+                          const SizedBox(width: AppColors.space8),
+                          const Text('Cambiar icono'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'clearIcon',
+                      enabled: iconName != null,
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.danger),
+                          SizedBox(width: AppColors.space8),
+                          Text('Quitar icono', style: TextStyle(color: AppColors.danger)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: const [
                           Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.danger),
                           SizedBox(width: AppColors.space8),
                           Text('Eliminar', style: TextStyle(color: AppColors.danger)),
@@ -212,6 +262,8 @@ class NotesSidebarCard extends StatelessWidget {
     return cardWidget;
   }
 }
+
+// Note icons now come from NoteIconRegistry
 
 /// Header profesional para el workspace
 class WorkspaceHeader extends StatelessWidget {
@@ -320,6 +372,19 @@ class WorkspaceHeader extends StatelessWidget {
                   return AppColors.textSecondary;
                 }),
               ),
+            ),
+          ),
+          
+          const SizedBox(width: AppColors.space16),
+          
+          // Botón de notas compartidas
+          IconButton(
+            tooltip: 'Notas compartidas',
+            onPressed: () => Navigator.of(context).pushNamed('/shared-notes'),
+            icon: const Icon(Icons.people_rounded),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.info.withValues(alpha: 0.15),
+              foregroundColor: AppColors.info,
             ),
           ),
           

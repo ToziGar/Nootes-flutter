@@ -166,7 +166,8 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
     if (size.width == 0 || size.height == 0) {
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
-      size = MediaQuery.of(context).size;
+      // Guard context usage after async gap
+      size = mounted ? MediaQuery.of(context).size : Size.zero;
     }
     
     for (var i = 0; i < notes.length; i++) {
@@ -900,7 +901,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
                           final edgeId = match['id']?.toString();
                           final res = await showDialog(context: context, builder: (ctx) => EdgeEditorDialog(uid: _uid, edgeId: edgeId, fromNoteId: edge.from, toNoteId: edge.to));
                           if (!mounted) return;
-                          if (res is EdgeEditorResult) {
+                          if (res is EdgeEditorResult && mounted) {
                             await _loadGraphWithAI();
                           }
                         },
@@ -1185,9 +1186,8 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
         toNoteId: edge.to,
       ),
     );
-    
     if (!mounted) return;
-    if (result != null) {
+    if (result != null && mounted) {
       await _loadGraphWithAI();
       final action = result.deleted ? 'eliminado' : (edgeId == null ? 'creado' : 'actualizado');
       ToastService.success('Enlace $action');
@@ -1225,8 +1225,8 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
                         IconButton(
                           icon: const Icon(Icons.edit, size: 16),
                           onPressed: () async {
-                            Navigator.pop(ctx);
-                            await _showEdgeEditDialog(edge);
+                            if (mounted) Navigator.pop(ctx);
+                            if (mounted) await _showEdgeEditDialog(edge);
                           },
                         ),
                         IconButton(
@@ -1244,11 +1244,11 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
                               ),
                             );
                             if (!mounted) return;
-                            if (confirmed == true) {
+                            if (confirmed == true && mounted) {
                               try {
                                 await FirestoreService.instance.removeLink(uid: _uid, fromNoteId: edge.from, toNoteId: edge.to);
-                                Navigator.pop(ctx);
-                                await _loadGraphWithAI();
+                                if (mounted) Navigator.pop(ctx);
+                                if (mounted) await _loadGraphWithAI();
                                 ToastService.success('Enlace eliminado');
                               } catch (e) {
                                 ToastService.error('Error: $e');
@@ -1262,22 +1262,9 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
                 },
               ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cerrar'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (!mounted) return;
-              Navigator.pop(ctx);
-              await _showEdgeEditDialog(AIGraphEdge(from: nodeId, to: '', strength: 0.8, type: EdgeType.manual, label: ''));
-            },
-            child: const Text('Nuevo Enlace'),
-          ),
-        ],
       ),
     );
+    // Removed stray widget code after dialog builder
   }
 
   void _handleMenuAction(String action) {

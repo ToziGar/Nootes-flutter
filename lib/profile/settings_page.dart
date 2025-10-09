@@ -511,7 +511,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void _confirmLogout() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Text('Cerrar sesión', style: TextStyle(color: AppColors.textPrimary)),
         content: const Text(
@@ -520,16 +520,17 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancelar'),
           ),
           FilledButton(
             onPressed: () async {
               await _authService.signOut();
-              if (mounted) {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              }
+              if (!ctx.mounted) return;
+              // Cerrar diálogo
+              Navigator.pop(ctx);
+              // Cerrar página de ajustes usando el contexto del State
+              if (mounted) Navigator.of(context).pop();
             },
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             child: const Text('Cerrar sesión'),

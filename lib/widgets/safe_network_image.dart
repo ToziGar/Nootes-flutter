@@ -73,9 +73,9 @@ class _SafeNetworkImageState extends State<SafeNetworkImage> {
                       onPressed: () async {
                         try {
                           await Clipboard.setData(ClipboardData(text: widget.url));
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('URL copiada al portapapeles')));
+                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('URL copiada al portapapeles')));
                         } catch (_) {
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo copiar la URL')));
+                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo copiar la URL')));
                         }
                       },
                       icon: const Icon(Icons.copy_rounded),

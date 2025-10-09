@@ -247,6 +247,7 @@ class EnhancedContextMenuBuilder {
     bool isPinned = false,
     bool isFavorite = false,
     bool isArchived = false,
+    bool hasIcon = false,
   }) {
     return [
       ContextMenuAction(
@@ -300,6 +301,19 @@ class EnhancedContextMenuBuilder {
       ),
       ContextMenuAction.divider,
       ContextMenuAction(
+        label: 'Cambiar icono',
+        icon: Icons.brush_rounded,
+        value: 'changeNoteIcon',
+      ),
+      ContextMenuAction(
+        label: 'Quitar icono',
+        icon: Icons.delete_outline_rounded,
+        value: 'clearNoteIcon',
+        isDanger: true,
+        enabled: hasIcon,
+      ),
+      ContextMenuAction.divider,
+      ContextMenuAction(
         label: 'Exportar',
         icon: Icons.download_rounded,
         value: 'export',
@@ -309,6 +323,12 @@ class EnhancedContextMenuBuilder {
         label: 'Compartir',
         icon: Icons.share_rounded,
         value: 'share',
+      ),
+      ContextMenuAction(
+        label: 'Enlace público',
+        icon: Icons.public_rounded,
+        value: 'generatePublicLink',
+        description: 'Generar enlace para compartir públicamente',
       ),
       ContextMenuAction(
         label: 'Copiar enlace',
@@ -372,13 +392,8 @@ class EnhancedContextMenuBuilder {
         description: noteCount > 0 ? 'Duplicar con $noteCount notas' : 'Duplicar carpeta vacía',
       ),
       ContextMenuAction(
-        label: 'Cambiar color',
-        icon: Icons.palette_rounded,
-        value: 'changeColor',
-      ),
-      ContextMenuAction(
-        label: 'Cambiar icono',
-        icon: Icons.emoji_emotions_rounded,
+        label: 'Cambiar icono y color',
+        icon: Icons.brush_rounded,
         value: 'changeIcon',
       ),
       ContextMenuAction.divider,

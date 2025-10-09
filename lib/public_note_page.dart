@@ -65,7 +65,12 @@ class _PublicNotePageState extends State<PublicNotePage> {
               onPressed: () {
                 final title = _note?['title']?.toString() ?? 'Nota';
                 final content = _note?['content']?.toString() ?? '';
-                Share.share('$title\n\n$content');
+                SharePlus.instance.share(
+                  ShareParams(
+                    text: '$title\n\n$content',
+                    subject: 'Compartir nota: $title',
+                  ),
+                );
               },
               icon: const Icon(Icons.share),
             ),

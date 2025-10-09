@@ -546,10 +546,10 @@ class _CommandPaletteState extends State<CommandPalette> {
                   Icon(Icons.search, color: theme.primaryColor),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: RawKeyboardListener(
+                    child: KeyboardListener(
                       focusNode: _focusNode,
-                      onKey: (event) {
-                        if (event is RawKeyDownEvent) {
+                      onKeyEvent: (event) {
+                        if (event is KeyDownEvent) {
                           if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
                             _moveSelection(1);
                           } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
