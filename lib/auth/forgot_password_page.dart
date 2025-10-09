@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 
 import '../theme/app_theme.dart';
 import '../theme/color_utils.dart';
@@ -16,6 +17,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _sending = false;
+  int _cooldown = 0;
+  Timer? _cooldownTimer;
 
   // Animaciones para el nuevo diseño
   late AnimationController _fadeController;
@@ -61,13 +64,29 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
 
   @override
   void dispose() {
+    _cooldownTimer?.cancel();
     _emailController.dispose();
     _fadeController.dispose();
     _slideController.dispose();
     super.dispose();
   }
 
+  void _startCooldown() {
+    _cooldownTimer?.cancel();
+    setState(() => _cooldown = 30);
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_cooldown <= 1) {
+        t.cancel();
+        setState(() => _cooldown = 0);
+      } else {
+        setState(() => _cooldown -= 1);
+      }
+    });
+  }
+
   Future<void> _sendReset() async {
+    if (_sending || _cooldown > 0) return; // prevent spam
     if (!_formKey.currentState!.validate()) return;
     
     // Feedback háptico
@@ -76,6 +95,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
     setState(() => _sending = true);
     try {
       await AuthService.instance.sendPasswordResetEmail(_emailController.text.trim());
+      _startCooldown();
       if (mounted) {
         // Feedback de éxito
         HapticFeedback.mediumImpact();
@@ -306,46 +326,29 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
   }
 
   Widget _buildModernButton() {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.accent, AppColors.accent.withOpacityCompat(0.7)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.accent.withOpacityCompat(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+    final disabled = _sending || _cooldown > 0;
+    return Semantics(
+      button: true,
+      enabled: !disabled,
+      label: 'Enviar enlace de restablecimiento',
+      child: AnimatedOpacity(
+        opacity: disabled ? 0.6 : 1.0,
+        duration: const Duration(milliseconds: 250),
+        child: ElevatedButton.icon(
+          onPressed: disabled ? null : _sendReset,
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: _sending ? null : _sendReset,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          icon: _sending
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.send_rounded),
+          label: Text(_cooldown > 0 ? 'Reintentar en $_cooldown s' : 'Enviar enlace'),
         ),
-        child: _sending
-            ? const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Text(
-                'Enviar Enlace',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
       ),
     );
   }

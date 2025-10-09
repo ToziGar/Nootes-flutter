@@ -111,7 +111,6 @@ class SearchReplaceService {
 
   /// Busca con expresiones regulares
   void _searchWithRegex(String text, String pattern, bool caseSensitive) {
-    final regexFlags = caseSensitive ? '' : 'i';
     final regex = RegExp(pattern, caseSensitive: caseSensitive);
     
     final regexMatches = regex.allMatches(text);

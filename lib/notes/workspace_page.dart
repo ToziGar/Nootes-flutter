@@ -717,7 +717,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       
       // 🔥 ACTUALIZACIÓN INSTANTÁNEA: Actualizar la nota en la lista local sin recargar desde Firestore
       final noteIndex = _allNotes.indexWhere((n) => n['id'] == _selectedId);
-      if (noteIndex != -1) {
+      if (noteIndex >= 0 && noteIndex < _allNotes.length) {
         _allNotes[noteIndex] = {
           ..._allNotes[noteIndex],
           'title': _title.text,
@@ -1187,6 +1187,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   }
 
   // Manejador unificado de acciones del menú contextual
+  // TODO: Integrar este método con los menús contextuales para unificar la lógica
+  // ignore: unused_element
   Future<void> _handleContextMenuAction(
     ContextMenuActionType? action, {
     required BuildContext context,
@@ -1355,7 +1357,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           }
           break;
         case 'export':
-          if (noteId != null) await _exportSingleNote(noteId);
+          if (noteId != null) {
+            await _exportSingleNote(noteId);
+          } else if (folderId != null) {
+            await _exportFolder(folderId);
+          }
           break;
         case 'delete':
           if (noteId != null) {
@@ -1380,6 +1386,50 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           break;
         case 'openDashboard':
           _openDashboard();
+          break;
+        case 'moveToFolder':
+          if (noteId != null) await _moveNoteToFolderDialog(noteId);
+          break;
+        case 'togglePin':
+          if (noteId != null) {
+            final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId, orElse: () => {});
+            final current = note['pinned'] == true;
+            await _togglePinNote(noteId, !current);
+          }
+          break;
+        case 'toggleFavorite':
+          if (noteId != null) {
+            final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId, orElse: () => {});
+            final current = note['favorite'] == true;
+            await _toggleFavoriteNote(noteId, !current);
+          }
+          break;
+        case 'toggleArchive':
+          if (noteId != null) {
+            final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId, orElse: () => {});
+            final current = note['archived'] == true;
+            await _toggleArchiveNote(noteId, !current);
+          }
+          break;
+        case 'share':
+          if (noteId != null) {
+            await _shareNote(noteId);
+          } else if (folderId != null) {
+            await _shareFolder(folderId);
+          }
+          break;
+        case 'copyLink':
+          if (noteId != null) _copyNoteLink(noteId);
+          break;
+        case 'properties':
+          if (noteId != null) {
+            _showNoteProperties(noteId);
+          } else if (folderId != null) {
+            _showFolderProperties(folderId);
+          }
+          break;
+        case 'changeColor':
+          if (folderId != null) await _showFolderColorPicker(folderId);
           break;
         default:
           debugPrint('⚠️ Acción no implementada: $action');
@@ -1423,6 +1473,103 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     } catch (e) {
       debugPrint('⚠️ Error duplicando nota: $e');
     }
+  }
+
+  Future<void> _moveNoteToFolderDialog(String noteId) async {
+    if (_folders.isEmpty) {
+      ToastService.info('No hay carpetas. Crea una primero.');
+      return;
+    }
+    final selected = await showDialog<String?> (
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Mover a carpeta'),
+            content: SizedBox(
+              width: 320,
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  ..._folders.map((f) => ListTile(
+                        leading: Icon(Icons.folder, color: f.color),
+                        title: Text(f.name),
+                        onTap: () => Navigator.pop(ctx, f.id),
+                      )),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.clear),
+                    title: const Text('Quitar de todas las carpetas'),
+                    onTap: () => Navigator.pop(ctx, '__REMOVE_FROM_ALL__'),
+                  ),
+                ],
+              ),
+            ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
+          ],
+        );
+      },
+    );
+    if (selected == null) return;
+    if (selected == '__REMOVE_FROM_ALL__') {
+      await _onNoteDroppedInFolder(noteId, '__REMOVE_FROM_ALL__');
+      return;
+    }
+    try {
+      await FirestoreService.instance.addNoteToFolder(uid: _uid, noteId: noteId, folderId: selected);
+      await _loadFolders();
+      await _loadNotes();
+      ToastService.success('Nota movida');
+    } catch (e) {
+      debugPrint('⚠️ Error moviendo nota: $e');
+    }
+  }
+
+  Future<void> _exportFolder(String folderId) async {
+    try {
+      final folder = _folders.firstWhere((f) => f.id == folderId);
+      if (folder.noteIds.isEmpty) {
+        ToastService.info('Carpeta vacía');
+        return;
+      }
+      // Exportar notas secuencialmente (podría optimizarse en el futuro)
+      final notes = await FirestoreService.instance.listNotes(uid: _uid);
+      final byId = { for (final n in notes) n['id'].toString() : n };
+      int exported = 0;
+      for (final id in folder.noteIds) {
+        final note = byId[id];
+        if (note != null) {
+          await ExportImportService.exportSingleNoteToMarkdown(note);
+          exported++;
+        }
+      }
+      ToastService.success('Carpeta exportada ($exported notas)');
+    } catch (e) {
+      debugPrint('⚠️ Error exportando carpeta: $e');
+      ToastService.error('Error exportando carpeta');
+    }
+  }
+
+  void _showFolderProperties(String folderId) {
+    final folder = _folders.firstWhere((f) => f.id == folderId);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Propiedades de la carpeta'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nombre: ${folder.name}'),
+            const SizedBox(height: 8),
+            Text('ID: ${folder.id}'),
+            const SizedBox(height: 8),
+            Text('Notas: ${folder.noteIds.length}'),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar'))],
+      ),
+    );
   }
 
   // --- New helper methods for extended context menu actions ---

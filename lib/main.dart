@@ -116,6 +116,8 @@ class _MyAppState extends State<MyApp> {
           '/login': (_) => const LoginPage(),
           '/register': (_) => const RegisterPage(),
           '/forgot': (_) => const ForgotPasswordPage(),
+          // Alias para compatibilidad con navegaciones existentes
+          '/forgot-password': (_) => const ForgotPasswordPage(),
           '/home': (_) => const HomePage(),
           '/tasks': (_) => const TasksPage(),
           '/export': (_) => const ExportPage(),
