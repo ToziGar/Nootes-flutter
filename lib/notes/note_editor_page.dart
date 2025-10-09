@@ -11,6 +11,7 @@ import '../widgets/advanced_editor.dart';
 import '../widgets/editor_settings_dialog.dart';
 import '../services/editor_config_service.dart';
 import '../theme/app_colors.dart';
+import '../services/sharing_service.dart';
 
 class NoteEditorPage extends StatefulWidget {
   const NoteEditorPage({super.key, required this.noteId, this.onChanged});
@@ -42,6 +43,10 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   List<Map<String, dynamic>> _otherNotes = [];
   Map<String, String> _wikiIndex = {};
   Map<String, String> _idToTitle = {};
+
+  // Permission enforcement
+  Map<String, dynamic>? _accessInfo;
+  bool get _isReadOnly => _accessInfo != null && _accessInfo!['permission'] != 'owner' && _accessInfo!['permission'] != 'edit';
 
   String get _uid => AuthService.instance.currentUser!.uid;
 

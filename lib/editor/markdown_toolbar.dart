@@ -62,6 +62,10 @@ class MarkdownToolbar extends StatelessWidget {
         _headerMenu(context),
         const SizedBox(width: 8),
         _btn(context, Icons.table_chart, 'Tabla', () => _insertTable(context)),
+  _btn(context, Icons.border_bottom, 'Añadir fila debajo', () => onInsertBlock('\n|   |   |   |')),
+  _btn(context, Icons.border_top, 'Añadir fila arriba', () => onInsertBlock('|   |   |   |\n')),
+  _btn(context, Icons.border_left, 'Columna (placeholder)', () => onInsertBlock(' <!--TODO:ADD_COL--> ')),
+  _btn(context, Icons.border_right, 'Eliminar fila (placeholder)', () => onInsertBlock(' <!--TODO:DEL_ROW--> ')),
         const Spacer(),
         if (showSplitToggle)
           IconButton(

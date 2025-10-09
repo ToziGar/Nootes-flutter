@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/sharing_service.dart';
 import '../services/toast_service.dart';
-import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 
 /// Dialog para compartir una nota o carpeta
 class ShareDialog extends StatefulWidget {
@@ -28,6 +29,34 @@ class _ShareDialogState extends State<ShareDialog> {
   PermissionLevel _selectedPermission = PermissionLevel.read;
   bool _isLoading = false;
   Map<String, dynamic>? _foundUser;
+  List<SharedItem> _sharedByMe = [];
+  bool _loadingExisting = true;
+  String? _publicToken;
+  bool _publicBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingSharings();
+  }
+
+  Future<void> _loadExistingSharings() async {
+    setState(() { _loadingExisting = true; });
+    try {
+      final list = await SharingService().getSharedByMe();
+      setState(() {
+        _sharedByMe = list.where((s) => s.itemId == widget.itemId && s.type == widget.itemType).toList();
+      });
+      // Public token (solo para notas por ahora)
+      if (widget.itemType == SharedItemType.note) {
+        _publicToken = await SharingService().getPublicLinkToken(noteId: widget.itemId);
+      }
+    } catch (e) {
+      // silencioso
+    } finally {
+      if (mounted) setState(() { _loadingExisting = false; });
+    }
+  }
 
   @override
   void dispose() {
@@ -136,6 +165,34 @@ class _ShareDialogState extends State<ShareDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (_loadingExisting)
+                  const LinearProgressIndicator(minHeight: 2),
+                if (!_loadingExisting && _sharedByMe.isNotEmpty) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.people_alt_rounded, size: 18, color: AppColors.primary),
+                            const SizedBox(width: 6),
+                            Text('Accesos existentes', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ..._sharedByMe.map((s) => _buildExistingSharingTile(s)).toList(),
+                      ],
+                    ),
+                  ),
+                ],
+                if (widget.itemType == SharedItemType.note) _buildPublicLinkCard(),
                 // Información del elemento a compartir
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -353,6 +410,10 @@ class _ShareDialogState extends State<ShareDialog> {
           onPressed: () => Navigator.of(context).pop(false),
           child: const Text('Cancelar'),
         ),
+        TextButton(
+          onPressed: _loadingExisting ? null : _loadExistingSharings,
+          child: const Text('Refrescar'),
+        ),
         ElevatedButton(
           onPressed: _isLoading ? null : _share,
           style: ElevatedButton.styleFrom(
@@ -395,4 +456,190 @@ class _ShareDialogState extends State<ShareDialog> {
         return 'Puede ver, comentar y modificar el contenido';
     }
   }
+  // === Public Link Section ===
+  Widget _buildPublicLinkCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.borderColor.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.public, color: _publicToken != null ? AppColors.success : AppColors.textSecondary, size: 18),
+              const SizedBox(width: 6),
+              const Text('Enlace público', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Spacer(),
+              if (_publicBusy) const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+              if (!_publicBusy && _publicToken == null)
+                TextButton(
+                  onPressed: _createPublicLink,
+                  child: const Text('Generar'),
+                ),
+              if (!_publicBusy && _publicToken != null)
+                TextButton(
+                  onPressed: _revokePublicLink,
+                  child: const Text('Revocar'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (_publicToken == null)
+            const Text('Permite compartir la nota con cualquiera que tenga el enlace (solo lectura).', style: TextStyle(fontSize: 12))
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: SelectableText(
+                    _composePublicUrl(_publicToken!),
+                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Copiar',
+                  icon: const Icon(Icons.copy, size: 18),
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: _composePublicUrl(_publicToken!)));
+                    ToastService.success('Copiado');
+                  },
+                ),
+                IconButton(
+                  tooltip: 'Abrir',
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  onPressed: () => Navigator.of(context).pushNamed('/p/${_publicToken!}'),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _composePublicUrl(String token) => '/p/$token';
+
+  Future<void> _createPublicLink() async {
+    if (_publicBusy) return;
+    setState(() => _publicBusy = true);
+    try {
+      final token = await SharingService().generatePublicLink(noteId: widget.itemId);
+      setState(() => _publicToken = token);
+      ToastService.success('Enlace generado');
+    } catch (e) {
+      ToastService.error('Error: $e');
+    } finally { if (mounted) setState(() => _publicBusy = false); }
+  }
+
+  Future<void> _revokePublicLink() async {
+    if (_publicBusy) return;
+    setState(() => _publicBusy = true);
+    try {
+      await SharingService().revokePublicLink(noteId: widget.itemId);
+      setState(() => _publicToken = null);
+      ToastService.success('Enlace revocado');
+    } catch (e) {
+      ToastService.error('Error: $e');
+    } finally { if (mounted) setState(() => _publicBusy = false); }
+  }
+
+  Widget _buildExistingSharingTile(SharedItem item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.black12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.person, size: 20, color: Colors.blueGrey.shade600),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.recipientEmail,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    _statusChip(item.status),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('Permiso: ${item.permission.name}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                if (item.message != null && item.message!.isNotEmpty)
+                  Text('“${item.message}”', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.black54)),
+                if (item.metadata?['noteTitle'] != null)
+                  Text('Nota: ${item.metadata?['noteTitle']}', style: const TextStyle(fontSize: 11, color: Colors.black45)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            children: [
+              IconButton(
+                tooltip: 'Revocar',
+                icon: const Icon(Icons.block, size: 18),
+                onPressed: item.status == SharingStatus.revoked ? null : () async {
+                  try {
+                    await SharingService().revokeSharing(item.id);
+                    ToastService.success('Acceso revocado');
+                    _loadExistingSharings();
+                  } catch (e) {
+                    ToastService.error('Error revocando: $e');
+                  }
+                },
+              ),
+              IconButton(
+                tooltip: 'Eliminar',
+                icon: const Icon(Icons.delete_outline, size: 18),
+                onPressed: () async {
+                  try {
+                    await SharingService().deleteSharing(item.id);
+                    ToastService.success('Eliminado');
+                    _loadExistingSharings();
+                  } catch (e) {
+                    ToastService.error('Error eliminando: $e');
+                  }
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _statusChip(SharingStatus status) {
+  Color bg;
+  Color fg;
+  switch (status) {
+    case SharingStatus.pending:
+      bg = Colors.orange.withValues(alpha: 0.12); fg = Colors.orange; break;
+    case SharingStatus.accepted:
+      bg = Colors.green.withValues(alpha: 0.12); fg = Colors.green; break;
+    case SharingStatus.rejected:
+      bg = Colors.red.withValues(alpha: 0.12); fg = Colors.red; break;
+    case SharingStatus.revoked:
+      bg = Colors.grey.withValues(alpha: 0.12); fg = Colors.grey; break;
+  }
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Text(status.name, style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w600)),
+  );
 }

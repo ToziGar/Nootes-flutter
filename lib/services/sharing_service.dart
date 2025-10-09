@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import 'dart:math';
+import 'dart:convert';
 
 /// Estados de una nota/carpeta compartida
 enum SharingStatus {
@@ -110,6 +112,100 @@ class SharingService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService.instance;
+
+  // === PUBLIC LINK (simple token-based) ===
+  /// Genera (o regenera) un enlace público para una nota. Devuelve el token.
+  Future<String> generatePublicLink({required String noteId}) async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) throw Exception('Usuario no autenticado');
+
+    final token = _randomToken(24);
+    final fsInstance = _firestore;
+
+    // Guardar en colección global para resolución rápida: public_links/{token}
+    await fsInstance.collection('public_links').doc(token).set({
+      'noteId': noteId,
+      'ownerId': currentUser.uid,
+      'createdAt': fs.FieldValue.serverTimestamp(),
+      'enabled': true,
+      'token': token,
+    });
+
+    // Actualizar nota (campos indicativos)
+    await FirestoreService.instance.updateNote(
+      uid: currentUser.uid,
+      noteId: noteId,
+      data: {
+        'shareToken': token,
+        'shareEnabled': true,
+        'sharedAt': fs.FieldValue.serverTimestamp(),
+      },
+    );
+
+    return token;
+  }
+
+  /// Revoca el enlace público si existe.
+  Future<void> revokePublicLink({required String noteId}) async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) throw Exception('Usuario no autenticado');
+
+    // Leer nota para obtener token actual
+    final note = await FirestoreService.instance.getNote(uid: currentUser.uid, noteId: noteId);
+    final token = note?['shareToken']?.toString();
+    if (token != null && token.isNotEmpty) {
+      await _firestore.collection('public_links').doc(token).set({
+        'enabled': false,
+        'revokedAt': fs.FieldValue.serverTimestamp(),
+      }, fs.SetOptions(merge: true));
+    }
+
+    await FirestoreService.instance.updateNote(
+      uid: currentUser.uid,
+      noteId: noteId,
+      data: {
+        'shareEnabled': false,
+      },
+    );
+  }
+
+  /// Devuelve el token de enlace público (si todavía habilitado) para una nota propia.
+  Future<String?> getPublicLinkToken({required String noteId}) async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) return null;
+    final note = await FirestoreService.instance.getNote(uid: currentUser.uid, noteId: noteId);
+    if (note == null) return null;
+    if (note['shareEnabled'] != true) return null;
+    final token = note['shareToken']?.toString();
+    if (token == null || token.isEmpty) return null;
+    // double-check doc enabled
+    final doc = await _firestore.collection('public_links').doc(token).get();
+    if (!doc.exists || (doc.data()?['enabled'] != true)) return null;
+    return token;
+  }
+
+  /// Resuelve un token público a (ownerId, noteId) si está habilitado.
+  Future<Map<String, String>?> resolvePublicToken(String token) async {
+    final d = await _firestore.collection('public_links').doc(token).get();
+    if (!d.exists) return null;
+    final data = d.data()!;
+    if (data['enabled'] != true) return null;
+    final ownerId = data['ownerId']?.toString() ?? '';
+    final noteId = data['noteId']?.toString() ?? '';
+    if (ownerId.isEmpty || noteId.isEmpty) return null;
+    return {
+      'ownerId': ownerId,
+      'noteId': noteId,
+      'token': token,
+    };
+  }
+
+  String _randomToken(int length) {
+    final rand = Random.secure();
+    final bytes = List<int>.generate(length, (_) => rand.nextInt(256));
+    // Base64 URL safe sin '='
+    return base64UrlEncode(bytes).replaceAll('=', '');
+  }
 
   /// Verifica si un usuario existe por email
   Future<Map<String, dynamic>?> findUserByEmail(String email) async {

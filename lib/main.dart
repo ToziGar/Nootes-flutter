@@ -20,6 +20,7 @@ import 'pages/shared_notes_page.dart';
 import 'services/preferences_service.dart';
 import 'services/app_service.dart';
 import 'services/toast_service.dart';
+import 'public_note_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -125,6 +126,16 @@ class _MyAppState extends State<MyApp> {
           '/advanced-search': (_) => const AdvancedSearchPage(),
           '/shared-notes': (_) => const SharedNotesPage(),
           '/toast-demo': (_) => const ToastDemoPage(),
+        },
+        onGenerateRoute: (settings) {
+          final name = settings.name ?? '';
+            if (name.startsWith('/p/')) {
+              final token = name.substring(3);
+              if (token.isNotEmpty) {
+                return MaterialPageRoute(builder: (_) => PublicNotePage(token: token));
+              }
+            }
+          return null; // fallback to unknown route handling if needed
         },
         home: widget.initError == null ? const AuthGate() : SetupHelpPage(error: widget.initError!),
       ),
