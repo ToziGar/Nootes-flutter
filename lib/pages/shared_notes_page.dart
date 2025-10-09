@@ -149,22 +149,24 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         ],
       ),
       body: GlassBackground(
-        child: FutureBuilder(
-          future: _initFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : FutureBuilder(
+                future: _initFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-            return TabBarView(
-              controller: _tabController,
-              children: [
-                _buildSharedByMeTab(),
-                _buildSharedWithMeTab(),
-              ],
-            );
-          },
-        ),
+                  return TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildSharedByMeTab(),
+                      _buildSharedWithMeTab(),
+                    ],
+                  );
+                },
+              ),
       ),
     );
   }

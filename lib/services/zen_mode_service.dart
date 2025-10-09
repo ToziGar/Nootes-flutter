@@ -182,7 +182,7 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
   late Animation<double> _breathingAnimation;
   
   bool _showControls = false;
-  DateTime _startTime = DateTime.now();
+  final DateTime _startTime = DateTime.now();
   Duration _sessionTime = Duration.zero;
   Timer? _timer;
   Timer? _breakTimer;

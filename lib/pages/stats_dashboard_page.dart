@@ -189,9 +189,59 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
               if (_userStats!.firstNoteDate != null)
                 _buildStatRow('Días activo', _userStats!.daysSinceFirstNote.toString(), Icons.timeline),
             ],
+            if (_dailyActivity.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const Text(
+                'Últimos 7 días',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildDailyActivityChart(),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDailyActivityChart() {
+    final maxActivity = _dailyActivity.fold<int>(0, (max, day) => day.totalEvents > max ? day.totalEvents : max);
+    
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: _dailyActivity.take(7).map((day) {
+        final intensity = maxActivity > 0 ? day.totalEvents / maxActivity : 0.0;
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 80 * intensity,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacityCompat(0.3 + (intensity * 0.7)),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  day.date.day.toString(),
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 

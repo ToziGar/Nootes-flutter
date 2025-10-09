@@ -1434,12 +1434,18 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         noteId: noteId,
         data: {'pinned': pin},
       );
-      if (mounted) setState(() {
-        final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
-        if (idx != -1) _allNotes[idx]['pinned'] = pin;
-        final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
-        if (idx2 != -1) _notes[idx2]['pinned'] = pin;
-      });
+      if (mounted) {
+        setState(() {
+          final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
+          if (idx != -1) {
+            _allNotes[idx]['pinned'] = pin;
+          }
+          final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
+          if (idx2 != -1) {
+            _notes[idx2]['pinned'] = pin;
+          }
+        });
+      }
       ToastService.success(pin ? 'Nota fijada' : 'Nota desfijada');
     } catch (e) {
       debugPrint('⚠️ Error toggling pin: $e');
@@ -1449,12 +1455,18 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   Future<void> _toggleFavoriteNote(String noteId, bool fav) async {
     try {
       await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'favorite': fav});
-      if (mounted) setState(() {
-        final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
-        if (idx != -1) _allNotes[idx]['favorite'] = fav;
-        final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
-        if (idx2 != -1) _notes[idx2]['favorite'] = fav;
-      });
+      if (mounted) {
+        setState(() {
+          final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
+          if (idx != -1) {
+            _allNotes[idx]['favorite'] = fav;
+          }
+          final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
+          if (idx2 != -1) {
+            _notes[idx2]['favorite'] = fav;
+          }
+        });
+      }
       ToastService.success(fav ? 'Añadido a favoritos' : 'Eliminado de favoritos');
     } catch (e) {
       debugPrint('⚠️ Error toggling favorite: $e');
@@ -1464,12 +1476,18 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   Future<void> _toggleArchiveNote(String noteId, bool archive) async {
     try {
       await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'archived': archive});
-      if (mounted) setState(() {
-        final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
-        if (idx != -1) _allNotes[idx]['archived'] = archive;
-        final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
-        if (idx2 != -1) _notes[idx2]['archived'] = archive;
-      });
+      if (mounted) {
+        setState(() {
+          final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
+          if (idx != -1) {
+            _allNotes[idx]['archived'] = archive;
+          }
+          final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
+          if (idx2 != -1) {
+            _notes[idx2]['archived'] = archive;
+          }
+        });
+      }
       ToastService.success(archive ? 'Nota archivada' : 'Nota desarchivada');
     } catch (e) {
       debugPrint('⚠️ Error toggling archive: $e');
@@ -1498,12 +1516,18 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       final tags = controller.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
       try {
         await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'tags': tags});
-        if (mounted) setState(() {
-          final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
-          if (idx != -1) _allNotes[idx]['tags'] = tags;
-          final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
-          if (idx2 != -1) _notes[idx2]['tags'] = tags;
-        });
+        if (mounted) {
+          setState(() {
+            final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
+            if (idx != -1) {
+              _allNotes[idx]['tags'] = tags;
+            }
+            final idx2 = _notes.indexWhere((n) => n['id'].toString() == noteId);
+            if (idx2 != -1) {
+              _notes[idx2]['tags'] = tags;
+            }
+          });
+        }
         ToastService.success('Etiquetas actualizadas');
       } catch (e) {
         debugPrint('⚠️ Error actualizando etiquetas: $e');
@@ -1552,10 +1576,14 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         if (chosen != null) {
       try {
         await FirestoreService.instance.updateFolder(uid: _uid, folderId: folderId, data: {'color': chosen.value.toRadixString(16)});
-        if (mounted) setState(() {
-          final idx = _folders.indexWhere((f) => f.id == folderId);
-          if (idx != -1) _folders[idx] = _folders[idx].copyWith(color: chosen);
-        });
+        if (mounted) {
+          setState(() {
+            final idx = _folders.indexWhere((f) => f.id == folderId);
+            if (idx != -1) {
+              _folders[idx] = _folders[idx].copyWith(color: chosen);
+            }
+          });
+        }
       } catch (e) {
         debugPrint('⚠️ Error cambiando color de carpeta: $e');
       }

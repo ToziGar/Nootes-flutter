@@ -233,13 +233,6 @@ class SmartIndentationService {
     return currentIndent;
   }
 
-  /// Obtiene la línea actual en la posición del cursor
-  String _getCurrentLine(String text, int cursorPosition) {
-    final beforeCursor = text.substring(0, cursorPosition);
-    final lines = beforeCursor.split('\n');
-    return lines.isNotEmpty ? lines.last : '';
-  }
-
   /// Extrae la indentación de una línea
   String _getIndentation(String line) {
     final match = RegExp(r'^(\s*)').firstMatch(line);

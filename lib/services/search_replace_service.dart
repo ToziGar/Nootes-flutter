@@ -6,7 +6,7 @@ class SearchReplaceService {
   factory SearchReplaceService() => _instance;
   SearchReplaceService._internal();
 
-  List<SearchMatch> _matches = [];
+  final List<SearchMatch> _matches = [];
   int _currentMatchIndex = -1;
   String _lastSearchTerm = '';
   bool _caseSensitive = false;
