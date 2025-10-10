@@ -52,7 +52,7 @@ class FoldersPanel extends StatelessWidget {
                   ),
                   const SizedBox(width: AppColors.space12),
                   const Expanded(
-                    child: const Text(
+                    child: Text(
                       'Carpetas',
                       style: TextStyle(
                         fontSize: 18,

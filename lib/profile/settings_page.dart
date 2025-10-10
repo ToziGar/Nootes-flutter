@@ -6,6 +6,7 @@ import '../services/preferences_service.dart';
 import '../services/app_service.dart';
 import '../widgets/export_import_dialog.dart';
 import '../widgets/gradient_button.dart';
+import 'profile_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -381,7 +382,10 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           IconButton(
             onPressed: () {
-              // TODO: Editar perfil
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfilePage()),
+              );
             },
             icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
           ),

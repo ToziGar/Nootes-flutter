@@ -319,6 +319,7 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                             const SizedBox(height: 16),
                             
                             _buildModernTextField(
+                              key: const Key('register_email_field'),
                               controller: _emailController,
                               label: 'Email',
                               icon: Icons.email_outlined,
@@ -434,6 +435,7 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
   }
 
   Widget _buildModernTextField({
+    Key? key,
     required TextEditingController controller,
     required String label,
     required IconData icon,
@@ -444,6 +446,7 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
     String? Function(String?)? validator,
   }) {
     return Container(
+      key: key,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(

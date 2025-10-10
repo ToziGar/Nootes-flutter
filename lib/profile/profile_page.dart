@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/glass.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../pages/app_shell.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -126,7 +127,22 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Editar perfil')),
+      appBar: AppBar(
+        title: const Text('Editar perfil'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            // Intentar usar AppShell para navegar de vuelta al workspace
+            final appShell = AppShell.of(context);
+            if (appShell != null) {
+              appShell.navigateToWorkspace();
+            } else {
+              // Fallback a navegación normal
+              Navigator.of(context).maybePop();
+            }
+          },
+        ),
+      ),
       body: GlassBackground(
         child: SafeArea(
           child: Align(
@@ -152,6 +168,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                               const SizedBox(height: 8),
                               TextFormField(
+                                key: const Key('profile_email_field'),
                                 controller: _email,
                                 decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.mail_outline_rounded)),
                                 validator: (v) => (v == null || v.trim().isEmpty || !v.contains('@')) ? 'Email inválido' : null,

@@ -231,9 +231,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                             
                             // Campo email mejorado
                             _buildModernTextField(
+                              key: const Key('login_email_field'),
                               controller: _emailController,
                               label: 'Email',
-                              icon: Icons.alternate_email_rounded,
+                              icon: Icons.email_outlined,
                               keyboardType: TextInputType.emailAddress,
                               autofillHints: const [AutofillHints.email],
                               validator: (value) {
@@ -319,6 +320,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   Widget _buildModernTextField({
+    Key? key,
     required TextEditingController controller,
     required String label,
     required IconData icon,
@@ -329,6 +331,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     String? Function(String?)? validator,
   }) {
     return Container(
+      key: key,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(

@@ -15,6 +15,7 @@ import '../widgets/recording_overlay.dart';
 import '../widgets/workspace_widgets.dart';
 import '../widgets/enhanced_context_menu.dart';
 import '../theme/app_theme.dart';
+import '../pages/app_shell.dart';
 import '../profile/settings_page.dart';
 import '../widgets/backlinks_panel.dart';
 import '../widgets/unified_context_menu.dart';
@@ -498,10 +499,17 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   }
 
   void _openSettings() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const SettingsPage()),
-    );
+    // Usar el ancestro AppShell para cambiar el índice
+    final appShell = AppShell.of(context);
+    if (appShell != null) {
+      appShell.navigateToSettings();
+    } else {
+      // Fallback si no encuentra el AppShell
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const SettingsPage()),
+      );
+    }
   }
   
   Future<void> _openAdvancedSearch() async {
