@@ -47,7 +47,10 @@ class MarkdownEditor extends StatefulWidget {
     this.wikiIndex,
     this.onOpenNote,
     this.splitEnabled = true,
+    this.forceSplit = false,
+    this.showSplitToggle = true,
     this.readOnly = false,
+    this.previewTitle,
   });
 
   final TextEditingController controller;
@@ -58,7 +61,13 @@ class MarkdownEditor extends StatefulWidget {
   final Map<String, String>? wikiIndex; // title -> id
   final void Function(String noteId)? onOpenNote;
   final bool splitEnabled;
+  // When true, always show split (editor + preview) and disable toggles.
+  final bool forceSplit;
+  // Controls whether the toolbar shows the split toggle button.
+  final bool showSplitToggle;
   final bool readOnly;
+  // Optional title rendered above the preview pane (live-updating).
+  final String? previewTitle;
 
   @override
   State<MarkdownEditor> createState() => _MarkdownEditorState();
@@ -75,23 +84,21 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
     super.initState();
     _focus = FocusNode();
     _rendered = widget.controller.text;
-    widget.controller.addListener(_scheduleRender);
+    widget.controller.addListener(_instantRender);
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
-    widget.controller.removeListener(_scheduleRender);
+    widget.controller.removeListener(_instantRender);
     _focus.dispose();
     super.dispose();
   }
 
-  void _scheduleRender() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 200), () {
-      setState(() => _rendered = widget.controller.text);
-      widget.onChanged?.call(widget.controller.text);
-    });
+  // Update preview on every keystroke for an instant experience.
+  void _instantRender() {
+    setState(() => _rendered = widget.controller.text);
+    widget.onChanged?.call(widget.controller.text);
   }
 
   void _wrapSelection(String left, [String right = '']) {
@@ -202,6 +209,10 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
 
   @override
   Widget build(BuildContext context) {
+    // If forced, keep split active and ignore toggles/shortcuts.
+    if (widget.forceSplit && !_split) {
+      _split = true;
+    }
     final editor = Shortcuts(
       shortcuts: <LogicalKeySet, Intent>{
         // Ctrl/Cmd + B -> bold
@@ -222,9 +233,11 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
         // Ctrl/Cmd + Alt + K -> code block
         LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.alt, LogicalKeyboardKey.keyK): const CodeBlockIntent(),
         LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.alt, LogicalKeyboardKey.keyK): const CodeBlockIntent(),
-        // Ctrl/Cmd + / -> toggle split
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.slash): const ToggleSplitIntent(),
-        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.slash): const ToggleSplitIntent(),
+        // Ctrl/Cmd + / -> toggle split (disabled when forceSplit)
+        if (!widget.forceSplit)
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.slash): const ToggleSplitIntent(),
+        if (!widget.forceSplit)
+          LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.slash): const ToggleSplitIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -252,10 +265,11 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
             _handleCodeBlockIntent();
             return null;
           }),
-          ToggleSplitIntent: CallbackAction<ToggleSplitIntent>(onInvoke: (intent) {
-            if (widget.splitEnabled) _handleToggleSplitIntent();
-            return null;
-          }),
+          if (!widget.forceSplit)
+            ToggleSplitIntent: CallbackAction<ToggleSplitIntent>(onInvoke: (intent) {
+              if (widget.splitEnabled) _handleToggleSplitIntent();
+              return null;
+            }),
         },
         child: Focus(
           focusNode: _focus,
@@ -379,10 +393,10 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
           onInsertAtLineStart: widget.readOnly ? (_) {} : _insertAtLineStart,
           onInsertBlock: widget.readOnly ? (_, [__='']) {} : _insertBlock,
           onToggleSplit: () => setState(() => _split = !_split),
-          isSplit: widget.splitEnabled && _split,
+          isSplit: widget.splitEnabled && (widget.forceSplit ? true : _split),
           onPickImage: widget.readOnly ? null : widget.onPickImage,
           onPickWiki: widget.readOnly ? null : widget.onPickWiki,
-          showSplitToggle: widget.splitEnabled,
+          showSplitToggle: widget.showSplitToggle && !widget.forceSplit,
           readOnly: widget.readOnly,
           controller: widget.controller,
         ),
@@ -394,12 +408,26 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
         Expanded(
           child: LayoutBuilder(
             builder: (context, c) {
-              final useSplit = widget.splitEnabled && _split && c.maxWidth >= 720;
+              // When forced, always use split regardless of width.
+              final useSplit = widget.splitEnabled && (widget.forceSplit ? true : (_split && c.maxWidth >= 720));
               if (!useSplit) {
-                // In single-column mode just show the editor and let the
-                // surrounding Expanded provide the vertical constraints.
                 return editor;
               }
+              // Build preview with optional live title header.
+              final previewWithTitle = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if ((widget.previewTitle ?? '').trim().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        widget.previewTitle!.trim(),
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  Expanded(child: preview),
+                ],
+              );
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -415,7 +443,7 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
                           color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
                         ),
                       ),
-                      child: preview,
+                      child: previewWithTitle,
                     ),
                   ),
                 ],

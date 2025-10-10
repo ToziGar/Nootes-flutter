@@ -4,13 +4,9 @@ import '../widgets/glass.dart';
 import '../widgets/tag_input.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
-import '../services/toast_service.dart';
-import '../editor/markdown_editor.dart';
-import '../services/storage_service.dart';
-import '../widgets/advanced_editor.dart';
+import '../widgets/quill_editor_widget.dart';
 import '../widgets/editor_settings_dialog.dart';
 import '../services/editor_config_service.dart';
-import '../theme/app_colors.dart';
 import '../services/sharing_service.dart';
 
 class NoteEditorPage extends StatefulWidget {
@@ -25,13 +21,13 @@ class NoteEditorPage extends StatefulWidget {
 class _NoteEditorPageState extends State<NoteEditorPage> {
   final _title = TextEditingController();
   final _content = TextEditingController();
+  String _richJson = '';
   bool _loading = true;
   bool _saving = false;
   bool _autoSaving = false;
   Timer? _auto;
 
   // Editor avanzado
-  bool _useAdvancedEditor = false;
   EditorConfig _editorConfig = EditorConfig.defaultConfig();
   final EditorConfigService _editorConfigService = EditorConfigService();
 
@@ -41,12 +37,11 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   List<String> _outgoing = [];
   List<String> _incoming = [];
   List<Map<String, dynamic>> _otherNotes = [];
-  Map<String, String> _wikiIndex = {};
+  // Deprecated: previously used for Markdown wikilinks
+  // Map<String, String> _wikiIndex = {};
   Map<String, String> _idToTitle = {};
 
-  // Permission enforcement
-  Map<String, dynamic>? _accessInfo;
-  bool get _isReadOnly => _accessInfo != null && _accessInfo!['permission'] != 'owner' && _accessInfo!['permission'] != 'edit';
+  // Permission enforcement (unused for now)
 
   String get _uid => AuthService.instance.currentUser!.uid;
 
@@ -56,7 +51,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     _load();
     _loadEditorConfig();
     _title.addListener(_scheduleAutoSave);
-    _content.addListener(_scheduleAutoSave);
+  _content.addListener(_scheduleAutoSave);
   }
 
   Future<void> _loadEditorConfig() async {
@@ -100,7 +95,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       noteOwnerId = uid;
     }
     
-    _accessInfo = await SharingService().checkNoteAccess(widget.noteId, noteOwnerId);
+  await SharingService().checkNoteAccess(widget.noteId, noteOwnerId);
     
     final cols = await svc.listCollections(uid: uid);
     final allNotes = await svc.listNotes(uid: uid);
@@ -115,11 +110,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       _outgoing = outgoing;
       _incoming = incoming;
       _otherNotes = allNotes.where((x) => x['id'].toString() != widget.noteId).toList();
-      // Index for wikilinks: use title if non-empty, otherwise use ID so [[...]] always resolves
-      _wikiIndex = {
-        for (final m in allNotes)
-          ((m['title']?.toString() ?? '').isEmpty ? m['id'].toString() : m['title'].toString()): m['id'].toString(),
-      };
+      // Index for wikilinks removed in Quill path
       // Map for labels: keep the raw title (may be empty) so we can render "Title (ID)" cleanly
       _idToTitle = {
         for (final m in allNotes) m['id'].toString(): (m['title']?.toString() ?? ''),
@@ -144,10 +135,12 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   Future<void> _save({bool autosave = false}) async {
     setState(() => _saving = true);
     try {
-      await FirestoreService.instance.updateNote(uid: _uid, noteId: widget.noteId, data: {
+      final data = {
         'title': _title.text,
         'content': _content.text,
-      });
+      };
+      if (_richJson.isNotEmpty) data['rich'] = _richJson;
+      await FirestoreService.instance.updateNote(uid: _uid, noteId: widget.noteId, data: data);
       if (widget.onChanged != null) await widget.onChanged!();
       if (mounted && !autosave) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado')));
@@ -157,45 +150,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     }
   }
 
-  Future<String?> _pickAndUploadImage(BuildContext context) async {
-    try {
-      final url = await StorageService.pickAndUploadImage(uid: _uid);
-      if (url == null) return null;
-      ToastService.success('Imagen subida');
-      return url;
-    } catch (e) {
-      if (mounted) {
-        ToastService.error('No se pudo subir la imagen: $e');
-      }
-      return null;
-    }
-  }
-
-  Future<String?> _pickWiki(BuildContext context) async {
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Enlace interno'),
-        content: SizedBox(
-          width: 420,
-          height: 360,
-          child: ListView.builder(
-            itemCount: _otherNotes.length,
-            itemBuilder: (context, i) {
-              final n = _otherNotes[i];
-              final rawTitle = (n['title']?.toString() ?? '');
-              final id = n['id'].toString();
-              final display = rawTitle.trim().isEmpty ? id : '${rawTitle.trim()} (${_shortId(id)})';
-              // Important: return a key that exists in _wikiIndex (raw title if not empty, otherwise the ID)
-              final returnKey = rawTitle.trim().isEmpty ? id : rawTitle.trim();
-              return ListTile(title: Text(display), onTap: () => Navigator.pop(context, returnKey));
-            },
-          ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar'))],
-      ),
-    );
-  }
+  // Removed image/wiki pickers here; Quill path will handle media insertion via toolbar.
 
   Future<void> _setCollection(String? v) async {
     setState(() => _saving = true);
@@ -232,12 +187,6 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     if (widget.onChanged != null) await widget.onChanged!();
   }
 
-  void _toggleAdvancedEditor() {
-    setState(() {
-      _useAdvancedEditor = !_useAdvancedEditor;
-    });
-  }
-
   void _showEditorSettings() {
     showDialog(
       context: context,
@@ -258,49 +207,11 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       appBar: AppBar(
         title: const Text('Editar nota'),
         actions: [
-          // Botón para cambiar tipo de editor
-          PopupMenuButton<String>(
-            icon: Icon(
-              _useAdvancedEditor ? Icons.code : Icons.edit,
-              color: _useAdvancedEditor ? AppColors.primary : null,
-            ),
-            tooltip: 'Opciones del editor',
-            onSelected: (value) {
-              switch (value) {
-                case 'toggle':
-                  _toggleAdvancedEditor();
-                  break;
-                case 'settings':
-                  _showEditorSettings();
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'toggle',
-                child: Row(
-                  children: [
-                    Icon(
-                      _useAdvancedEditor ? Icons.edit : Icons.code,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(_useAdvancedEditor ? 'Editor simple' : 'Editor avanzado'),
-                  ],
-                ),
-              ),
-              if (_useAdvancedEditor)
-                const PopupMenuItem(
-                  value: 'settings',
-                  child: Row(
-                    children: [
-                      Icon(Icons.settings, size: 20),
-                      SizedBox(width: 8),
-                      Text('Configuración'),
-                    ],
-                  ),
-                ),
-            ],
+          // Opciones del editor (placeholder para futuras opciones)
+          IconButton(
+            tooltip: 'Configuración del editor',
+            onPressed: _showEditorSettings,
+            icon: const Icon(Icons.settings),
           ),
           IconButton(
             onPressed: _saving ? null : () => _save(),
@@ -344,7 +255,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         onChanged: (v) => _setCollection(v),
                       ),
                       const SizedBox(height: 8),
-                      // Editor de contenido (condicional)
+                      // Editor de contenido unificado (Quill WYSIWYG)
                       Container(
                         height: 400, // Altura fija para el editor
                         decoration: BoxDecoration(
@@ -353,41 +264,29 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                           ),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: _useAdvancedEditor
-                            ? AdvancedEditor(
-                                initialText: _content.text,
-                                onTextChanged: (text) {
-                                  if (_content.text != text) {
-                                    _content.text = text;
-                                    _scheduleAutoSave();
-                                  }
-                                },
-                                syntaxHighlighting: _editorConfig.syntaxHighlighting,
-                                autoComplete: _editorConfig.autoComplete,
-                                showLineNumbers: _editorConfig.showLineNumbers,
-                                showMinimap: _editorConfig.showMinimap,
-                                wordWrap: _editorConfig.wordWrap,
-                                fontSize: _editorConfig.fontSize,
-                                themeMode: Theme.of(context).brightness == Brightness.dark 
-                                    ? ThemeMode.dark 
-                                    : ThemeMode.light,
-                              )
-                            : MarkdownEditor(
-                                controller: _content,
-                                onChanged: _isReadOnly ? null : (_) => _scheduleAutoSave(),
-                                onPickImage: _isReadOnly ? null : _pickAndUploadImage,
-                                onPickWiki: _isReadOnly ? null : _pickWiki,
-                                wikiIndex: _wikiIndex,
-                                readOnly: _isReadOnly,
-                                onOpenNote: (id) async {
-                                  if (id == widget.noteId) return;
-                                  await Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: id, onChanged: widget.onChanged)),
-                                  );
-                                  await _load();
-                                },
-                                splitEnabled: true,
-                              ),
+                        child: QuillEditorWidget(
+                          uid: _uid,
+                          initialDeltaJson: null, // Could load from note['rich'] if present
+                          onChanged: (deltaJson) async {
+                            // Keep latest rich in memory; actual save occurs via autosave/_save
+                            _content.removeListener(_scheduleAutoSave);
+                            try {
+                              _richJson = deltaJson;
+                            } finally {
+                              _content.addListener(_scheduleAutoSave);
+                            }
+                            _scheduleAutoSave();
+                          },
+                          onPlainTextChanged: (plain) {
+                            if (_content.text != plain) {
+                              _content.text = plain;
+                              _scheduleAutoSave();
+                            }
+                          },
+                          onSave: (deltaJson) async {
+                            await _save();
+                          },
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Text('Etiquetas', style: Theme.of(context).textTheme.titleMedium),

@@ -6,8 +6,8 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/export_import_service.dart';
 import '../services/toast_service.dart';
-import '../editor/markdown_editor_with_links.dart';
-import '../editor/rich_text_editor.dart';
+// Markdown and legacy rich editors removed in favor of Quill WYSIWYG
+import '../widgets/quill_editor_widget.dart';
 import '../widgets/tag_input.dart';
 import '../services/storage_service.dart';
 import '../services/audio_service.dart';
@@ -48,11 +48,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
 
   List<Map<String, dynamic>> _notes = [];
   List<Map<String, dynamic>> _allNotes = []; // Todas las notas antes de filtrar
-  String? _selectedId;
-  Timer? _debounce;
   bool _loading = true;
   bool _saving = false;
-  bool _richMode = false;
   String _richJson = '';
   // focus mode removed per request
   final _storage = const FlutterSecureStorage();
@@ -60,41 +57,48 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   late final AnimationController _editorCtrl;
   late final Animation<double> _editorFade;
   late final Animation<Offset> _editorOffset;
-  
-  // Carpetas y filtros
-  List<Folder> _folders = [];
-  String? _selectedFolderId; // null = "Todas las notas"
-  final Set<String> _expandedFolders = {}; // IDs de carpetas expandidas (tipo árbol)
+  // Filters and view state
+  bool _compactMode = false;
+  String? _selectedFolderId;
   List<String> _filterTags = [];
   DateTimeRange? _filterDateRange;
   SortOption _sortOption = SortOption.dateDesc;
-  
-  // Nuevas funcionalidades
-  bool _compactMode = false;
+  // Save pulse animation
+  late final AnimationController _savePulseCtrl;
+  late final Animation<double> _saveScale;
+  // Current selection
+  String? _selectedId;
+  // Folders state
+  List<Folder> _folders = [];
+  // Sidebar panels
   bool _showSidebar = true;
   bool _showStats = false;
   bool _showRecentSearches = false;
   bool _showBacklinks = false;
-  
-  // Animaciones de transición
-  late final AnimationController _savePulseCtrl;
-  late final Animation<double> _saveScale;
-
-  String get _uid => AuthService.instance.currentUser!.uid;
+  // Misc (already declared earlier in file)
 
   @override
   void initState() {
     super.initState();
-    _editorCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-    _editorFade = CurvedAnimation(parent: _editorCtrl, curve: Curves.easeIn);
-    _editorOffset = Tween(begin: const Offset(0, 0.02), end: Offset.zero).animate(_editorCtrl);
-
-    _savePulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 180));
-    _saveScale = Tween<double>(begin: 1.0, end: 1.08).animate(CurvedAnimation(parent: _savePulseCtrl, curve: Curves.easeOut));
-
-    _loadPreferences();
-    _loadLastAndNotes();
+    _editorCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+    _editorFade = CurvedAnimation(parent: _editorCtrl, curve: Curves.easeInOut);
+    _editorOffset = Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero).animate(_editorCtrl);
+    _savePulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
+    _saveScale = Tween<double>(begin: 1.0, end: 1.1).animate(CurvedAnimation(parent: _savePulseCtrl, curve: Curves.easeOut));
+    // Load preferences and initial data
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _loadPreferences();
+      await _loadFolders();
+      await _loadNotes();
+      await _loadLastAndNotes();
+    });
   }
+  // Debounce for search/save
+  Timer? _debounce;
+  // Expanded folders tracking
+  final Set<String> _expandedFolders = {};
+  // Current user id helper
+  String get _uid => AuthService.instance.currentUser!.uid;
   
   Future<void> _loadPreferences() async {
     final compactMode = await PreferencesService.getCompactMode();
@@ -2514,8 +2518,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                 preferredSize: const Size.fromHeight(64),
                 child: WorkspaceHeader(
                   saving: _saving,
-                  focusMode: _richMode,
-                  onToggleFocus: () => setState(() => _richMode = !_richMode),
+                  // We now have a single WYSIWYG editor; use this control as a focus mode indicator only.
+                  focusMode: false,
+                  onToggleFocus: null,
                   onSave: _save,
                   onSettings: _openSettings,
                   saveScale: _saveScale,
@@ -2602,51 +2607,33 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                           vertical: AppColors.space12,
                                         ),
                                       ),
-                                      onChanged: (_) => _debouncedSave(),
+                                      onChanged: (_) {
+                                        setState(() {}); // live update preview title
+                                        _debouncedSave();
+                                      },
                                     ),
                                     Divider(height: 1, thickness: 1, color: AppColors.borderColor),
                                     
                                     // Editor expandido al máximo
                                     Expanded(
-                                      child: _richMode
-                                          ? RichTextEditor(
-                                              uid: _uid,
-                                              initialDeltaJson: _richJson.isEmpty ? null : _richJson,
-                                              onChanged: (deltaJson) {
-                                                _richJson = deltaJson;
-                                                _debouncedSave();
-                                              },
-                                              onSave: (deltaJson) async {
-                                                _richJson = deltaJson;
-                                                await _save();
-                                              },
-                                            )
-                                          : MarkdownEditorWithLinks(
-                                              controller: _content,
-                                              uid: _uid,
-                                              onChanged: (_) => _debouncedSave(),
-                                              onLinksChanged: (linkedIds) async {
-                                                // Actualizar links en Firestore
-                                                if (_selectedId != null) {
-                                                  try {
-                                                    await FirestoreService.instance.updateNoteLinks(
-                                                      uid: _uid,
-                                                      noteId: _selectedId!,
-                                                      linkedNoteIds: linkedIds,
-                                                    );
-                                                    debugPrint('🔗 Links actualizados: ${linkedIds.length}');
-                                                  } catch (e) {
-                                                    debugPrint('❌ Error actualizando links: $e');
-                                                  }
-                                                }
-                                              },
-                                              onNoteOpen: (noteId) async {
-                                                // Abrir nota enlazada
-                                                await _select(noteId);
-                                                debugPrint('🔗 Abriendo nota enlazada: $noteId');
-                                              },
-                                              splitEnabled: true,
-                                            ),
+                                      child: QuillEditorWidget(
+                                        uid: _uid,
+                                        initialDeltaJson: _richJson.isEmpty ? null : _richJson,
+                                        onChanged: (deltaJson) {
+                                          _richJson = deltaJson;
+                                          _debouncedSave();
+                                        },
+                                        onPlainTextChanged: (plain) {
+                                          // Keep plain-text mirror for previews/search/export
+                                          if (_content.text != plain) {
+                                            _content.text = plain;
+                                          }
+                                        },
+                                        onSave: (deltaJson) async {
+                                          _richJson = deltaJson;
+                                          await _save();
+                                        },
+                                      ),
                                     ),
                                     
                                     // Tags compactos en la parte inferior

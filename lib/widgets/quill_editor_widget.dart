@@ -2,25 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill/quill_delta.dart';
 import 'dart:convert';
+import 'dart:async';
+import 'package:nootes/widgets/note_autocomplete_overlay.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 
 class QuillEditorWidget extends StatefulWidget {
   final String uid;
   final String? initialDeltaJson;
   final ValueChanged<String> onChanged;
+  // Plain-text mirror of the document (for previews/search). Optional.
+  final ValueChanged<String>? onPlainTextChanged;
   final Future<void> Function(String) onSave;
   final Future<void> Function(List<String>)? onLinksChanged;
   final Future<void> Function(String)? onNoteOpen;
   final bool splitEnabled;
+  // Fetch suggestions for wikilinks ([[ ... ]])
+  final Future<List<NoteSuggestion>> Function(String query)? fetchNoteSuggestions;
 
   const QuillEditorWidget({
     super.key,
     required this.uid,
     this.initialDeltaJson,
     required this.onChanged,
+    this.onPlainTextChanged,
     required this.onSave,
     this.onLinksChanged,
     this.onNoteOpen,
     this.splitEnabled = false,
+    this.fetchNoteSuggestions,
   });
 
   @override
@@ -29,11 +38,20 @@ class QuillEditorWidget extends StatefulWidget {
 
 class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   late QuillController _controller;
+  final _focusNode = FocusNode();
+  final _scrollController = ScrollController();
   // bool _isFullscreen = false; // Commented out until used
   bool _darkTheme = false;
   // String _searchQuery = ''; // Commented out until used
   // int _currentSearchIndex = 0; // Commented out until used
   // List<int> _searchResults = []; // Commented out until used
+  StreamSubscription? _changesSub;
+  bool _applyingShortcuts = false;
+  // Wikilinks overlay state
+  OverlayEntry? _overlay;
+  List<NoteSuggestion> _wikiSuggestions = const [];
+  String _wikiQuery = '';
+  bool _showWiki = false;
 
   @override
   void initState() {
@@ -51,11 +69,206 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
         
     // Escuchar cambios en el documento
     _controller.addListener(_onDocumentChanged);
+    // Atajos Markdown como WYSIWYG (aplicados en ediciones locales)
+    _changesSub = _controller.changes.listen((_) {
+      if (!_applyingShortcuts) {
+        _applyMarkdownShortcuts();
+      }
+    });
   }
 
   void _onDocumentChanged() {
     final deltaJson = jsonEncode(_controller.document.toDelta().toJson());
     widget.onChanged(deltaJson);
+    // Emit plain text for callers who want to keep a text preview in sync
+    widget.onPlainTextChanged?.call(_controller.document.toPlainText());
+  }
+
+  @override
+  void dispose() {
+    _changesSub?.cancel();
+    _removeOverlay();
+    _focusNode.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // Markdown-as-you-type shortcuts for Quill
+  void _applyMarkdownShortcuts() {
+    final sel = _controller.selection;
+    if (!sel.isValid) return;
+    final caret = sel.baseOffset;
+    if (caret < 0) return;
+    final plain = _controller.document.toPlainText();
+    if (caret > plain.length) return;
+
+    final lineStart = plain.lastIndexOf('\n', caret - 1) + 1;
+    final upToCursorInLine = plain.substring(lineStart, caret);
+
+    // Headings
+    final h = RegExp(r'^(#{1,6})\s$').firstMatch(upToCursorInLine);
+    if (h != null) {
+      final level = h.group(1)!.length;
+        _applyLinePrefix(lineStart, h.group(0)!.length, caret, () {
+        switch (level) {
+          case 1:
+            _controller.formatSelection(Attribute.h1);
+            break;
+          case 2:
+            _controller.formatSelection(Attribute.h2);
+            break;
+          case 3:
+            _controller.formatSelection(Attribute.h3);
+            break;
+          default:
+            _controller.formatSelection(Attribute.h3);
+        }
+      });
+      return;
+    }
+
+    // UL
+    if (RegExp(r'^(?:- |\* )$').hasMatch(upToCursorInLine)) {
+        _applyLinePrefix(lineStart, 2, caret, () => _controller.formatSelection(Attribute.ul));
+      return;
+    }
+
+    // OL
+    if (RegExp(r'^\d+\. $').hasMatch(upToCursorInLine)) {
+        _applyLinePrefix(lineStart, upToCursorInLine.length, caret, () => _controller.formatSelection(Attribute.ol));
+      return;
+    }
+
+    // Blockquote
+    if (upToCursorInLine == '> ') {
+        _applyLinePrefix(lineStart, 2, caret, () => _controller.formatSelection(Attribute.blockQuote));
+      return;
+    }
+
+    // Code block fence
+    if (upToCursorInLine.endsWith('```')) {
+        _applyLinePrefix(lineStart + upToCursorInLine.length - 3, 3, caret, () => _controller.formatSelection(Attribute.codeBlock));
+      return;
+    }
+
+    // Horizontal rule
+    if (upToCursorInLine == '---') {
+      _applyHorizontalRule(lineStart);
+      return;
+    }
+
+    // LaTeX block: $$...$$ -> embed
+    if (upToCursorInLine.endsWith('$$')) {
+      final before = upToCursorInLine.substring(0, upToCursorInLine.length - 2);
+      final start = before.lastIndexOf('$$');
+      if (start != -1 && start < before.length) {
+        final latex = before.substring(start + 2);
+        final removeStart = lineStart + start;
+        final removeLen = upToCursorInLine.length - start;
+        _insertMathBlock(removeStart, removeLen, latex);
+        return;
+      }
+    }
+
+    // Wikilinks: detect [[query
+    final wikiMatch = RegExp(r'\[\[([^\]]*)$').firstMatch(upToCursorInLine);
+    if (wikiMatch != null && widget.fetchNoteSuggestions != null) {
+      _wikiQuery = wikiMatch.group(1) ?? '';
+      _showWikilinkOverlay();
+      return;
+    } else {
+      _hideWikilinkOverlay();
+    }
+  }
+
+  void _applyLinePrefix(int start, int length, int originalCaret, VoidCallback formatLine) {
+    _applyingShortcuts = true;
+    try {
+      final newCaret = (originalCaret - length).clamp(0, _controller.document.length);
+      _controller.replaceText(start, length, '', TextSelection.collapsed(offset: newCaret));
+      // Apply block formatting at the (adjusted) caret position
+      _controller.updateSelection(TextSelection.collapsed(offset: newCaret), ChangeSource.local);
+      formatLine();
+    } finally {
+      _applyingShortcuts = false;
+    }
+  }
+
+  void _applyHorizontalRule(int lineStart) {
+    _applyingShortcuts = true;
+    try {
+      _controller.replaceText(lineStart, 3, '', TextSelection.collapsed(offset: lineStart));
+      // Insert a visual separator line as fallback (no HR embed available)
+      _controller.replaceText(lineStart, 0, '————————————\n', TextSelection.collapsed(offset: lineStart + 1));
+    } finally {
+      _applyingShortcuts = false;
+    }
+  }
+
+  Future<void> _showWikilinkOverlay() async {
+    if (widget.fetchNoteSuggestions == null) return;
+    try {
+      final list = await widget.fetchNoteSuggestions!.call(_wikiQuery);
+      if (!mounted) return;
+      setState(() {
+        _wikiSuggestions = list;
+        _showWiki = true;
+      });
+    } catch (_) {
+      // ignore fetch errors silently for now
+    }
+  }
+
+  void _hideWikilinkOverlay() {
+    if (!mounted) return;
+    setState(() {
+      _showWiki = false;
+      _wikiSuggestions = const [];
+    });
+  }
+
+  void _removeOverlay() {
+    _overlay?.remove();
+    _overlay = null;
+  }
+
+  void _insertWikiLink(NoteSuggestion s) {
+    // Replace the current [[query with a linked text [[Title]] that you can later interpret
+    final sel = _controller.selection;
+    final caret = sel.baseOffset;
+    final plain = _controller.document.toPlainText();
+    final lineStart = plain.lastIndexOf('\n', caret - 1) + 1;
+    final upToCursorInLine = plain.substring(lineStart, caret);
+    final match = RegExp(r'\[\[([^\]]*)$').firstMatch(upToCursorInLine);
+    if (match == null) return;
+    final removeLen = match.group(0)!.length;
+    final start = caret - removeLen;
+    final display = s.title.isEmpty ? s.id : s.title;
+    final insertion = '[[$display]]';
+    _applyingShortcuts = true;
+    try {
+      _controller.replaceText(start, removeLen, insertion, TextSelection.collapsed(offset: start + insertion.length));
+      // Notify links changed (added)
+      widget.onLinksChanged?.call([s.id]);
+    } finally {
+      _applyingShortcuts = false;
+    }
+  }
+
+  void _insertMathBlock(int start, int length, String latex) {
+    _applyingShortcuts = true;
+    try {
+      // Remove the $$...$$ text
+      _controller.replaceText(start, length, '', TextSelection.collapsed(offset: start));
+      // Insert math embed followed by newline to behave like a block
+      final delta = Delta()
+        ..retain(start)
+        ..insert({'math': latex})
+        ..insert('\n');
+      _controller.compose(delta, TextSelection.collapsed(offset: start + 1), ChangeSource.local);
+    } finally {
+      _applyingShortcuts = false;
+    }
   }
 
   @override
@@ -126,8 +339,41 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
               color: _darkTheme ? Colors.grey[900] : Theme.of(context).colorScheme.surface,
             ),
             padding: const EdgeInsets.all(16.0),
-            child: QuillEditor.basic(
-              controller: _controller,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: QuillEditor(
+                    controller: _controller,
+                    scrollController: _scrollController,
+                    scrollable: true,
+                    focusNode: _focusNode,
+                    autoFocus: true,
+                    readOnly: false,
+                    expands: true,
+                    padding: EdgeInsets.zero,
+                    embedBuilders: [
+                      _MathEmbedBuilder(),
+                    ],
+                  ),
+                ),
+                if (_showWiki && _wikiSuggestions.isNotEmpty)
+                  Positioned(
+                    left: 8,
+                    top: 8,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: NoteAutocompleteOverlay(
+                        query: _wikiQuery,
+                        suggestions: _wikiSuggestions,
+                        onSelect: (s) {
+                          _insertWikiLink(s);
+                          _hideWikilinkOverlay();
+                        },
+                        onDismiss: _hideWikilinkOverlay,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -536,7 +782,45 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
               ),
             ],
           ),
-          body: QuillEditor.basic(controller: _controller),
+          body: QuillEditor(
+            controller: _controller,
+            scrollController: ScrollController(),
+            scrollable: true,
+            focusNode: FocusNode(),
+            autoFocus: true,
+            readOnly: false,
+            expands: true,
+            padding: EdgeInsets.zero,
+            embedBuilders: [
+              _MathEmbedBuilder(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MathEmbedBuilder implements EmbedBuilder {
+  @override
+  String get key => 'math';
+
+  @override
+  Widget build(BuildContext context, QuillController controller, Embed node, bool readOnly, bool inline, TextStyle? style) {
+    final data = node.value.data;
+    final latex = data is String ? data : (data?['math']?.toString() ?? '');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Math.tex(
+          latex,
+          textStyle: (style ?? DefaultTextStyle.of(context).style).copyWith(fontSize: 16),
         ),
       ),
     );

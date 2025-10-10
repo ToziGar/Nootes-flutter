@@ -15,6 +15,9 @@ class MarkdownEditorWithLinks extends StatefulWidget {
     this.onNoteOpen,
     this.minLines = 18,
     this.splitEnabled = true,
+    this.forceSplit = false,
+    this.showSplitToggle = true,
+    this.previewTitle,
   });
 
   final TextEditingController controller;
@@ -24,6 +27,9 @@ class MarkdownEditorWithLinks extends StatefulWidget {
   final void Function(String noteId)? onNoteOpen; // Callback para abrir nota
   final int minLines;
   final bool splitEnabled;
+  final bool forceSplit;
+  final bool showSplitToggle;
+  final String? previewTitle;
 
   @override
   State<MarkdownEditorWithLinks> createState() => _MarkdownEditorWithLinksState();
@@ -214,6 +220,9 @@ class _MarkdownEditorWithLinksState extends State<MarkdownEditorWithLinks> {
       onChanged: widget.onChanged,
       minLines: widget.minLines,
       splitEnabled: widget.splitEnabled,
+      forceSplit: widget.forceSplit,
+      showSplitToggle: widget.showSplitToggle,
+      previewTitle: widget.previewTitle,
       wikiIndex: wikiIndex,
       onOpenNote: widget.onNoteOpen,
     );
