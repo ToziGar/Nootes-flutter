@@ -13,6 +13,7 @@ enum NotificationType {
   shareRevoked,
   shareReminder,
   shareExpiring,
+  shareLeft,
 }
 
 /// Servicio para manejar notificaciones y recordatorios de notas
@@ -158,7 +159,7 @@ class NotificationService {
   void _showNotification(NotificationItem notification) {
     // En una app web, podríamos usar la API de notificaciones del navegador
     // Por ahora, mostraremos un SnackBar
-    print('🔔 Notificación: ${notification.message}');
+  debugPrint('🔔 Notificación: ${notification.message}');
     
     // TODO: Implementar notificaciones nativas del navegador
     // if (kIsWeb) {
@@ -342,6 +343,28 @@ class NotificationService {
     );
   }
 
+  /// Receptor salió de la compartición
+  Future<void> notifyShareLeft({
+    required String ownerId,
+    required String recipientName,
+    required String recipientEmail,
+    required String itemTitle,
+    required String shareId,
+  }) async {
+    await createShareNotification(
+      userId: ownerId,
+      type: NotificationType.shareLeft,
+      title: '👋 Acceso abandonado',
+      message: '$recipientName ($recipientEmail) se salió de la compartición de "$itemTitle"',
+      metadata: {
+        'recipientName': recipientName,
+        'recipientEmail': recipientEmail,
+        'itemTitle': itemTitle,
+      },
+      shareId: shareId,
+    );
+  }
+
   /// Recordatorio de comparticiones pendientes
   Future<void> notifyPendingReminder({
     required String recipientId,
@@ -416,7 +439,7 @@ class NotificationService {
 
       await batch.commit();
     } catch (e) {
-      print('Error marking all notifications as read: $e');
+      debugPrint('Error marking all notifications as read: $e');
     }
   }
 
@@ -457,6 +480,9 @@ class NotificationService {
         break;
       case NotificationType.shareExpiring:
         ToastService.warning('$title\n$message');
+        break;
+      case NotificationType.shareLeft:
+        ToastService.info('$title\n$message');
         break;
       case NotificationType.reminder:
         // Para recordatorios normales
@@ -514,6 +540,8 @@ class NotificationItem {
         return Icons.schedule_rounded;
       case NotificationType.shareExpiring:
         return Icons.warning_rounded;
+      case NotificationType.shareLeft:
+        return Icons.logout_rounded;
     }
   }
 
@@ -533,6 +561,8 @@ class NotificationItem {
         return Colors.amber;
       case NotificationType.shareExpiring:
         return Colors.deepOrange;
+      case NotificationType.shareLeft:
+        return Colors.grey;
     }
   }
 }

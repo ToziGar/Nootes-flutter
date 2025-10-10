@@ -113,7 +113,7 @@ class SyntaxHighlightService {
         final content = match.group(2)!;
         
         spans.add(TextSpan(
-          text: match.group(1)! + ' ',
+          text: '${match.group(1)!} ',
           style: theme.markdown.header.copyWith(
             fontSize: theme.markdown.header.fontSize! * (1.5 - (level * 0.1)),
             fontWeight: FontWeight.bold,
@@ -286,11 +286,12 @@ class SyntaxHighlightService {
     ];
     
     // Find all keyword matches
-    final keywordPattern = RegExp(r'\b(' + keywords.join('|') + r')\b');
+    final keywordAlternation = keywords.join('|');
+    final keywordPattern = RegExp('\\b($keywordAlternation)\\b');
     final keywordMatches = keywordPattern.allMatches(line).toList();
     
     // Find string matches
-    final stringPattern = RegExp(r'"[^"]*"|' + r"'[^']*'");
+  final stringPattern = RegExp("\"[^\"]*\"|'[^']*'");
     final stringMatches = stringPattern.allMatches(line).toList();
     
     // Find comment matches

@@ -142,9 +142,9 @@ class _ShareDialogState extends State<ShareDialog> {
           ? null
           : _messageController.text.trim();
 
-      print('📤 Iniciando compartir: ${widget.itemType.name} ${widget.itemId}');
-      print('👤 Destinatario: $recipientIdentifier');
-      print('🔐 Permisos: ${_selectedPermission.name}');
+  debugPrint('📤 Iniciando compartir: ${widget.itemType.name} ${widget.itemId}');
+  debugPrint('👤 Destinatario: $recipientIdentifier');
+  debugPrint('🔐 Permisos: ${_selectedPermission.name}');
 
       if (widget.itemType == SharedItemType.note) {
         await sharingService.shareNote(
@@ -167,7 +167,7 @@ class _ShareDialogState extends State<ShareDialog> {
         ToastService.success('${widget.itemType == SharedItemType.note ? 'Nota' : 'Carpeta'} compartida exitosamente');
       }
     } catch (e) {
-      print('❌ Error al compartir: $e');
+  debugPrint('❌ Error al compartir: $e');
       
       // Analizar el tipo de error específico
       final errorMsg = e.toString().toLowerCase();

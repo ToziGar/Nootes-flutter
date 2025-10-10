@@ -40,7 +40,7 @@ class SmartIndentationService {
     final beforeCursor = text.substring(0, cursorPosition);
     final afterCursor = text.substring(cursorPosition);
     
-    final newText = beforeCursor + '\n' + newIndent + afterCursor;
+    final newText = '$beforeCursor\n$newIndent$afterCursor';
     final newCursorPosition = cursorPosition + 1 + newIndent.length;
     
     _controller!.text = newText;
@@ -156,8 +156,8 @@ class SmartIndentationService {
     // Aumentar indentación para bloques if, for, while, etc.
     final blockKeywords = ['if', 'for', 'while', 'function', 'def', 'class'];
     for (final keyword in blockKeywords) {
-      if (trimmedLine.startsWith(keyword + ' ') || 
-          trimmedLine.startsWith(keyword + '(')) {
+      if (trimmedLine.startsWith('$keyword ') || 
+          trimmedLine.startsWith('$keyword(')) {
         newIndent += _config.indentString;
         break;
       }
@@ -413,7 +413,7 @@ class SmartIndentationService {
     if (_controller == null) return;
 
     final text = _controller!.text;
-    final pattern = RegExp(r'^( {' + _config.tabSize.toString() + r'})+', multiLine: true);
+  final pattern = RegExp(r'^( {${_config.tabSize}})+', multiLine: true);
     
     final newText = text.replaceAllMapped(pattern, (match) {
       final spaces = match.group(0) ?? '';

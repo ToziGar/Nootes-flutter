@@ -114,37 +114,18 @@ class FoldersPanel extends StatelessWidget {
           onTap: () => onFolderSelected(null),
         ),
 
-        // Shared sections
+        // Shared unified entry: Navigates to dedicated shared workspace
         const SizedBox(height: AppColors.space8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppColors.space8),
-          child: Text(
-            'Compartidas',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textMuted,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppColors.space4),
         _buildVirtualTile(
           context: context,
-          id: '__SHARED_WITH_ME__',
-          name: 'Conmigo',
-          icon: Icons.inbox_rounded,
+          id: '__SHARED_CENTER__',
+          name: 'Compartidas',
+          icon: Icons.group_rounded,
           color: AppColors.info,
-          isSelected: selectedFolderId == '__SHARED_WITH_ME__',
-          onTap: () => onFolderSelected('__SHARED_WITH_ME__'),
-        ),
-        _buildVirtualTile(
-          context: context,
-          id: '__SHARED_BY_ME__',
-          name: 'Por mí',
-          icon: Icons.send_rounded,
-          color: AppColors.secondary,
-          isSelected: selectedFolderId == '__SHARED_BY_ME__',
-          onTap: () => onFolderSelected('__SHARED_BY_ME__'),
+          isSelected: selectedFolderId == '__SHARED_CENTER__',
+          onTap: () {
+            Navigator.of(context).pushNamed('/shared-notes');
+          },
         ),
         
         const Divider(color: AppColors.borderColor, height: 1),

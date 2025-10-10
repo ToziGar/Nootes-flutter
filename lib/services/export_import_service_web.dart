@@ -1,6 +1,5 @@
-/// Implementación web de export/import usando dart:html (legacy)
-/// TODO: Migrar a package:web cuando sea necesario
-// ignore: deprecated_member_use
+// ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter
+// Implementación web de export/import usando dart:html (legacy). Migrar a package:web cuando sea necesario.
 import 'dart:html' as html;
 
 class PlatformExportImport {

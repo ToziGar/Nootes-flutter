@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
@@ -12,6 +13,7 @@ enum SharingStatus {
   accepted,  // Aceptada por el receptor
   rejected,  // Rechazada por el receptor
   revoked,   // Revocada por el propietario
+  left,      // El receptor se salió voluntariamente
 }
 
 /// Tipos de elementos que se pueden compartir
@@ -229,14 +231,14 @@ class SharingService {
   /// Verifica si un usuario existe por email
   Future<Map<String, dynamic>?> findUserByEmail(String email) async {
     try {
-      print('🔍 SharingService.findUserByEmail: Buscando $email');
+      debugPrint('🔍 SharingService.findUserByEmail: Buscando $email');
       final snapshot = await _firestore
           .collection('users')
           .where('email', isEqualTo: email.trim().toLowerCase())
           .limit(1)
           .get();
 
-      print('📊 SharingService.findUserByEmail: ${snapshot.docs.length} resultados');
+      debugPrint('📊 SharingService.findUserByEmail: ${snapshot.docs.length} resultados');
       if (snapshot.docs.isEmpty) return null;
 
       final doc = snapshot.docs.first;
@@ -246,10 +248,10 @@ class SharingService {
         'fullName': doc.data()['fullName'],
         'username': doc.data()['username'],
       };
-      print('✅ SharingService.findUserByEmail: Usuario encontrado - ${result['email']}');
+      debugPrint('✅ SharingService.findUserByEmail: Usuario encontrado - ${result['email']}');
       return result;
     } catch (e) {
-      print('❌ SharingService.findUserByEmail: Error - $e');
+      debugPrint('❌ SharingService.findUserByEmail: Error - $e');
       if (e.toString().contains('PERMISSION_DENIED') || e.toString().contains('permission-denied')) {
         throw Exception('Sin permisos para buscar usuarios. Verifica las reglas de Firestore.');
       }
@@ -260,15 +262,15 @@ class SharingService {
   /// Verifica si un usuario existe por username
   Future<Map<String, dynamic>?> findUserByUsername(String username) async {
     try {
-      print('🔍 SharingService.findUserByUsername: Buscando @$username');
+      debugPrint('🔍 SharingService.findUserByUsername: Buscando @$username');
       final handle = await FirestoreService.instance.getHandle(username: username.trim().toLowerCase());
       if (handle == null) {
-        print('📊 SharingService.findUserByUsername: Handle no encontrado');
+        debugPrint('📊 SharingService.findUserByUsername: Handle no encontrado');
         return null;
       }
 
       final uid = handle['uid'];
-      print('📊 SharingService.findUserByUsername: Handle encontrado, UID: $uid');
+      debugPrint('📊 SharingService.findUserByUsername: Handle encontrado, UID: $uid');
       final userProfile = await FirestoreService.instance.getUserProfile(uid: uid);
       
       final result = userProfile != null ? {
@@ -279,14 +281,14 @@ class SharingService {
       } : null;
       
       if (result != null) {
-        print('✅ SharingService.findUserByUsername: Usuario encontrado - @${result['username']}');
+        debugPrint('✅ SharingService.findUserByUsername: Usuario encontrado - @${result['username']}');
       } else {
-        print('📊 SharingService.findUserByUsername: Perfil no encontrado');
+        debugPrint('📊 SharingService.findUserByUsername: Perfil no encontrado');
       }
       
       return result;
     } catch (e) {
-      print('❌ SharingService.findUserByUsername: Error - $e');
+      debugPrint('❌ SharingService.findUserByUsername: Error - $e');
       if (e.toString().contains('PERMISSION_DENIED') || e.toString().contains('permission-denied')) {
         throw Exception('Sin permisos para buscar usuarios. Verifica las reglas de Firestore.');
       }
@@ -302,29 +304,29 @@ class SharingService {
     String? message,
     DateTime? expiresAt,
   }) async {
-    print('🔄 SharingService.shareNote iniciado');
-    print('📝 noteId: $noteId');
-    print('👤 recipientIdentifier: $recipientIdentifier');
+    debugPrint('🔄 SharingService.shareNote iniciado');
+    debugPrint('📝 noteId: $noteId');
+    debugPrint('👤 recipientIdentifier: $recipientIdentifier');
     
     final currentUser = _authService.currentUser;
     if (currentUser == null) {
-      print('❌ Usuario no autenticado');
+      debugPrint('❌ Usuario no autenticado');
       throw Exception('No has iniciado sesión. Por favor, inicia sesión e intenta de nuevo.');
     }
     
-    print('✅ Usuario actual: ${currentUser.uid}');
+    debugPrint('✅ Usuario actual: ${currentUser.uid}');
 
     // Verificar token de autenticación
     try {
       await _authService.getIdToken();
-      print('✅ Token de autenticación válido');
+      debugPrint('✅ Token de autenticación válido');
     } catch (e) {
-      print('❌ Error de autenticación: $e');
+      debugPrint('❌ Error de autenticación: $e');
       throw Exception('Tu sesión ha expirado. Por favor, cierra sesión e inicia sesión nuevamente.');
     }
 
     // Buscar usuario destinatario
-    print('🔍 Buscando destinatario...');
+    debugPrint('🔍 Buscando destinatario...');
     Map<String, dynamic>? recipient;
     try {
       if (recipientIdentifier.contains('@')) {
@@ -333,24 +335,24 @@ class SharingService {
         recipient = await findUserByUsername(recipientIdentifier);
       }
     } catch (e) {
-      print('❌ Error buscando destinatario: $e');
+      debugPrint('❌ Error buscando destinatario: $e');
       throw Exception('Error buscando destinatario: $e');
     }
 
     if (recipient == null) {
-      print('❌ Usuario destinatario no encontrado');
+      debugPrint('❌ Usuario destinatario no encontrado');
       throw Exception('Usuario no encontrado');
     }
     
-    print('✅ Destinatario encontrado: ${recipient['uid']}');
+    debugPrint('✅ Destinatario encontrado: ${recipient['uid']}');
 
     if (recipient['uid'] == currentUser.uid) {
-      print('❌ Intento de compartir consigo mismo');
+      debugPrint('❌ Intento de compartir consigo mismo');
       throw Exception('No puedes compartir contigo mismo');
     }
 
     // Verificar que la nota existe y pertenece al usuario actual
-    print('🔍 Verificando nota...');
+    debugPrint('🔍 Verificando nota...');
     Map<String, dynamic>? note;
     try {
       // Primero intentar obtener la nota
@@ -360,11 +362,11 @@ class SharingService {
       );
       
       if (note == null) {
-        print('❌ Nota no encontrada');
+        debugPrint('❌ Nota no encontrada');
         throw Exception('La nota no existe o ha sido eliminada');
       }
     } catch (e) {
-      print('❌ Error accediendo a la nota: $e');
+      debugPrint('❌ Error accediendo a la nota: $e');
       
       final errorStr = e.toString().toLowerCase();
       if (errorStr.contains('permission') || errorStr.contains('denied') || 
@@ -381,10 +383,10 @@ class SharingService {
       }
     }
     
-    print('✅ Nota verificada: ${note['title'] ?? 'Sin título'}');
+    debugPrint('✅ Nota verificada: ${note['title'] ?? 'Sin título'}');
 
     // Verificar si ya existe una compartición (usando ID determinístico)
-    print('🔍 Verificando comparticiones existentes...');
+    debugPrint('🔍 Verificando comparticiones existentes...');
     final shareId = '${recipient['uid']}_${currentUser.uid}_$noteId';
     try {
       final existingDoc = await _firestore.collection('shared_items').doc(shareId).get();
@@ -393,7 +395,7 @@ class SharingService {
         final existingStatus = (data['status'] as String?) ?? 'pending';
         // Si estaba revocada o rechazada, permitimos reactivar/actualizar
         if (existingStatus == SharingStatus.revoked.name || existingStatus == SharingStatus.rejected.name) {
-          print('♻️ Reactivando compartición existente ($existingStatus)');
+          debugPrint('♻️ Reactivando compartición existente ($existingStatus)');
           await _firestore.collection('shared_items').doc(shareId).update({
             'permission': permission.name,
             'status': SharingStatus.pending.name,
@@ -408,12 +410,12 @@ class SharingService {
           return shareId;
         }
         if (existingStatus == SharingStatus.pending.name || existingStatus == SharingStatus.accepted.name) {
-          print('❌ Nota ya compartida con este usuario (estado: $existingStatus)');
+          debugPrint('❌ Nota ya compartida con este usuario (estado: $existingStatus)');
           throw Exception('Esta nota ya está compartida con este usuario');
         }
       }
     } catch (e) {
-      print('❌ Error verificando compartición existente: $e');
+      debugPrint('❌ Error verificando compartición existente: $e');
       final errorStr = e.toString().toLowerCase();
       if (errorStr.contains('permission') || errorStr.contains('denied') || 
           errorStr.contains('unauthorized') || errorStr.contains('403')) {
@@ -425,22 +427,22 @@ class SharingService {
       }
     }
     
-    print('✅ No hay comparticiones duplicadas');
+    debugPrint('✅ No hay comparticiones duplicadas');
 
     // Obtener perfil del propietario
-    print('🔍 Obteniendo perfil del propietario...');
+    debugPrint('🔍 Obteniendo perfil del propietario...');
     Map<String, dynamic>? ownerProfile;
     try {
       ownerProfile = await FirestoreService.instance.getUserProfile(uid: currentUser.uid);
     } catch (e) {
-      print('❌ Error obteniendo perfil: $e');
+      debugPrint('❌ Error obteniendo perfil: $e');
       throw Exception('Error obteniendo perfil del usuario: $e');
     }
     
-    print('✅ Perfil obtenido');
+    debugPrint('✅ Perfil obtenido');
 
     // Crear compartición
-    print('📝 Creando compartición...');
+    debugPrint('📝 Creando compartición...');
     try {
       final sharedItem = SharedItem(
         id: '',
@@ -461,9 +463,9 @@ class SharingService {
         },
       );
 
-    final docRef = _firestore.collection('shared_items').doc(shareId);
-    await docRef.set(sharedItem.toMap());
-    print('✅ Compartición creada exitosamente: ${docRef.id}');
+  final docRef = _firestore.collection('shared_items').doc(shareId);
+  await docRef.set(sharedItem.toMap());
+  debugPrint('✅ Compartición creada exitosamente: ${docRef.id}');
 
       // Enviar notificación al destinatario (no bloquear si falla)
       try {
@@ -477,12 +479,12 @@ class SharingService {
           itemType: SharedItemType.note,
         );
       } catch (e) {
-        print('⚠️ No se pudo crear la notificación de compartición: $e');
+        debugPrint('⚠️ No se pudo crear la notificación de compartición: $e');
       }
       
       return docRef.id;
     } catch (e) {
-      print('❌ Error creando documento de compartición: $e');
+      debugPrint('❌ Error creando documento de compartición: $e');
       throw Exception('Error creando compartición: $e');
     }
   }
@@ -572,7 +574,7 @@ class SharingService {
         itemType: SharedItemType.folder,
       );
     } catch (e) {
-      print('⚠️ No se pudo crear la notificación de compartición (carpeta): $e');
+      debugPrint('⚠️ No se pudo crear la notificación de compartición (carpeta): $e');
     }
 
     return docRef.id;
@@ -756,6 +758,42 @@ class SharingService {
       itemTitle: itemTitle,
       shareId: sharingId,
     );
+  }
+
+  /// El receptor se sale de una compartición (deja de verla)
+  Future<void> leaveSharing(String sharingId) async {
+    // Obtener información de la compartición antes de actualizarla
+    final shareDoc = await _firestore.collection('shared_items').doc(sharingId).get();
+    if (!shareDoc.exists) return;
+    final data = shareDoc.data()!;
+    final ownerId = data['ownerId'] as String;
+    final recipientId = data['recipientId'] as String;
+
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) return;
+    if (currentUser.uid != recipientId) {
+      throw Exception('Solo el receptor puede salir de la compartición');
+    }
+
+    await _firestore.collection('shared_items').doc(sharingId).update({
+      'status': SharingStatus.left.name,
+      'updatedAt': fs.FieldValue.serverTimestamp(),
+    });
+
+    // Notificar al propietario (no bloquear si falla)
+    try {
+      final notificationService = NotificationService();
+      final itemTitle = data['metadata']?['noteTitle'] ?? data['metadata']?['folderName'] ?? 'Sin título';
+      await notificationService.notifyShareLeft(
+        ownerId: ownerId,
+        recipientName: currentUser.email?.split('@').first ?? 'Usuario',
+        recipientEmail: currentUser.email ?? '',
+        itemTitle: itemTitle,
+        shareId: sharingId,
+      );
+    } catch (e) {
+      // Ignorar errores de notificación
+    }
   }
 
   /// Revoca una compartición (por el propietario)

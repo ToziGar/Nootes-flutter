@@ -1040,23 +1040,41 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
             ),
           ),
           const SizedBox(height: 16),
-          ...PermissionLevel.values.map((level) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: Radio<PermissionLevel>(
-                  value: level,
-                  groupValue: _selectedPermission,
-                  onChanged: (value) => setState(() => _selectedPermission = value!),
-                ),
-                title: Text(_getPermissionTitle(level)),
-                subtitle: Text(_getPermissionDescription(level)),
-              ),
-            );
-          }),
+          SegmentedButton<PermissionLevel>(
+            segments: PermissionLevel.values.map((level) {
+              return ButtonSegment<PermissionLevel>(
+                value: level,
+                label: Text(_getPermissionTitle(level)),
+                icon: Icon(_iconForPermission(level)),
+              );
+            }).toList(),
+            selected: {_selectedPermission},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) {
+              if (selection.isNotEmpty) {
+                setState(() => _selectedPermission = selection.first);
+              }
+            },
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _getPermissionDescription(_selectedPermission),
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
         ],
       ),
     );
+  }
+
+  IconData _iconForPermission(PermissionLevel level) {
+    switch (level) {
+      case PermissionLevel.read:
+        return Icons.visibility;
+      case PermissionLevel.comment:
+        return Icons.mode_comment;
+      case PermissionLevel.edit:
+        return Icons.edit;
+    }
   }
 
   Widget _buildMessageField() {

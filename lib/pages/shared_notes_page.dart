@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../services/sharing_service.dart';
 import '../services/toast_service.dart';
 import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
+import '../widgets/share_dialog.dart';
 
 /// Tipos de actividad en el log
 enum ActivityType {
@@ -156,10 +159,13 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
   DateTime? _dateFrom;
   DateTime? _dateTo;
   Map<String, int> _stats = {};
+  // Agrupación en la pestaña "Recibidas"
+  bool _groupByOwner = false;
+  bool _groupByOwnerFolder = false;
 
   // Selección múltiple
   bool _isMultiSelectMode = false;
-  Set<String> _selectedItems = {};
+  final Set<String> _selectedItems = {};
 
   // Controladores
   final _searchController = TextEditingController();
@@ -198,7 +204,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     if (mounted) setState(() => _isLoading = true);
     
     try {
-      print('📊 SharedNotesPage: Iniciando carga de datos...');
+  debugPrint('📊 SharedNotesPage: Iniciando carga de datos...');
       final sharingService = SharingService();
       
       final results = await Future.wait([
@@ -223,7 +229,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       sharedByMe = _applyAdvancedFilters(sharedByMe, true);
       sharedWithMe = _applyAdvancedFilters(sharedWithMe, false);
       
-      print('📊 SharedNotesPage: Cargadas ${sharedByMe.length} enviadas, ${sharedWithMe.length} recibidas');
+  debugPrint('📊 SharedNotesPage: Cargadas ${sharedByMe.length} enviadas, ${sharedWithMe.length} recibidas');
       
       if (mounted) {
         setState(() {
@@ -233,7 +239,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         });
       }
     } catch (e) {
-      print('❌ SharedNotesPage: Error cargando datos - $e');
+  debugPrint('❌ SharedNotesPage: Error cargando datos - $e');
       if (mounted) {
         ToastService.error('Error cargando datos: $e');
       }
@@ -536,6 +542,14 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                   dense: true,
                 ),
               ),
+              const PopupMenuItem(
+                value: 'salir',
+                child: ListTile(
+                  leading: Icon(Icons.logout_rounded, color: Colors.orange),
+                  title: Text('Salir'),
+                  dense: true,
+                ),
+              ),
             ],
           ],
         ),
@@ -752,13 +766,205 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     return RefreshIndicator(
       onRefresh: _loadData,
       color: AppColors.primary,
-      child: ListView.builder(
+      child: ListView(
         padding: const EdgeInsets.all(20),
-        itemCount: _sharedWithMe.length,
-        itemBuilder: (context, index) {
-          final item = _sharedWithMe[index];
-          return _buildSharedItemCard(item, false);
-        },
+        children: [
+          _buildGroupingControls(),
+          const SizedBox(height: 12),
+          if (!_groupByOwner && !_groupByOwnerFolder)
+            ..._sharedWithMe.map((item) => _buildSharedItemCard(item, false))
+          else if (_groupByOwnerFolder)
+            ..._buildGroupedByOwnerSections(_sharedWithMe, byFolder: true)
+          else
+            ..._buildGroupedByOwnerSections(_sharedWithMe),
+        ],
+      ),
+    );
+  }
+
+  /// Controles para agrupar la lista de "Recibidas"
+  Widget _buildGroupingControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderColor),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.group_rounded, color: AppColors.textSecondary, size: 18),
+          const SizedBox(width: 8),
+          Text('Agrupar', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+          const Spacer(),
+          ChoiceChip(
+            label: const Text('Todos'),
+            selected: !_groupByOwner && !_groupByOwnerFolder,
+            onSelected: (v) {
+              if (v && (_groupByOwner || _groupByOwnerFolder)) {
+                setState(() {
+                  _groupByOwner = false;
+                  _groupByOwnerFolder = false;
+                });
+              }
+            },
+            selectedColor: AppColors.primary.withValues(alpha: 0.15),
+            labelStyle: TextStyle(color: (!_groupByOwner && !_groupByOwnerFolder) ? AppColors.primary : AppColors.textSecondary),
+            shape: StadiumBorder(side: BorderSide(color: (!_groupByOwner && !_groupByOwnerFolder) ? AppColors.primary : AppColors.borderColor)),
+            backgroundColor: AppColors.surfaceLight,
+          ),
+          const SizedBox(width: 8),
+          ChoiceChip(
+            label: const Text('Por propietario'),
+            selected: _groupByOwner,
+            onSelected: (v) {
+              if (v) {
+                setState(() {
+                  _groupByOwner = true;
+                  _groupByOwnerFolder = false;
+                });
+              }
+            },
+            selectedColor: AppColors.primary.withValues(alpha: 0.15),
+            labelStyle: TextStyle(color: _groupByOwner ? AppColors.primary : AppColors.textSecondary),
+            shape: StadiumBorder(side: BorderSide(color: _groupByOwner ? AppColors.primary : AppColors.borderColor)),
+            backgroundColor: AppColors.surfaceLight,
+          ),
+          const SizedBox(width: 8),
+          ChoiceChip(
+            label: const Text('Propietario > Carpeta'),
+            selected: _groupByOwnerFolder,
+            onSelected: (v) {
+              if (v) {
+                setState(() {
+                  _groupByOwner = false;
+                  _groupByOwnerFolder = true;
+                });
+              }
+            },
+            selectedColor: AppColors.primary.withValues(alpha: 0.15),
+            labelStyle: TextStyle(color: _groupByOwnerFolder ? AppColors.primary : AppColors.textSecondary),
+            shape: StadiumBorder(side: BorderSide(color: _groupByOwnerFolder ? AppColors.primary : AppColors.borderColor)),
+            backgroundColor: AppColors.surfaceLight,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Crea secciones agrupadas por propietario
+  List<Widget> _buildGroupedByOwnerSections(List<SharedItem> items, {bool byFolder = false}) {
+    final Map<String, List<SharedItem>> byOwner = {};
+    for (final it in items) {
+      final key = it.ownerEmail.isNotEmpty ? it.ownerEmail : it.ownerId;
+      byOwner.putIfAbsent(key, () => []).add(it);
+    }
+
+    final owners = byOwner.keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final List<Widget> sections = [];
+
+    for (final owner in owners) {
+      final list = byOwner[owner]!;
+      sections.add(_buildOwnerHeader(owner, list.length));
+      sections.add(const SizedBox(height: 8));
+      if (!byFolder) {
+        sections.addAll(list.map((item) => _buildSharedItemCard(item, false)));
+      } else {
+        // Agrupar por carpeta del propietario (usamos metadata['folderName'] si existe)
+        final Map<String, List<SharedItem>> byFolderMap = {};
+        for (final it in list) {
+          final folder = (it.metadata?['folderName'] as String?)?.trim();
+          final key = (folder == null || folder.isEmpty) ? 'Sin carpeta' : folder;
+          byFolderMap.putIfAbsent(key, () => []).add(it);
+        }
+        final folders = byFolderMap.keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        for (final folder in folders) {
+          final flist = byFolderMap[folder]!;
+          sections.add(_buildFolderHeader(folder, flist.length));
+          sections.add(const SizedBox(height: 6));
+          sections.addAll(flist.map((item) => _buildSharedItemCard(item, false)));
+          sections.add(const SizedBox(height: 12));
+        }
+      }
+      sections.add(const SizedBox(height: 16));
+    }
+
+    return sections;
+  }
+
+  Widget _buildFolderHeader(String folder, int count) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      margin: const EdgeInsets.only(left: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.borderColor),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.folder_rounded, color: AppColors.secondary, size: 16),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              folder,
+              style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.borderColor),
+            ),
+            child: Text('$count', style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOwnerHeader(String owner, int count) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.textPrimary.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderColor),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 14,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+            child: Text(
+              owner.substring(0, 1).toUpperCase(),
+              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 12),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              owner,
+              style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.borderColor),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 12),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1158,12 +1364,15 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     if (isSentByMe) {
       return item.status == SharingStatus.pending || item.status == SharingStatus.accepted;
     } else {
-      return item.status == SharingStatus.pending;
+      // Para receptores, mostrar acciones cuando esté pendiente (aceptar/rechazar)
+      // o aceptada (permitir "Salir").
+      return item.status == SharingStatus.pending || item.status == SharingStatus.accepted;
     }
   }
 
   Widget _buildActionButtons(SharedItem item, bool isSentByMe) {
     if (isSentByMe) {
+      // El propietario puede revocar tanto si está pendiente como aceptada
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -1181,40 +1390,70 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
           ),
         ],
       );
-    } else {
-      if (item.status == SharingStatus.pending) {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            OutlinedButton.icon(
-              onPressed: () => _rejectSharing(item),
-              icon: const Icon(Icons.close_rounded, size: 16),
-              label: const Text('Rechazar'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.danger,
-                side: BorderSide(color: AppColors.danger),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton.icon(
-              onPressed: () => _acceptSharing(item),
-              icon: const Icon(Icons.check_rounded, size: 16),
-              label: const Text('Aceptar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                foregroundColor: AppColors.textPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        );
-      }
     }
+
+    // Receptor
+    if (item.status == SharingStatus.pending) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          OutlinedButton.icon(
+            onPressed: () => _rejectSharing(item),
+            icon: const Icon(Icons.close_rounded, size: 16),
+            label: const Text('Rechazar'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.danger,
+              side: BorderSide(color: AppColors.danger),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: () => _acceptSharing(item),
+            icon: const Icon(Icons.check_rounded, size: 16),
+            label: const Text('Aceptar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              foregroundColor: AppColors.textPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (item.status == SharingStatus.accepted) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          OutlinedButton.icon(
+            onPressed: () async {
+              try {
+                await SharingService().leaveSharing(item.id);
+                ToastService.info('Has salido de la compartición');
+                _loadData();
+              } catch (e) {
+                ToastService.error('No se pudo salir: $e');
+              }
+            },
+            icon: const Icon(Icons.logout_rounded, size: 16),
+            label: const Text('Salir'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              side: BorderSide(color: AppColors.borderColor),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return const SizedBox.shrink();
   }
 
@@ -1227,6 +1466,8 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       case SharingStatus.rejected:
         return AppColors.danger;
       case SharingStatus.revoked:
+        return AppColors.textSecondary;
+      case SharingStatus.left:
         return AppColors.textSecondary;
     }
   }
@@ -1241,6 +1482,8 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         return 'Rechazada';
       case SharingStatus.revoked:
         return 'Revocada';
+      case SharingStatus.left:
+        return 'Abandonada';
     }
   }
 
@@ -1254,6 +1497,8 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         return Icons.cancel_rounded;
       case SharingStatus.revoked:
         return Icons.block_rounded;
+      case SharingStatus.left:
+        return Icons.logout_rounded;
     }
   }
 
@@ -1329,6 +1574,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               break;
             case 'rechazar':
               await sharingService.rejectSharing(itemId);
+              break;
+            case 'salir':
+              await sharingService.leaveSharing(itemId);
               break;
           }
           successful++;
@@ -1524,6 +1772,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                           chip<SharingStatus?>(label: 'Aceptada', value: SharingStatus.accepted, groupValue: tempStatus, onSelected: (v) { setModalState(() { tempStatus = v; }); }),
                           chip<SharingStatus?>(label: 'Rechazada', value: SharingStatus.rejected, groupValue: tempStatus, onSelected: (v) { setModalState(() { tempStatus = v; }); }),
                           chip<SharingStatus?>(label: 'Revocada', value: SharingStatus.revoked, groupValue: tempStatus, onSelected: (v) { setModalState(() { tempStatus = v; }); }),
+                          chip<SharingStatus?>(label: 'Abandonada', value: SharingStatus.left, groupValue: tempStatus, onSelected: (v) { setModalState(() { tempStatus = v; }); }),
                         ],
                       ),
 
@@ -1653,10 +1902,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
 
   Widget _buildQuickShareFAB() {
     return FloatingActionButton.extended(
-      onPressed: () {
-        // TODO: Implement quick share dialog
-        ToastService.info('Compartir rápido - Funcionalidad en desarrollo');
-      },
+      onPressed: _openQuickShare,
       backgroundColor: AppColors.primary,
       foregroundColor: AppColors.textPrimary,
       elevation: 8,
@@ -1667,6 +1913,200 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         style: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 16,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openQuickShare() async {
+    try {
+      final user = AuthService.instance.currentUser;
+      if (user == null) {
+        ToastService.error('Debes iniciar sesión para compartir');
+        return;
+      }
+
+      // Load minimal lists for picker
+      final notesFuture = FirestoreService.instance.listNotesSummary(uid: user.uid);
+      final foldersFuture = FirestoreService.instance.listFolders(uid: user.uid);
+
+      final results = await Future.wait([notesFuture, foldersFuture]);
+  final notes = results[0];
+  final folders = results[1];
+
+      if (!mounted) return;
+
+      String search = '';
+      bool showNotes = true;
+
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: AppColors.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setModalState) {
+              List<Map<String, dynamic>> filteredNotes = notes;
+              List<Map<String, dynamic>> filteredFolders = folders;
+              if (search.isNotEmpty) {
+                final q = search.toLowerCase();
+                filteredNotes = notes.where((n) => (n['title']?.toString() ?? '').toLowerCase().contains(q)).toList();
+                filteredFolders = folders.where((f) => (f['name']?.toString() ?? '').toLowerCase().contains(q)).toList();
+              }
+
+              return SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.bolt_rounded, color: AppColors.textSecondary),
+                            const SizedBox(width: 8),
+                            Text('Compartir rápido', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                            const Spacer(),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceLight,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: AppColors.borderColor),
+                              ),
+                              child: Row(
+                                children: [
+                                  _segmentedButton(
+                                    selected: showNotes,
+                                    icon: Icons.description_rounded,
+                                    label: 'Notas',
+                                    onTap: () => setModalState(() => showNotes = true),
+                                  ),
+                                  _segmentedButton(
+                                    selected: !showNotes,
+                                    icon: Icons.folder_rounded,
+                                    label: 'Carpetas',
+                                    onTap: () => setModalState(() => showNotes = false),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Search
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'Buscar por título...',
+                            filled: true,
+                            fillColor: AppColors.surfaceLight,
+                            prefixIcon: Icon(Icons.search_rounded, color: AppColors.textSecondary),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: AppColors.borderColor),
+                            ),
+                          ),
+                          onChanged: (v) => setModalState(() => search = v.trim()),
+                        ),
+                      ),
+
+                      // List
+                      Flexible(
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          itemCount: showNotes ? filteredNotes.length : filteredFolders.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            if (showNotes) {
+                              final n = filteredNotes[index];
+                              final title = (n['title']?.toString() ?? '').trim().isEmpty ? 'Sin título' : n['title'].toString();
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: AppColors.info.withValues(alpha: 0.15),
+                                  child: Icon(Icons.description_rounded, color: AppColors.info),
+                                ),
+                                title: Text(title, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                                subtitle: (n['collectionName'] != null && (n['collectionName'].toString()).isNotEmpty)
+                                    ? Text(n['collectionName'].toString(), style: TextStyle(color: AppColors.textSecondary))
+                                    : null,
+                                onTap: () async {
+                                  Navigator.of(context).pop();
+                                  await showDialog(
+                                    context: this.context,
+                                    builder: (_) => ShareDialog(
+                                      itemId: n['id'].toString(),
+                                      itemType: SharedItemType.note,
+                                      itemTitle: title,
+                                    ),
+                                  );
+                                  if (mounted) _loadData();
+                                },
+                              );
+                            } else {
+                              final f = filteredFolders[index];
+                              final name = (f['name']?.toString() ?? '').trim().isEmpty ? 'Sin nombre' : f['name'].toString();
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: AppColors.secondary.withValues(alpha: 0.15),
+                                  child: Icon(Icons.folder_rounded, color: AppColors.secondary),
+                                ),
+                                title: Text(name, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                                onTap: () async {
+                                  Navigator.of(context).pop();
+                                  await showDialog(
+                                    context: this.context,
+                                    builder: (_) => ShareDialog(
+                                      itemId: f['id'].toString(),
+                                      itemType: SharedItemType.folder,
+                                      itemTitle: name,
+                                    ),
+                                  );
+                                  if (mounted) _loadData();
+                                },
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    } catch (e) {
+      ToastService.error('No se pudo iniciar compartir: $e');
+    }
+  }
+
+  Widget _segmentedButton({required bool selected, required IconData icon, required String label, required VoidCallback onTap}) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: selected ? AppColors.primary : AppColors.textSecondary),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(color: selected ? AppColors.primary : AppColors.textSecondary, fontWeight: FontWeight.w600)),
+          ],
         ),
       ),
     );

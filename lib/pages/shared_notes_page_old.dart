@@ -610,6 +610,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         return AppColors.error;
       case SharingStatus.revoked:
         return const Color(0xFF636E72);
+      case SharingStatus.left:
+        // Estado cuando el receptor abandona la compartición
+        return const Color(0xFF6C757D); // gris distinto al revocado
     }
   }
 
@@ -623,6 +626,8 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         return 'Rechazada';
       case SharingStatus.revoked:
         return 'Revocada';
+      case SharingStatus.left:
+        return 'Abandonada';
     }
   }
 

@@ -77,7 +77,7 @@ class AutoCompleteService {
       _userWords = userWordsSet.toList();
       _wordFrequency = frequency;
     } catch (e) {
-      print('Error loading user words: $e');
+      debugPrint('Error loading user words: $e');
     }
   }
 

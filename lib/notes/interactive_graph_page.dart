@@ -26,6 +26,8 @@ class InteractiveGraphPage extends StatefulWidget {
 class _InteractiveGraphPageState extends State<InteractiveGraphPage>
     with TickerProviderStateMixin {
   late Future<void> _init;
+  // Keep a FocusNode instead of creating one in build continuously
+  final FocusNode _keyboardFocusNode = FocusNode();
   List<AIGraphNode> _nodes = [];
   List<AIGraphEdge> _edges = [];
   final List<ParticleConnection> _particles = [];
@@ -75,6 +77,8 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
     _initAnimations();
     _init = _loadGraphWithAI();
     _startParticleSystem();
+    // Focus the keyboard listener
+    _keyboardFocusNode.requestFocus();
   }
 
   void _initAnimations() {
@@ -153,6 +157,14 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
   }
 
   Future<void> _loadGraphWithAI() async {
+    // Capture layout size first to avoid using BuildContext across async gaps.
+    Size size = MediaQuery.of(context).size;
+    if (size.width == 0 || size.height == 0) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      size = MediaQueryData.fromView(ui.PlatformDispatcher.instance.views.first).size;
+    }
+
     final svc = FirestoreService.instance;
     final notes = await svc.listNotes(uid: _uid);
     // Prefer explicit edge documents (with metadata) when available
@@ -160,15 +172,6 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
     final existingEdgesLegacy = await svc.listEdges(uid: _uid);
     
     final nodes = <AIGraphNode>[];
-    // Ensure we have a valid layout size. If called during initState before the
-    // first frame, MediaQuery size may be zero; wait a frame if necessary.
-    Size size = MediaQuery.of(context).size;
-    if (size.width == 0 || size.height == 0) {
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return;
-      // Guard context usage after async gap
-      size = mounted ? MediaQuery.of(context).size : Size.zero;
-    }
     
     for (var i = 0; i < notes.length; i++) {
       final note = notes[i];
@@ -600,7 +603,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
         ],
       ),
       body: KeyboardListener(
-        focusNode: FocusNode()..requestFocus(),
+        focusNode: _keyboardFocusNode,
         onKeyEvent: _handleKeyEvent,
         child: GlassBackground(
           child: FutureBuilder<void>(
@@ -899,6 +902,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
                           final docs = await FirestoreService.instance.listEdgeDocs(uid: _uid);
                           final match = docs.firstWhere((d) => d['from'] == edge.from && d['to'] == edge.to, orElse: () => <String, dynamic>{});
                           final edgeId = match['id']?.toString();
+                          if (!mounted) return;
                           final res = await showDialog(context: context, builder: (ctx) => EdgeEditorDialog(uid: _uid, edgeId: edgeId, fromNoteId: edge.from, toNoteId: edge.to));
                           if (!mounted) return;
                           if (res is EdgeEditorResult && mounted) {
@@ -1177,6 +1181,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
     final match = docs.firstWhere((d) => d['from'] == edge.from && d['to'] == edge.to, orElse: () => <String, dynamic>{});
     final edgeId = match['id']?.toString();
     
+    if (!mounted) return;
     final result = await showDialog<EdgeEditorResult>(
       context: context,
       builder: (ctx) => EdgeEditorDialog(
@@ -1247,7 +1252,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
                             if (confirmed == true && mounted) {
                               try {
                                 await FirestoreService.instance.removeLink(uid: _uid, fromNoteId: edge.from, toNoteId: edge.to);
-                                if (mounted) Navigator.pop(ctx);
+                                if (ctx.mounted) Navigator.pop(ctx);
                                 if (mounted) await _loadGraphWithAI();
                                 ToastService.success('Enlace eliminado');
                               } catch (e) {
@@ -1285,6 +1290,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
 
   @override
   void dispose() {
+    _keyboardFocusNode.dispose();
     _pulseController.dispose();
     _rotationController.dispose();
     _particleController.dispose();

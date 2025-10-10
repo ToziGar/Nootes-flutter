@@ -13,7 +13,7 @@ class QuillEditorWidget extends StatefulWidget {
   final bool splitEnabled;
 
   const QuillEditorWidget({
-    Key? key,
+    super.key,
     required this.uid,
     this.initialDeltaJson,
     required this.onChanged,
@@ -21,7 +21,7 @@ class QuillEditorWidget extends StatefulWidget {
     this.onLinksChanged,
     this.onNoteOpen,
     this.splitEnabled = false,
-  }) : super(key: key);
+  });
 
   @override
   State<QuillEditorWidget> createState() => _QuillEditorWidgetState();
@@ -154,8 +154,16 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                 onPressed: () async {
                   final json = jsonEncode(_controller.document.toDelta().toJson());
                   widget.onChanged(json);
+                  // Capture messenger before awaiting to avoid using context across async gaps
+                  final messenger = ScaffoldMessenger.of(context);
                   await widget.onSave(json);
-                  _showSnackBar(context, 'Nota guardada correctamente');
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Nota guardada correctamente'),
+                      duration: Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
                 },
                 icon: const Icon(Icons.save, size: 16),
                 label: const Text('Guardar'),
@@ -520,8 +528,10 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                 onPressed: () async {
                   final json = jsonEncode(_controller.document.toDelta().toJson());
                   widget.onChanged(json);
+                  // Capture navigator before awaiting to avoid using context across async gaps
+                  final navigator = Navigator.of(context);
                   await widget.onSave(json);
-                  Navigator.of(context).pop();
+                  navigator.pop();
                 },
               ),
             ],

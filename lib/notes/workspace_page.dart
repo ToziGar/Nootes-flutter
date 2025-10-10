@@ -1290,6 +1290,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   }) async {
     if (action == null) return;
 
+    // Capture messenger early to avoid using BuildContext after awaits.
+    final messenger = ScaffoldMessenger.of(context);
+
     switch (action) {
       case ContextMenuActionType.newNote:
         await _create();
@@ -1324,14 +1327,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           );
           await _loadFolders();
           await _loadNotes();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
+          if (!mounted) return;
+            messenger.showSnackBar(
               const SnackBar(
                 content: Text('Nota quitada de la carpeta'),
                 backgroundColor: AppColors.success,
               ),
             );
-          }
         }
         break;
       case ContextMenuActionType.moveToFolder:
@@ -1421,6 +1423,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   }) async {
     if (action == null) return;
 
+    // Capture messenger early to avoid using BuildContext after awaits.
+    final messenger = ScaffoldMessenger.of(context);
+
     try {
       switch (action) {
         case 'open':
@@ -1451,14 +1456,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             );
             await _loadFolders();
             await _loadNotes();
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+            if (!mounted) return;
+              messenger.showSnackBar(
                 SnackBar(
                   content: Text('Nota quitada de la carpeta'),
                   backgroundColor: AppColors.success,
                 ),
               );
-            }
           }
           break;
         case 'export':
@@ -1567,14 +1571,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           debugPrint('⚠️ Acción no implementada: $action');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-      }
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
     }
   }
 
@@ -3313,7 +3316,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                 ),
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                     ),
@@ -3630,7 +3633,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                 ),
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                     ),
