@@ -51,6 +51,15 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   String _mathPreview = '';
   bool _mathIsBlock = false;
   bool _showMathPreview = false;
+  
+  // Auto-save state
+  Timer? _autoSaveTimer;
+  bool _hasUnsavedChanges = false;
+  DateTime? _lastSaveTime;
+  Timer? _statusUpdateTimer;
+  
+  // Editor state
+  double _editorFontSize = 16.0;
 
   @override
   void initState() {
@@ -72,19 +81,67 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
       if (!_applyingShortcuts) {
         _applyMarkdownShortcuts();
       }
+      // Marcar cambios no guardados y programar auto-guardado
+      _hasUnsavedChanges = true;
+      _scheduleAutoSave();
+      _scheduleStatusUpdate();
+    });
+    
+    // Dar foco inicial al editor
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _editorFocusNode.requestFocus();
     });
   }
 
   @override
   void dispose() {
+    _autoSaveTimer?.cancel();
+    _statusUpdateTimer?.cancel();
     _editorFocusNode.dispose();
     _changesSub?.cancel();
     super.dispose();
   }
+  
+  void _scheduleAutoSave() {
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(seconds: 2), () {
+      if (_hasUnsavedChanges && mounted) {
+        _performAutoSave();
+      }
+    });
+  }
+  
+  void _scheduleStatusUpdate() {
+    _statusUpdateTimer?.cancel();
+    _statusUpdateTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() {}); // Solo actualizar UI del estado
+      }
+    });
+  }
+  
+  Future<void> _performAutoSave() async {
+    if (!mounted) return;
+    
+    final json = jsonEncode(_controller.document.toDelta().toJson());
+    widget.onChanged(json);
+    
+    try {
+      await widget.onSave(json);
+      if (mounted) {
+        setState(() {
+          _hasUnsavedChanges = false;
+          _lastSaveTime = DateTime.now();
+        });
+        // NO interrumpir el foco del usuario - el guardado es silencioso
+      }
+    } catch (e) {
+      debugPrint('Error auto-guardando: $e');
+    }
+  }
 
   void _onDocumentChanged() {
-    final deltaJson = jsonEncode(_controller.document.toDelta().toJson());
-    widget.onChanged(deltaJson);
+    // Solo actualizar callbacks esenciales, el guardado lo maneja el auto-save
     widget.onPlainTextChanged?.call(_controller.document.toPlainText());
     _updateMathPreview();
   }
@@ -436,6 +493,30 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                   _buildToolbarButton(_darkTheme ? Icons.light_mode_outlined : Icons.dark_mode_outlined, () => _toggleTheme(), 'Cambiar tema'),
                   _buildToolbarButton(Icons.fullscreen, () => _toggleFullscreen(context), 'Pantalla completa'),
                 ]),
+                const SizedBox(width: 8),
+                _buildToolbarDivider(),
+                const SizedBox(width: 8),
+                
+                // Grupo: Tamaño de fuente
+                _buildToolbarGroup([
+                  _buildToolbarButton(Icons.text_decrease, _decreaseFontSize, 'Reducir texto (Ctrl+-)'),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${_editorFontSize.toInt()}px',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  _buildToolbarButton(Icons.text_increase, _increaseFontSize, 'Aumentar texto (Ctrl++)'),
+                ]),
               ],
             ),
           ),
@@ -466,13 +547,27 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                           if (isCtrl && event.logicalKey == LogicalKeyboardKey.enter) {
                             _tryOpenWikilink();
                           }
+                          // Zoom con Ctrl + / Ctrl -
+                          if (isCtrl && event.logicalKey == LogicalKeyboardKey.equal) {
+                            _increaseFontSize();
+                          }
+                          if (isCtrl && event.logicalKey == LogicalKeyboardKey.minus) {
+                            _decreaseFontSize();
+                          }
                           if (event.logicalKey == LogicalKeyboardKey.backspace) {
                             _handleBackspaceFormatExit();
                           }
                         }
                       },
-                      child: QuillEditor.basic(
-                        controller: _controller,
+                      child: DefaultTextStyle(
+                        style: TextStyle(
+                          fontSize: _editorFontSize,
+                          height: 1.6,
+                          color: _darkTheme ? Colors.white : Colors.black,
+                        ),
+                        child: QuillEditor.basic(
+                          controller: _controller,
+                        ),
                       ),
                     ),
                   ),
@@ -573,7 +668,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
             ),
           ),
         ),
-        // Bottom bar mejorada con estadísticas y botón de guardar
+        // Bottom bar con estadísticas y auto-guardado
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
           decoration: BoxDecoration(
@@ -629,6 +724,71 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 1,
+                      height: 14,
+                      color: Theme.of(context).dividerColor,
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(
+                      Icons.timer_outlined,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${_getReadingTime()} min lectura',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Indicador de estado de guardado
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _hasUnsavedChanges 
+                    ? Colors.orange.withValues(alpha: 0.1)
+                    : Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _hasUnsavedChanges
+                      ? Colors.orange.withValues(alpha: 0.3)
+                      : Colors.green.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _hasUnsavedChanges ? Icons.edit_note : Icons.cloud_done,
+                      size: 16,
+                      color: _hasUnsavedChanges ? Colors.orange : Colors.green,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _hasUnsavedChanges ? 'Editando...' : 'Guardado',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _hasUnsavedChanges ? Colors.orange.shade700 : Colors.green.shade700,
+                      ),
+                    ),
+                    if (_lastSaveTime != null && !_hasUnsavedChanges) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        _getTimeSinceSave(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.green.shade600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -641,55 +801,6 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                 style: IconButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.5),
                   foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Botón de guardar mejorado (sin perder foco)
-              ElevatedButton.icon(
-                onPressed: () async {
-                  // Guardar la posición del cursor
-                  final currentSelection = _controller.selection;
-                  
-                  final json = jsonEncode(_controller.document.toDelta().toJson());
-                  widget.onChanged(json);
-                  final messenger = ScaffoldMessenger.of(context);
-                  await widget.onSave(json);
-                  
-                  // Restaurar el foco y la selección después de guardar
-                  if (mounted) {
-                    _editorFocusNode.requestFocus();
-                    _controller.updateSelection(currentSelection, ChangeSource.local);
-                  }
-                  
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.white, size: 20),
-                          const SizedBox(width: 12),
-                          const Text('Guardado automáticamente'),
-                        ],
-                      ),
-                      duration: const Duration(milliseconds: 1500),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: Colors.green.shade600,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      margin: const EdgeInsets.only(bottom: 80, left: 20, right: 20),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.save_outlined, size: 18),
-                label: const Text('Guardar'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  elevation: 0,
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
                 ),
               ),
             ],
@@ -754,6 +865,22 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     final text = _controller.document.toPlainText();
     if (text.trim().isEmpty) return 0;
     return text.trim().split(RegExp(r'\s+')).length;
+  }
+  
+  int _getReadingTime() {
+    final words = _getWordCount();
+    // Promedio de 200 palabras por minuto
+    final minutes = (words / 200).ceil();
+    return minutes < 1 ? 1 : minutes;
+  }
+  
+  String _getTimeSinceSave() {
+    if (_lastSaveTime == null) return '';
+    final diff = DateTime.now().difference(_lastSaveTime!);
+    if (diff.inSeconds < 60) return 'ahora';
+    if (diff.inMinutes < 60) return 'hace ${diff.inMinutes}m';
+    if (diff.inHours < 24) return 'hace ${diff.inHours}h';
+    return 'hace ${diff.inDays}d';
   }
 
   void _toggleTheme() {
@@ -958,6 +1085,22 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
         ),
       ),
     );
+  }
+
+  void _increaseFontSize() {
+    setState(() {
+      if (_editorFontSize < 32) {
+        _editorFontSize += 2;
+      }
+    });
+  }
+  
+  void _decreaseFontSize() {
+    setState(() {
+      if (_editorFontSize > 10) {
+        _editorFontSize -= 2;
+      }
+    });
   }
 
   void _toggleFullscreen(BuildContext context) {
