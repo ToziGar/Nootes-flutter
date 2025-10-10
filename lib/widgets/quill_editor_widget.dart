@@ -1,22 +1,21 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_math_fork/flutter_math.dart' as math;
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill/quill_delta.dart';
-import 'dart:convert';
-import 'dart:async';
-import 'package:nootes/widgets/note_autocomplete_overlay.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
+import './note_autocomplete_overlay.dart';
 
 class QuillEditorWidget extends StatefulWidget {
   final String uid;
   final String? initialDeltaJson;
   final ValueChanged<String> onChanged;
-  // Plain-text mirror of the document (for previews/search). Optional.
   final ValueChanged<String>? onPlainTextChanged;
   final Future<void> Function(String) onSave;
   final Future<void> Function(List<String>)? onLinksChanged;
   final Future<void> Function(String)? onNoteOpen;
   final bool splitEnabled;
-  // Fetch suggestions for wikilinks ([[ ... ]])
   final Future<List<NoteSuggestion>> Function(String query)? fetchNoteSuggestions;
 
   const QuillEditorWidget({
@@ -38,20 +37,19 @@ class QuillEditorWidget extends StatefulWidget {
 
 class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   late QuillController _controller;
-  final _focusNode = FocusNode();
-  final _scrollController = ScrollController();
-  // bool _isFullscreen = false; // Commented out until used
   bool _darkTheme = false;
-  // String _searchQuery = ''; // Commented out until used
-  // int _currentSearchIndex = 0; // Commented out until used
-  // List<int> _searchResults = []; // Commented out until used
   StreamSubscription? _changesSub;
   bool _applyingShortcuts = false;
-  // Wikilinks overlay state
-  OverlayEntry? _overlay;
+
+  // Wikilinks state
   List<NoteSuggestion> _wikiSuggestions = const [];
   String _wikiQuery = '';
   bool _showWiki = false;
+
+  // Math preview state
+  String _mathPreview = '';
+  bool _mathIsBlock = false;
+  bool _showMathPreview = false;
 
   @override
   void initState() {
@@ -59,17 +57,15 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     _controller = widget.initialDeltaJson != null
         ? QuillController(
             document: Document.fromJson(
-              widget.initialDeltaJson != null
-                ? List<Map<String, dynamic>>.from(jsonDecode(widget.initialDeltaJson!))
-                : [],
+              List<Map<String, dynamic>>.from(
+                jsonDecode(widget.initialDeltaJson!),
+              ),
             ),
             selection: const TextSelection.collapsed(offset: 0),
           )
         : QuillController.basic();
-        
-    // Escuchar cambios en el documento
+
     _controller.addListener(_onDocumentChanged);
-    // Atajos Markdown como WYSIWYG (aplicados en ediciones locales)
     _changesSub = _controller.changes.listen((_) {
       if (!_applyingShortcuts) {
         _applyMarkdownShortcuts();
@@ -77,23 +73,19 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     });
   }
 
-  void _onDocumentChanged() {
-    final deltaJson = jsonEncode(_controller.document.toDelta().toJson());
-    widget.onChanged(deltaJson);
-    // Emit plain text for callers who want to keep a text preview in sync
-    widget.onPlainTextChanged?.call(_controller.document.toPlainText());
-  }
-
   @override
   void dispose() {
     _changesSub?.cancel();
-    _removeOverlay();
-    _focusNode.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
-  // Markdown-as-you-type shortcuts for Quill
+  void _onDocumentChanged() {
+    final deltaJson = jsonEncode(_controller.document.toDelta().toJson());
+    widget.onChanged(deltaJson);
+    widget.onPlainTextChanged?.call(_controller.document.toPlainText());
+    _updateMathPreview();
+  }
+
   void _applyMarkdownShortcuts() {
     final sel = _controller.selection;
     if (!sel.isValid) return;
@@ -105,11 +97,11 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     final lineStart = plain.lastIndexOf('\n', caret - 1) + 1;
     final upToCursorInLine = plain.substring(lineStart, caret);
 
-    // Headings
+    // Headings #-### 
     final h = RegExp(r'^(#{1,6})\s$').firstMatch(upToCursorInLine);
     if (h != null) {
       final level = h.group(1)!.length;
-        _applyLinePrefix(lineStart, h.group(0)!.length, caret, () {
+      _applyLinePrefix(lineStart, h.group(0)!.length, caret, () {
         switch (level) {
           case 1:
             _controller.formatSelection(Attribute.h1);
@@ -127,50 +119,49 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
       return;
     }
 
-    // UL
+    // UL - * 
     if (RegExp(r'^(?:- |\* )$').hasMatch(upToCursorInLine)) {
-        _applyLinePrefix(lineStart, 2, caret, () => _controller.formatSelection(Attribute.ul));
+      _applyLinePrefix(lineStart, 2, caret, () => _controller.formatSelection(Attribute.ul));
       return;
     }
 
-    // OL
+    // OL 1. 
     if (RegExp(r'^\d+\. $').hasMatch(upToCursorInLine)) {
-        _applyLinePrefix(lineStart, upToCursorInLine.length, caret, () => _controller.formatSelection(Attribute.ol));
+      _applyLinePrefix(lineStart, upToCursorInLine.length, caret, () => _controller.formatSelection(Attribute.ol));
       return;
     }
 
-    // Blockquote
+    // Blockquote > 
     if (upToCursorInLine == '> ') {
-        _applyLinePrefix(lineStart, 2, caret, () => _controller.formatSelection(Attribute.blockQuote));
+      _applyLinePrefix(lineStart, 2, caret, () => _controller.formatSelection(Attribute.blockQuote));
       return;
     }
 
-    // Code block fence
+    // Code block ```
     if (upToCursorInLine.endsWith('```')) {
-        _applyLinePrefix(lineStart + upToCursorInLine.length - 3, 3, caret, () => _controller.formatSelection(Attribute.codeBlock));
+      _applyLinePrefix(lineStart + upToCursorInLine.length - 3, 3, caret, () => _controller.formatSelection(Attribute.codeBlock));
       return;
     }
 
-    // Horizontal rule
+    // Horizontal rule ---
     if (upToCursorInLine == '---') {
       _applyHorizontalRule(lineStart);
       return;
     }
 
-    // LaTeX block: $$...$$ -> embed
-    if (upToCursorInLine.endsWith('$$')) {
-      final before = upToCursorInLine.substring(0, upToCursorInLine.length - 2);
-      final start = before.lastIndexOf('$$');
-      if (start != -1 && start < before.length) {
-        final latex = before.substring(start + 2);
-        final removeStart = lineStart + start;
-        final removeLen = upToCursorInLine.length - start;
-        _insertMathBlock(removeStart, removeLen, latex);
-        return;
-      }
+    // LaTeX block $$ 
+    if (RegExp(r'^\$\$\s$').hasMatch(upToCursorInLine)) {
+      _expandMathBlockSkeleton(lineStart, upToCursorInLine.length, caret);
+      return;
     }
 
-    // Wikilinks: detect [[query
+    // LaTeX inline $ 
+    if (RegExp(r'^\$\s$').hasMatch(upToCursorInLine)) {
+      _expandInlineMathSkeleton(lineStart, upToCursorInLine.length, caret);
+      return;
+    }
+
+    // Wikilinks [[
     final wikiMatch = RegExp(r'\[\[([^\]]*)$').firstMatch(upToCursorInLine);
     if (wikiMatch != null && widget.fetchNoteSuggestions != null) {
       _wikiQuery = wikiMatch.group(1) ?? '';
@@ -179,6 +170,8 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     } else {
       _hideWikilinkOverlay();
     }
+
+    _updateMathPreview();
   }
 
   void _applyLinePrefix(int start, int length, int originalCaret, VoidCallback formatLine) {
@@ -186,7 +179,6 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     try {
       final newCaret = (originalCaret - length).clamp(0, _controller.document.length);
       _controller.replaceText(start, length, '', TextSelection.collapsed(offset: newCaret));
-      // Apply block formatting at the (adjusted) caret position
       _controller.updateSelection(TextSelection.collapsed(offset: newCaret), ChangeSource.local);
       formatLine();
     } finally {
@@ -198,7 +190,6 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     _applyingShortcuts = true;
     try {
       _controller.replaceText(lineStart, 3, '', TextSelection.collapsed(offset: lineStart));
-      // Insert a visual separator line as fallback (no HR embed available)
       _controller.replaceText(lineStart, 0, '————————————\n', TextSelection.collapsed(offset: lineStart + 1));
     } finally {
       _applyingShortcuts = false;
@@ -214,9 +205,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
         _wikiSuggestions = list;
         _showWiki = true;
       });
-    } catch (_) {
-      // ignore fetch errors silently for now
-    }
+    } catch (_) {}
   }
 
   void _hideWikilinkOverlay() {
@@ -227,13 +216,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     });
   }
 
-  void _removeOverlay() {
-    _overlay?.remove();
-    _overlay = null;
-  }
-
   void _insertWikiLink(NoteSuggestion s) {
-    // Replace the current [[query with a linked text [[Title]] that you can later interpret
     final sel = _controller.selection;
     final caret = sel.baseOffset;
     final plain = _controller.document.toPlainText();
@@ -248,26 +231,124 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     _applyingShortcuts = true;
     try {
       _controller.replaceText(start, removeLen, insertion, TextSelection.collapsed(offset: start + insertion.length));
-      // Notify links changed (added)
       widget.onLinksChanged?.call([s.id]);
     } finally {
       _applyingShortcuts = false;
     }
   }
 
-  void _insertMathBlock(int start, int length, String latex) {
+  void _tryOpenWikilink() {
+    if (widget.onNoteOpen == null) return;
+    final sel = _controller.selection;
+    final caret = sel.baseOffset;
+    final plain = _controller.document.toPlainText();
+    if (caret < 0 || caret > plain.length) return;
+    final lineStart = plain.lastIndexOf('\n', caret - 1) + 1;
+    final lineEnd = plain.indexOf('\n', caret);
+    final segment = plain.substring(lineStart, lineEnd == -1 ? plain.length : lineEnd);
+    final linkMatch = RegExp(r'\[\[(.+?)\]\]').firstMatch(segment);
+    if (linkMatch != null) {
+      final label = linkMatch.group(1)!.trim();
+      widget.onNoteOpen!.call(label);
+    }
+  }
+
+  void _handleBackspaceFormatExit() {
+    final sel = _controller.selection;
+    if (!sel.isCollapsed || sel.baseOffset <= 0) return;
+    final caret = sel.baseOffset;
+    final plain = _controller.document.toPlainText();
+    final lineStart = plain.lastIndexOf('\n', caret - 1) + 1;
+    if (caret != lineStart) return;
+    final attrs = _controller.getSelectionStyle().attributes;
+    if (attrs.containsKey(Attribute.ul.key) ||
+        attrs.containsKey(Attribute.ol.key) ||
+        attrs.containsKey(Attribute.blockQuote.key)) {
+      _controller.formatSelection(Attribute.clone(Attribute.blockQuote, null));
+      _controller.formatSelection(Attribute.clone(Attribute.ul, null));
+      _controller.formatSelection(Attribute.clone(Attribute.ol, null));
+    } else if (attrs.containsKey(Attribute.codeBlock.key)) {
+      _controller.formatSelection(Attribute.clone(Attribute.codeBlock, null));
+    }
+  }
+
+  void _expandMathBlockSkeleton(int start, int typedLen, int caret) {
     _applyingShortcuts = true;
     try {
-      // Remove the $$...$$ text
-      _controller.replaceText(start, length, '', TextSelection.collapsed(offset: start));
-      // Insert math embed followed by newline to behave like a block
-      final delta = Delta()
-        ..retain(start)
-        ..insert({'math': latex})
-        ..insert('\n');
-      _controller.compose(delta, TextSelection.collapsed(offset: start + 1), ChangeSource.local);
+      const template = '\n\$\$\n\n\$\$\n';
+      _controller.replaceText(start, typedLen, '', TextSelection.collapsed(offset: start));
+      _controller.replaceText(start, 0, template, TextSelection.collapsed(offset: start + 4));
     } finally {
       _applyingShortcuts = false;
+    }
+  }
+
+  void _expandInlineMathSkeleton(int start, int typedLen, int caret) {
+    _applyingShortcuts = true;
+    try {
+      _controller.replaceText(start, typedLen, '\$\$', TextSelection.collapsed(offset: start + 1));
+    } finally {
+      _applyingShortcuts = false;
+    }
+  }
+
+  void _updateMathPreview() {
+    final sel = _controller.selection;
+    if (!sel.isValid) return;
+    final caret = sel.baseOffset;
+    if (caret < 0) return;
+    final plain = _controller.document.toPlainText();
+    if (caret > plain.length) return;
+
+    // Check for block math $$...$$
+    final lb = plain.lastIndexOf('\$\$', caret - 1);
+    final rb = plain.indexOf('\$\$', caret);
+    if (lb != -1 && rb != -1 && lb < caret && caret < rb) {
+      final expr = plain.substring(lb + 2, rb).trim();
+      if (expr.isNotEmpty) {
+        if (!_showMathPreview || _mathPreview != expr || !_mathIsBlock) {
+          setState(() {
+            _mathPreview = expr;
+            _mathIsBlock = true;
+            _showMathPreview = true;
+          });
+        }
+        return;
+      }
+    }
+
+    // Check for inline math $...$
+    final lineStart = plain.lastIndexOf('\n', caret - 1) + 1;
+    final nextNl = plain.indexOf('\n', caret);
+    final lineEnd = nextNl == -1 ? plain.length : nextNl;
+    final line = plain.substring(lineStart, lineEnd);
+    final relCaret = caret - lineStart;
+    final singleDollar = RegExp(r'(?<!\$)\$(?!\$)');
+    final matches = singleDollar.allMatches(line).toList();
+    for (int i = 0; i + 1 < matches.length; i += 2) {
+      final m1 = matches[i];
+      final m2 = matches[i + 1];
+      if (m1.start < relCaret && relCaret <= m2.start) {
+        final expr = line.substring(m1.end, m2.start).trim();
+        if (expr.isNotEmpty) {
+          if (!_showMathPreview || _mathPreview != expr || _mathIsBlock) {
+            setState(() {
+              _mathPreview = expr;
+              _mathIsBlock = false;
+              _showMathPreview = true;
+            });
+          }
+          return;
+        }
+      }
+    }
+
+    // No math found, hide preview
+    if (_showMathPreview) {
+      setState(() {
+        _showMathPreview = false;
+        _mathPreview = '';
+      });
     }
   }
 
@@ -275,7 +356,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Barra de herramientas avanzada estilo Quiver
+        // Toolbar
         Container(
           padding: const EdgeInsets.all(8.0),
           decoration: BoxDecoration(
@@ -291,48 +372,38 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
             spacing: 4.0,
             runSpacing: 4.0,
             children: [
-              // Formato básico
               _buildToolbarButton(Icons.format_bold, () => _controller.formatSelection(Attribute.bold), 'Negrita'),
               _buildToolbarButton(Icons.format_italic, () => _controller.formatSelection(Attribute.italic), 'Cursiva'),
               _buildToolbarButton(Icons.format_underline, () => _controller.formatSelection(Attribute.underline), 'Subrayado'),
               _buildToolbarButton(Icons.strikethrough_s, () => _controller.formatSelection(Attribute.strikeThrough), 'Tachado'),
               const VerticalDivider(width: 16),
-              
-              // Alineación de texto
-              _buildToolbarButton(Icons.format_align_left, () => _controller.formatSelection(Attribute.leftAlignment), 'Alinear izquierda'),
-              _buildToolbarButton(Icons.format_align_center, () => _controller.formatSelection(Attribute.centerAlignment), 'Centrar'),
-              _buildToolbarButton(Icons.format_align_right, () => _controller.formatSelection(Attribute.rightAlignment), 'Alinear derecha'),
+              _buildToolbarButton(Icons.format_align_left, () => _controller.formatSelection(Attribute.leftAlignment), 'Izquierda'),
+              _buildToolbarButton(Icons.format_align_center, () => _controller.formatSelection(Attribute.centerAlignment), 'Centro'),
+              _buildToolbarButton(Icons.format_align_right, () => _controller.formatSelection(Attribute.rightAlignment), 'Derecha'),
               _buildToolbarButton(Icons.format_align_justify, () => _controller.formatSelection(Attribute.justifyAlignment), 'Justificar'),
               const VerticalDivider(width: 16),
-              
-              // Listas y citas
               _buildToolbarButton(Icons.format_list_bulleted, () => _controller.formatSelection(Attribute.ul), 'Lista'),
-              _buildToolbarButton(Icons.format_list_numbered, () => _controller.formatSelection(Attribute.ol), 'Lista numerada'),
+              _buildToolbarButton(Icons.format_list_numbered, () => _controller.formatSelection(Attribute.ol), 'Numerada'),
               _buildToolbarButton(Icons.format_quote, () => _controller.formatSelection(Attribute.blockQuote), 'Cita'),
-              _buildToolbarButton(Icons.code, () => _controller.formatSelection(Attribute.codeBlock), 'Bloque de código'),
+              _buildToolbarButton(Icons.code, () => _controller.formatSelection(Attribute.codeBlock), 'Código'),
               const VerticalDivider(width: 16),
-              
-              // Historial
               _buildToolbarButton(Icons.undo, () => _controller.undo(), 'Deshacer'),
               _buildToolbarButton(Icons.redo, () => _controller.redo(), 'Rehacer'),
               const VerticalDivider(width: 16),
-              
-              // Búsqueda y medios
               _buildToolbarButton(Icons.search, () => _showSearchDialog(context), 'Buscar'),
-              _buildToolbarButton(Icons.image, () => _insertImage(context), 'Insertar imagen'),
-              _buildToolbarButton(Icons.link, () => _insertLink(context), 'Insertar enlace'),
+              _buildToolbarButton(Icons.image, () => _insertImage(context), 'Imagen'),
+              _buildToolbarButton(Icons.link, () => _insertLink(context), 'Enlace'),
               const VerticalDivider(width: 16),
-              
-              // Herramientas avanzadas
-              _buildToolbarButton(Icons.file_upload, () => _exportContent(context), 'Exportar'),
-              _buildToolbarButton(Icons.file_download, () => _importContent(context), 'Importar'),
-              _buildToolbarButton(Icons.color_lens, () => _showColorPicker(context), 'Color de texto'),
-              _buildToolbarButton(_darkTheme ? Icons.light_mode : Icons.dark_mode, () => _toggleTheme(), 'Cambiar tema'),
+              _buildToolbarButton(Icons.functions, _insertMathBlock, 'Bloque LaTeX'),
+              _buildToolbarButton(Icons.exposure, _insertMathInline, 'LaTeX inline'),
+              const VerticalDivider(width: 16),
+              _buildToolbarButton(Icons.color_lens, () => _showColorPicker(context), 'Color'),
+              _buildToolbarButton(_darkTheme ? Icons.light_mode : Icons.dark_mode, () => _toggleTheme(), 'Tema'),
               _buildToolbarButton(Icons.fullscreen, () => _toggleFullscreen(context), 'Pantalla completa'),
             ],
           ),
         ),
-        // Editor expandido con tema adaptativo
+        // Editor area
         Expanded(
           child: Container(
             decoration: BoxDecoration(
@@ -341,21 +412,27 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
             padding: const EdgeInsets.all(16.0),
             child: Stack(
               children: [
+                // Main editor
                 Positioned.fill(
-                  child: QuillEditor(
-                    controller: _controller,
-                    scrollController: _scrollController,
-                    scrollable: true,
-                    focusNode: _focusNode,
-                    autoFocus: true,
-                    readOnly: false,
-                    expands: true,
-                    padding: EdgeInsets.zero,
-                    embedBuilders: [
-                      _MathEmbedBuilder(),
-                    ],
+                  child: KeyboardListener(
+                    focusNode: FocusNode(),
+                    onKeyEvent: (event) {
+                      if (event is KeyDownEvent) {
+                        final isCtrl = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
+                        if (isCtrl && event.logicalKey == LogicalKeyboardKey.enter) {
+                          _tryOpenWikilink();
+                        }
+                        if (event.logicalKey == LogicalKeyboardKey.backspace) {
+                          _handleBackspaceFormatExit();
+                        }
+                      }
+                    },
+                    child: QuillEditor.basic(
+                      controller: _controller,
+                    ),
                   ),
                 ),
+                // Wikilink overlay (top-left)
                 if (_showWiki && _wikiSuggestions.isNotEmpty)
                   Positioned(
                     left: 8,
@@ -373,11 +450,57 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                       ),
                     ),
                   ),
+                // Math preview overlay (bottom-right)
+                if (_showMathPreview && _mathPreview.isNotEmpty)
+                  Positioned(
+                    right: 8,
+                    bottom: 8,
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(8),
+                      color: Theme.of(context).colorScheme.surface,
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 300, maxHeight: 200),
+                        padding: const EdgeInsets.all(12),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _mathIsBlock ? Icons.functions : Icons.exposure,
+                                    size: 16,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _mathIsBlock ? 'Bloque LaTeX' : 'LaTeX inline',
+                                    style: Theme.of(context).textTheme.labelSmall,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              math.Math.tex(
+                                _mathPreview,
+                                textStyle: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  fontSize: _mathIsBlock ? 16 : 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
         ),
-        // Barra de estado y guardado
+        // Bottom bar with save button
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           decoration: BoxDecoration(
@@ -400,7 +523,6 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                 onPressed: () async {
                   final json = jsonEncode(_controller.document.toDelta().toJson());
                   widget.onChanged(json);
-                  // Capture messenger before awaiting to avoid using context across async gaps
                   final messenger = ScaffoldMessenger.of(context);
                   await widget.onSave(json);
                   messenger.showSnackBar(
@@ -456,22 +578,8 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     setState(() {
       _darkTheme = !_darkTheme;
     });
-    if (mounted) {
-      _showSnackBar(context, 'Tema ${_darkTheme ? 'oscuro' : 'claro'} activado');
-    }
   }
 
-  void _showSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  // Funciones avanzadas estilo Quiver
   void _showSearchDialog(BuildContext context) {
     String query = '';
     showDialog(
@@ -479,24 +587,18 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
       builder: (ctx) {
         return AlertDialog(
           title: const Text('Buscar en nota'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: 'Texto a buscar',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (v) => query = v,
-                onSubmitted: (v) {
-                  query = v;
-                  _performSearch(query);
-                  Navigator.of(ctx).pop();
-                },
-              ),
-            ],
+          content: TextField(
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Texto a buscar',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (v) => query = v,
+            onSubmitted: (v) {
+              _performSearch(v);
+              Navigator.of(ctx).pop();
+            },
           ),
           actions: [
             TextButton(
@@ -525,9 +627,6 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
         TextSelection(baseOffset: index, extentOffset: index + query.length),
         ChangeSource.local,
       );
-      _showSnackBar(context, 'Texto encontrado');
-    } else {
-      _showSnackBar(context, 'Texto no encontrado');
     }
   }
 
@@ -556,7 +655,6 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                 if (imageUrl.isNotEmpty) {
                   final delta = Delta()..insert({'image': imageUrl});
                   _controller.compose(delta, TextSelection.collapsed(offset: _controller.selection.baseOffset), ChangeSource.local);
-                  _showSnackBar(context, 'Imagen insertada');
                 }
                 Navigator.of(ctx).pop();
               },
@@ -606,12 +704,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
             ElevatedButton(
               onPressed: () {
                 if (linkUrl.isNotEmpty && linkText.isNotEmpty) {
-                  _controller.formatText(
-                    _controller.selection.baseOffset,
-                    linkText.length,
-                    LinkAttribute(linkUrl),
-                  );
-                  _showSnackBar(context, 'Enlace insertado');
+                  _controller.formatText(_controller.selection.baseOffset, linkText.length, LinkAttribute(linkUrl));
                 }
                 Navigator.of(ctx).pop();
               },
@@ -648,7 +741,6 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                 onTap: () {
                   _controller.formatSelection(ColorAttribute('#${color.toARGB32().toRadixString(16).padLeft(8, '0')}'));
                   Navigator.of(ctx).pop();
-                  _showSnackBar(context, 'Color aplicado');
                 },
                 child: Container(
                   width: 40,
@@ -673,95 +765,6 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     );
   }
 
-  void _exportContent(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Exportar contenido'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.code),
-                title: const Text('Exportar como JSON'),
-                subtitle: const Text('Formato con formato completo'),
-                onTap: () {
-                  _showSnackBar(context, 'JSON copiado al portapapeles');
-                  Navigator.of(ctx).pop();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.text_snippet),
-                title: const Text('Exportar como texto plano'),
-                subtitle: const Text('Solo texto sin formato'),
-                onTap: () {
-                  _showSnackBar(context, 'Texto plano copiado al portapapeles');
-                  Navigator.of(ctx).pop();
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _importContent(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        String content = '';
-        return AlertDialog(
-          title: const Text('Importar contenido'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Pega el contenido JSON o texto a importar:'),
-              const SizedBox(height: 16),
-              TextField(
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  hintText: 'Contenido a importar...',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (v) => content = v,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (content.isNotEmpty) {
-                  try {
-                    final jsonData = jsonDecode(content);
-                    _controller.document = Document.fromJson(jsonData);
-                    _showSnackBar(context, 'Contenido JSON importado');
-                  } catch (e) {
-                    _controller.document = Document()..insert(0, content);
-                    _showSnackBar(context, 'Texto plano importado');
-                  }
-                }
-                Navigator.of(ctx).pop();
-              },
-              child: const Text('Importar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   void _toggleFullscreen(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -774,7 +777,6 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                 onPressed: () async {
                   final json = jsonEncode(_controller.document.toDelta().toJson());
                   widget.onChanged(json);
-                  // Capture navigator before awaiting to avoid using context across async gaps
                   final navigator = Navigator.of(context);
                   await widget.onSave(json);
                   navigator.pop();
@@ -782,47 +784,32 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
               ),
             ],
           ),
-          body: QuillEditor(
-            controller: _controller,
-            scrollController: ScrollController(),
-            scrollable: true,
-            focusNode: FocusNode(),
-            autoFocus: true,
-            readOnly: false,
-            expands: true,
-            padding: EdgeInsets.zero,
-            embedBuilders: [
-              _MathEmbedBuilder(),
-            ],
-          ),
+          body: QuillEditor.basic(controller: _controller),
         ),
       ),
     );
   }
-}
 
-class _MathEmbedBuilder implements EmbedBuilder {
-  @override
-  String get key => 'math';
+  void _insertMathBlock() {
+    final sel = _controller.selection;
+    final caret = sel.baseOffset;
+    _applyingShortcuts = true;
+    try {
+      const text = '\n\$\$\n\n\$\$\n';
+      _controller.replaceText(caret, 0, text, TextSelection.collapsed(offset: caret + 4));
+    } finally {
+      _applyingShortcuts = false;
+    }
+  }
 
-  @override
-  Widget build(BuildContext context, QuillController controller, Embed node, bool readOnly, bool inline, TextStyle? style) {
-    final data = node.value.data;
-    final latex = data is String ? data : (data?['math']?.toString() ?? '');
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Math.tex(
-          latex,
-          textStyle: (style ?? DefaultTextStyle.of(context).style).copyWith(fontSize: 16),
-        ),
-      ),
-    );
+  void _insertMathInline() {
+    final sel = _controller.selection;
+    final caret = sel.baseOffset;
+    _applyingShortcuts = true;
+    try {
+      _controller.replaceText(caret, 0, '\$\$', TextSelection.collapsed(offset: caret + 1));
+    } finally {
+      _applyingShortcuts = false;
+    }
   }
 }

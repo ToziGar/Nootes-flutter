@@ -28,6 +28,7 @@ import '../services/keyboard_shortcuts_service.dart';
 import '../services/sharing_service.dart';
 import '../widgets/share_dialog.dart';
 import '../theme/icon_registry.dart';
+import '../widgets/note_autocomplete_overlay.dart' show NoteSuggestion;
 import 'folder_model.dart';
 import 'folder_dialog.dart';
 import 'template_picker_dialog.dart';
@@ -2633,6 +2634,57 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                           _richJson = deltaJson;
                                           await _save();
                                         },
+                                                fetchNoteSuggestions: (query) async {
+                                                  final q = query.trim().toLowerCase();
+                                                  if (q.isEmpty) {
+                                                    return _allNotes
+                                                        .take(20)
+                                                        .map((n) => NoteSuggestion(
+                                                              id: n['id'].toString(),
+                                                              title: (n['title']?.toString() ?? ''),
+                                                              tags: List<String>.from((n['tags'] as List?)?.whereType<String>() ?? const []),
+                                                            ))
+                                                        .toList();
+                                                  }
+                                                  final filtered = _allNotes.where((n) {
+                                                    final title = (n['title']?.toString() ?? '').toLowerCase();
+                                                    final id = n['id'].toString().toLowerCase();
+                                                    return title.contains(q) || id.contains(q);
+                                                  }).take(20);
+                                                  return filtered
+                                                      .map((n) => NoteSuggestion(
+                                                            id: n['id'].toString(),
+                                                            title: (n['title']?.toString() ?? ''),
+                                                            tags: List<String>.from((n['tags'] as List?)?.whereType<String>() ?? const []),
+                                                          ))
+                                                      .toList();
+                                                },
+                                                onLinksChanged: (linkedIds) async {
+                                                  if (_selectedId == null) return;
+                                                  try {
+                                                    await FirestoreService.instance.updateNoteLinks(
+                                                      uid: _uid,
+                                                      noteId: _selectedId!,
+                                                      linkedNoteIds: linkedIds,
+                                                    );
+                                                  } catch (e) {
+                                                    debugPrint('Error updating links: $e');
+                                                  }
+                                                },
+                                                onNoteOpen: (labelOrId) async {
+                                                  // Try resolve by exact ID first, then by title match
+                                                  String? id = _allNotes.firstWhere(
+                                                        (n) => n['id'].toString() == labelOrId,
+                                                        orElse: () => <String, dynamic>{},
+                                                      )['id']?.toString();
+                                                  id ??= _allNotes.firstWhere(
+                                                        (n) => (n['title']?.toString() ?? '') == labelOrId,
+                                                        orElse: () => <String, dynamic>{},
+                                                      )['id']?.toString();
+                                                  if (id != null && id.isNotEmpty) {
+                                                    await _select(id);
+                                                  }
+                                                },
                                       ),
                                     ),
                                     
