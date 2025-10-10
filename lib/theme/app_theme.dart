@@ -27,17 +27,17 @@ class AppColors {
   static const surfaceOverlay = Color(0x4025367B); // Overlay translúcido
   static const darkOnSecondary = Color(0xFF042F2F);
 
-  // Editor tema oscuro
-  static const editorBg = Color(0xFF101C34);       // Fondo editor
-  static const previewBg = Color(0xFF17213A);      // Vista previa
+  // Editor tema claro
+  static const editorBg = Color(0xFFFFFFFF);       // Fondo editor - blanco puro
+  static const previewBg = Color(0xFFF8F9FA);      // Vista previa - blanco grisáceo
 
-  // Texto optimizado
-  static const textPrimary = Color(0xFFE3E8FF);    // Texto principal
-  static const textSecondary = Color(0xFF9FA8D1);  // Texto secundario
-  static const textMuted = Color(0xFF7E8AB6);      // Texto apagado
+  // Texto optimizado para tema claro
+  static const textPrimary = Color(0xFF1A202C);    // Texto principal - negro suave
+  static const textSecondary = Color(0xFF4A5568);  // Texto secundario - gris oscuro
+  static const textMuted = Color(0xFF718096);      // Texto apagado - gris medio
 
   // Elementos UI
-  static const borderColor = Color(0xFF253255);    // Bordes
+  static const borderColor = Color(0xFFE2E8F0);    // Bordes - gris muy claro
   static const divider = Color(0xFF1E2743);        // Divisores
   static const glass = Color.fromRGBO(76, 110, 245, 0.12); // Efecto vidrio
 

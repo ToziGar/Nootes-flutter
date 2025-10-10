@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
@@ -28,11 +29,18 @@ abstract class AuthService {
   }
 
   static AuthService _resolve() {
+    // Workaround: Firebase native auth plugin has produced platform-channel
+    // threading warnings on Windows in this project. To avoid those runtime
+    // issues we prefer the REST-based implementation on Windows desktop,
+    // while keeping the native plugin for mobile and web.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      return _RestAuthService();
+    }
+
     final isMobileOrWeb = kIsWeb ||
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.macOS ||
-        defaultTargetPlatform == TargetPlatform.windows;
+        defaultTargetPlatform == TargetPlatform.macOS;
     if (isMobileOrWeb) return _FirebaseAuthService();
     return _RestAuthService();
   }
@@ -66,7 +74,17 @@ class _FirebaseAuthService implements AuthService {
       .map((u) => u == null ? null : AuthUser(uid: u.uid, email: u.email));
 
   @override
-  Future<void> init() async {}
+  Future<void> init() async {
+    // Localize outgoing auth emails to the device locale when possible
+    try {
+      final tag = ui.PlatformDispatcher.instance.locale.toLanguageTag();
+      if (tag.isNotEmpty) {
+        await _auth.setLanguageCode(tag);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
 
   @override
   Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async {
@@ -76,7 +94,17 @@ class _FirebaseAuthService implements AuthService {
   }
 
   @override
-  Future<void> sendPasswordResetEmail(String email) => _auth.sendPasswordResetEmail(email: email);
+  Future<void> sendPasswordResetEmail(String email) {
+    final authDomain = DefaultFirebaseOptions.web.authDomain;
+    final continueUrl = (authDomain != null && authDomain.isNotEmpty)
+        ? 'https://$authDomain'
+        : null;
+    fb.ActionCodeSettings? acs;
+    if (continueUrl != null) {
+      acs = fb.ActionCodeSettings(url: continueUrl, handleCodeInApp: false);
+    }
+    return _auth.sendPasswordResetEmail(email: email, actionCodeSettings: acs);
+  }
 
   @override
   Future<AuthUser> signInWithEmailAndPassword(String email, String password) async {
@@ -100,8 +128,8 @@ class _RestAuthService implements AuthService {
   final _controller = StreamController<AuthUser?>.broadcast();
   final _storage = const FlutterSecureStorage();
 
-  String? _idToken;
-  String? _accessToken;
+  // ignore: unused_field
+  String? _idToken; // Cached token
   String? _refreshToken;
   String? _uid;
   String? _email;
@@ -119,11 +147,10 @@ class _RestAuthService implements AuthService {
 
   @override
   Future<String?> getIdToken() async {
-    // For REST usage we return an OAuth2 access token suitable for Google APIs (e.g., Firestore REST)
-    if (_accessToken == null || _isExpired) {
+    if (_idToken == null || _isExpired) {
       await _refreshIdToken();
     }
-    return _accessToken;
+    return _idToken;
   }
 
   @override
@@ -158,8 +185,6 @@ class _RestAuthService implements AuthService {
     _handleError(resp);
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     _applyAuth(data);
-    // Ensure we obtain an access token for Google APIs
-    await _refreshIdToken();
     await _persist();
     _emitUser();
     return AuthUser(uid: _uid!, email: _email);
@@ -168,10 +193,27 @@ class _RestAuthService implements AuthService {
   @override
   Future<void> sendPasswordResetEmail(String email) async {
     final uri = Uri.parse('$_identityBase/accounts:sendOobCode?key=$_apiKey');
-    final resp = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: jsonEncode({
+    // Best-effort continue URL to the app's auth domain so users land back in app after reset
+    final authDomain = DefaultFirebaseOptions.web.authDomain;
+    final continueUrl = (authDomain != null && authDomain.isNotEmpty)
+        ? 'https://$authDomain'
+        : null;
+    final payload = <String, dynamic>{
       'requestType': 'PASSWORD_RESET',
       'email': email,
-    }));
+    };
+    if (continueUrl != null) {
+      payload['continueUrl'] = continueUrl;
+      // Desktop/web flows will open the browser; we don't handle the code in-app
+      payload['canHandleCodeInApp'] = false;
+    }
+    final resp = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(payload),
+    );
     _handleError(resp);
   }
 
@@ -186,7 +228,6 @@ class _RestAuthService implements AuthService {
     _handleError(resp);
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     _applyAuth(data);
-    await _refreshIdToken();
     await _persist();
     _emitUser();
     return AuthUser(uid: _uid!, email: _email);
@@ -215,7 +256,6 @@ class _RestAuthService implements AuthService {
     _handleError(resp);
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     _idToken = data['id_token'] as String?;
-    _accessToken = data['access_token'] as String? ?? _accessToken;
     _refreshToken = data['refresh_token'] as String? ?? _refreshToken;
     _uid = data['user_id'] as String? ?? _uid;
     _email = data['email'] as String? ?? _email;
@@ -258,4 +298,3 @@ class _RestAuthService implements AuthService {
     }
   }
 }
-

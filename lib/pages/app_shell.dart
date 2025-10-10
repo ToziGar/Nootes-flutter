@@ -10,8 +10,9 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with AutomaticKeepAliveClientMixin {
   int _index = 0;
+  late final PageController _pageController;
 
   final _pages = const [
     NotesWorkspacePage(),
@@ -19,7 +20,34 @@ class _AppShellState extends State<AppShell> {
   ];
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _index);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onDestinationSelected(int index) {
+    if (_index != index) {
+      setState(() => _index = index);
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isCompact = MediaQuery.of(context).size.width < 800;
     final destinations = const [
       NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Workspace'),
@@ -40,12 +68,20 @@ class _AppShellState extends State<AppShell> {
               ],
             ),
           ),
-          child: _pages[_index],
+          child: PageView(
+            controller: _pageController,
+            onPageChanged: (index) {
+              if (_index != index) {
+                setState(() => _index = index);
+              }
+            },
+            children: _pages,
+          ),
         ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _index,
           destinations: destinations,
-          onDestinationSelected: (i) => setState(() => _index = i),
+          onDestinationSelected: _onDestinationSelected,
         ),
       );
     }

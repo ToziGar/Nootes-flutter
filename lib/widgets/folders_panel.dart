@@ -81,6 +81,43 @@ class FoldersPanel extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: AppColors.space8),
+              
+              // Menú de acciones rápidas
+              Wrap(
+                spacing: AppColors.space4,
+                runSpacing: AppColors.space4,
+                children: [
+                  _buildQuickActionButton(
+                    context: context,
+                    icon: Icons.add_rounded,
+                    label: 'Nota',
+                    color: AppColors.secondary,
+                    onPressed: () => _showCreateNoteMenu(context),
+                  ),
+                  _buildQuickActionButton(
+                    context: context,
+                    icon: Icons.search_rounded,
+                    label: 'Buscar',
+                    color: AppColors.accent,
+                    onPressed: () => _showSearchMenu(context),
+                  ),
+                  _buildQuickActionButton(
+                    context: context,
+                    icon: Icons.download_rounded,
+                    label: 'Exportar',
+                    color: AppColors.info,
+                    onPressed: () => _showExportMenu(context),
+                  ),
+                  _buildQuickActionButton(
+                    context: context,
+                    icon: Icons.delete_rounded,
+                    label: 'Papelera',
+                    color: Colors.orange,
+                    onPressed: () => _showTrashMenu(context),
+                  ),
+                ],
+              ),
               const SizedBox(height: AppColors.space4),
               // Hint de drag & drop
               Container(
@@ -486,5 +523,72 @@ class FoldersPanel extends StatelessWidget {
     if (confirmed == true) {
       onFolderDeleted(folder.id);
     }
+  }
+
+  Widget _buildQuickActionButton({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: 65,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
+            ),
+            child: IconButton(
+              onPressed: onPressed,
+              icon: Icon(icon, color: color, size: 18),
+              padding: EdgeInsets.zero,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.black87,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateNoteMenu(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Crear nueva nota - funcionalidad pendiente')),
+    );
+  }
+
+  void _showSearchMenu(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Búsqueda avanzada - funcionalidad pendiente')),
+    );
+  }
+
+  void _showExportMenu(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Exportar notas - funcionalidad pendiente')),
+    );
+  }
+
+  void _showTrashMenu(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Papelera - funcionalidad pendiente')),
+    );
   }
 }
