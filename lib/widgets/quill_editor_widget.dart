@@ -37,6 +37,7 @@ class QuillEditorWidget extends StatefulWidget {
 
 class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   late QuillController _controller;
+  late FocusNode _editorFocusNode; // FocusNode persistente para el editor
   bool _darkTheme = false;
   StreamSubscription? _changesSub;
   bool _applyingShortcuts = false;
@@ -54,6 +55,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   @override
   void initState() {
     super.initState();
+    _editorFocusNode = FocusNode();
     _controller = widget.initialDeltaJson != null
         ? QuillController(
             document: Document.fromJson(
@@ -75,6 +77,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
 
   @override
   void dispose() {
+    _editorFocusNode.dispose();
     _changesSub?.cancel();
     super.dispose();
   }
@@ -356,79 +359,121 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Toolbar
+        // Toolbar mejorada con agrupaciones visuales
         Container(
-          padding: const EdgeInsets.all(8.0),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
-            border: Border(
-              bottom: BorderSide(
-                color: Theme.of(context).dividerColor,
-                width: 1,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
-            ),
-          ),
-          child: Wrap(
-            spacing: 4.0,
-            runSpacing: 4.0,
-            children: [
-              _buildToolbarButton(Icons.format_bold, () => _controller.formatSelection(Attribute.bold), 'Negrita'),
-              _buildToolbarButton(Icons.format_italic, () => _controller.formatSelection(Attribute.italic), 'Cursiva'),
-              _buildToolbarButton(Icons.format_underline, () => _controller.formatSelection(Attribute.underline), 'Subrayado'),
-              _buildToolbarButton(Icons.strikethrough_s, () => _controller.formatSelection(Attribute.strikeThrough), 'Tachado'),
-              const VerticalDivider(width: 16),
-              _buildToolbarButton(Icons.format_align_left, () => _controller.formatSelection(Attribute.leftAlignment), 'Izquierda'),
-              _buildToolbarButton(Icons.format_align_center, () => _controller.formatSelection(Attribute.centerAlignment), 'Centro'),
-              _buildToolbarButton(Icons.format_align_right, () => _controller.formatSelection(Attribute.rightAlignment), 'Derecha'),
-              _buildToolbarButton(Icons.format_align_justify, () => _controller.formatSelection(Attribute.justifyAlignment), 'Justificar'),
-              const VerticalDivider(width: 16),
-              _buildToolbarButton(Icons.format_list_bulleted, () => _controller.formatSelection(Attribute.ul), 'Lista'),
-              _buildToolbarButton(Icons.format_list_numbered, () => _controller.formatSelection(Attribute.ol), 'Numerada'),
-              _buildToolbarButton(Icons.format_quote, () => _controller.formatSelection(Attribute.blockQuote), 'Cita'),
-              _buildToolbarButton(Icons.code, () => _controller.formatSelection(Attribute.codeBlock), 'Código'),
-              const VerticalDivider(width: 16),
-              _buildToolbarButton(Icons.undo, () => _controller.undo(), 'Deshacer'),
-              _buildToolbarButton(Icons.redo, () => _controller.redo(), 'Rehacer'),
-              const VerticalDivider(width: 16),
-              _buildToolbarButton(Icons.search, () => _showSearchDialog(context), 'Buscar'),
-              _buildToolbarButton(Icons.image, () => _insertImage(context), 'Imagen'),
-              _buildToolbarButton(Icons.link, () => _insertLink(context), 'Enlace'),
-              const VerticalDivider(width: 16),
-              _buildToolbarButton(Icons.functions, _insertMathBlock, 'Bloque LaTeX'),
-              _buildToolbarButton(Icons.exposure, _insertMathInline, 'LaTeX inline'),
-              const VerticalDivider(width: 16),
-              _buildToolbarButton(Icons.color_lens, () => _showColorPicker(context), 'Color'),
-              _buildToolbarButton(_darkTheme ? Icons.light_mode : Icons.dark_mode, () => _toggleTheme(), 'Tema'),
-              _buildToolbarButton(Icons.fullscreen, () => _toggleFullscreen(context), 'Pantalla completa'),
             ],
           ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+            child: Row(
+              children: [
+                // Grupo: Formato de texto
+                _buildToolbarGroup([
+                  _buildToolbarButton(Icons.format_bold, () => _controller.formatSelection(Attribute.bold), 'Negrita (Ctrl+B)'),
+                  _buildToolbarButton(Icons.format_italic, () => _controller.formatSelection(Attribute.italic), 'Cursiva (Ctrl+I)'),
+                  _buildToolbarButton(Icons.format_underline, () => _controller.formatSelection(Attribute.underline), 'Subrayado (Ctrl+U)'),
+                  _buildToolbarButton(Icons.strikethrough_s, () => _controller.formatSelection(Attribute.strikeThrough), 'Tachado'),
+                ]),
+                const SizedBox(width: 8),
+                _buildToolbarDivider(),
+                const SizedBox(width: 8),
+                
+                // Grupo: Alineación
+                _buildToolbarGroup([
+                  _buildToolbarButton(Icons.format_align_left, () => _controller.formatSelection(Attribute.leftAlignment), 'Alinear izquierda'),
+                  _buildToolbarButton(Icons.format_align_center, () => _controller.formatSelection(Attribute.centerAlignment), 'Centrar'),
+                  _buildToolbarButton(Icons.format_align_right, () => _controller.formatSelection(Attribute.rightAlignment), 'Alinear derecha'),
+                  _buildToolbarButton(Icons.format_align_justify, () => _controller.formatSelection(Attribute.justifyAlignment), 'Justificar'),
+                ]),
+                const SizedBox(width: 8),
+                _buildToolbarDivider(),
+                const SizedBox(width: 8),
+                
+                // Grupo: Listas y bloques
+                _buildToolbarGroup([
+                  _buildToolbarButton(Icons.format_list_bulleted, () => _controller.formatSelection(Attribute.ul), 'Lista con viñetas'),
+                  _buildToolbarButton(Icons.format_list_numbered, () => _controller.formatSelection(Attribute.ol), 'Lista numerada'),
+                  _buildToolbarButton(Icons.format_quote, () => _controller.formatSelection(Attribute.blockQuote), 'Cita'),
+                  _buildToolbarButton(Icons.code, () => _controller.formatSelection(Attribute.codeBlock), 'Bloque de código'),
+                ]),
+                const SizedBox(width: 8),
+                _buildToolbarDivider(),
+                const SizedBox(width: 8),
+                
+                // Grupo: Deshacer/Rehacer
+                _buildToolbarGroup([
+                  _buildToolbarButton(Icons.undo, () => _controller.undo(), 'Deshacer (Ctrl+Z)'),
+                  _buildToolbarButton(Icons.redo, () => _controller.redo(), 'Rehacer (Ctrl+Y)'),
+                ]),
+                const SizedBox(width: 8),
+                _buildToolbarDivider(),
+                const SizedBox(width: 8),
+                
+                // Grupo: Insertar contenido
+                _buildToolbarGroup([
+                  _buildToolbarButton(Icons.image_outlined, () => _insertImage(context), 'Insertar imagen'),
+                  _buildToolbarButton(Icons.link, () => _insertLink(context), 'Insertar enlace'),
+                  _buildToolbarButton(Icons.functions, _insertMathBlock, 'Insertar ecuación LaTeX'),
+                  _buildToolbarButton(Icons.exposure, _insertMathInline, 'Ecuación inline'),
+                ]),
+                const SizedBox(width: 8),
+                _buildToolbarDivider(),
+                const SizedBox(width: 8),
+                
+                // Grupo: Herramientas
+                _buildToolbarGroup([
+                  _buildToolbarButton(Icons.search, () => _showSearchDialog(context), 'Buscar (Ctrl+F)'),
+                  _buildToolbarButton(Icons.color_lens_outlined, () => _showColorPicker(context), 'Color de texto'),
+                  _buildToolbarButton(_darkTheme ? Icons.light_mode_outlined : Icons.dark_mode_outlined, () => _toggleTheme(), 'Cambiar tema'),
+                  _buildToolbarButton(Icons.fullscreen, () => _toggleFullscreen(context), 'Pantalla completa'),
+                ]),
+              ],
+            ),
+          ),
         ),
-        // Editor area
+        // Editor area con diseño mejorado
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: _darkTheme ? Colors.grey[900] : Theme.of(context).colorScheme.surface,
+              color: _darkTheme ? const Color(0xFF1E1E1E) : Colors.white,
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                  width: 1,
+                ),
+              ),
             ),
-            padding: const EdgeInsets.all(16.0),
             child: Stack(
               children: [
-                // Main editor
+                // Main editor con padding mejorado
                 Positioned.fill(
-                  child: KeyboardListener(
-                    focusNode: FocusNode(),
-                    onKeyEvent: (event) {
-                      if (event is KeyDownEvent) {
-                        final isCtrl = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
-                        if (isCtrl && event.logicalKey == LogicalKeyboardKey.enter) {
-                          _tryOpenWikilink();
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                    child: KeyboardListener(
+                      focusNode: _editorFocusNode,
+                      onKeyEvent: (event) {
+                        if (event is KeyDownEvent) {
+                          final isCtrl = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
+                          if (isCtrl && event.logicalKey == LogicalKeyboardKey.enter) {
+                            _tryOpenWikilink();
+                          }
+                          if (event.logicalKey == LogicalKeyboardKey.backspace) {
+                            _handleBackspaceFormatExit();
+                          }
                         }
-                        if (event.logicalKey == LogicalKeyboardKey.backspace) {
-                          _handleBackspaceFormatExit();
-                        }
-                      }
-                    },
-                    child: QuillEditor.basic(
-                      controller: _controller,
+                      },
+                      child: QuillEditor.basic(
+                        controller: _controller,
+                      ),
                     ),
                   ),
                 ),
@@ -450,48 +495,76 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                       ),
                     ),
                   ),
-                // Math preview overlay (bottom-right)
+                // Math preview overlay mejorado (bottom-right)
                 if (_showMathPreview && _mathPreview.isNotEmpty)
                   Positioned(
-                    right: 8,
-                    bottom: 8,
+                    right: 20,
+                    bottom: 20,
                     child: Material(
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(8),
-                      color: Theme.of(context).colorScheme.surface,
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(12),
+                      shadowColor: Colors.black.withValues(alpha: 0.2),
                       child: Container(
-                        constraints: const BoxConstraints(maxWidth: 300, maxHeight: 200),
-                        padding: const EdgeInsets.all(12),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
+                        constraints: const BoxConstraints(maxWidth: 350, maxHeight: 250),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Header
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(12),
+                                  topRight: Radius.circular(12),
+                                ),
+                              ),
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
                                     _mathIsBlock ? Icons.functions : Icons.exposure,
-                                    size: 16,
+                                    size: 18,
                                     color: Theme.of(context).colorScheme.primary,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
                                     _mathIsBlock ? 'Bloque LaTeX' : 'LaTeX inline',
-                                    style: Theme.of(context).textTheme.labelSmall,
+                                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              math.Math.tex(
-                                _mathPreview,
-                                textStyle: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                  fontSize: _mathIsBlock ? 16 : 14,
+                            ),
+                            // Preview content
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                child: SingleChildScrollView(
+                                  child: Center(
+                                    child: math.Math.tex(
+                                      _mathPreview,
+                                      textStyle: TextStyle(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                        fontSize: _mathIsBlock ? 18 : 16,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -500,43 +573,123 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
             ),
           ),
         ),
-        // Bottom bar with save button
+        // Bottom bar mejorada con estadísticas y botón de guardar
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
-            border: Border(
-              top: BorderSide(
-                color: Theme.of(context).dividerColor,
-                width: 1,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 4,
+                offset: const Offset(0, -2),
               ),
-            ),
+            ],
           ),
           child: Row(
             children: [
-              Text(
-                'Palabras: ${_getWordCount()}',
-                style: Theme.of(context).textTheme.bodySmall,
+              // Estadísticas del documento
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.article_outlined,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${_getWordCount()} palabras',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 1,
+                      height: 14,
+                      color: Theme.of(context).dividerColor,
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(
+                      Icons.text_fields,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${_controller.document.toPlainText().length} caracteres',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const Spacer(),
+              // Botón de ayuda con tutorial
+              IconButton(
+                onPressed: () => _showHelpDialog(context),
+                icon: const Icon(Icons.help_outline),
+                tooltip: 'Ayuda y tutorial completo',
+                style: IconButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                  foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Botón de guardar mejorado (sin perder foco)
               ElevatedButton.icon(
                 onPressed: () async {
+                  // Guardar la posición del cursor
+                  final currentSelection = _controller.selection;
+                  
                   final json = jsonEncode(_controller.document.toDelta().toJson());
                   widget.onChanged(json);
                   final messenger = ScaffoldMessenger.of(context);
                   await widget.onSave(json);
+                  
+                  // Restaurar el foco y la selección después de guardar
+                  if (mounted) {
+                    _editorFocusNode.requestFocus();
+                    _controller.updateSelection(currentSelection, ChangeSource.local);
+                  }
+                  
                   messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Nota guardada correctamente'),
-                      duration: Duration(seconds: 2),
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.white, size: 20),
+                          const SizedBox(width: 12),
+                          const Text('Guardado automáticamente'),
+                        ],
+                      ),
+                      duration: const Duration(milliseconds: 1500),
                       behavior: SnackBarBehavior.floating,
+                      backgroundColor: Colors.green.shade600,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      margin: const EdgeInsets.only(bottom: 80, left: 20, right: 20),
                     ),
                   );
                 },
-                icon: const Icon(Icons.save, size: 16),
+                icon: const Icon(Icons.save_outlined, size: 18),
                 label: const Text('Guardar'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  elevation: 0,
+                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ],
@@ -549,22 +702,51 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   Widget _buildToolbarButton(IconData icon, VoidCallback onPressed, String tooltip) {
     return Tooltip(
       message: tooltip,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(4),
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: Theme.of(context).colorScheme.onSurface,
+      waitDuration: const Duration(milliseconds: 500),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildToolbarGroup(List<Widget> buttons) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: buttons.map((btn) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: btn,
+        )).toList(),
+      ),
+    );
+  }
+
+  Widget _buildToolbarDivider() {
+    return Container(
+      width: 1,
+      height: 28,
+      color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
     );
   }
 
@@ -765,6 +947,19 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     );
   }
 
+  void _showHelpDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
+          child: const EditorHelpDialog(),
+        ),
+      ),
+    );
+  }
+
   void _toggleFullscreen(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -811,5 +1006,870 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     } finally {
       _applyingShortcuts = false;
     }
+  }
+}
+
+// Widget de diálogo de ayuda completo e interactivo
+class EditorHelpDialog extends StatefulWidget {
+  const EditorHelpDialog({super.key});
+
+  @override
+  State<EditorHelpDialog> createState() => _EditorHelpDialogState();
+}
+
+class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  int _currentTab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 6, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        _currentTab = _tabController.index;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Header del diálogo
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.school_outlined,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tutorial Completo del Editor',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Aprende a usar todas las funcionalidades',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+                tooltip: 'Cerrar',
+              ),
+            ],
+          ),
+        ),
+        // Tabs
+        Container(
+          color: Theme.of(context).colorScheme.surface,
+          child: TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            tabs: const [
+              Tab(icon: Icon(Icons.format_bold), text: 'Formato'),
+              Tab(icon: Icon(Icons.keyboard), text: 'Atajos'),
+              Tab(icon: Icon(Icons.functions), text: 'LaTeX'),
+              Tab(icon: Icon(Icons.link), text: 'Wikilinks'),
+              Tab(icon: Icon(Icons.article), text: 'Markdown'),
+              Tab(icon: Icon(Icons.tips_and_updates), text: 'Tips'),
+            ],
+          ),
+        ),
+        // Contenido
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildFormatTab(),
+              _buildShortcutsTab(),
+              _buildLatexTab(),
+              _buildWikilinksTab(),
+              _buildMarkdownTab(),
+              _buildTipsTab(),
+            ],
+          ),
+        ),
+        // Footer con navegación
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            border: Border(
+              top: BorderSide(color: Theme.of(context).dividerColor),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton.icon(
+                onPressed: _currentTab > 0
+                    ? () => _tabController.animateTo(_currentTab - 1)
+                    : null,
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Anterior'),
+              ),
+              Text(
+                'Sección ${_currentTab + 1} de 6',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              TextButton.icon(
+                onPressed: _currentTab < 5
+                    ? () => _tabController.animateTo(_currentTab + 1)
+                    : null,
+                icon: const Icon(Icons.arrow_forward),
+                label: const Text('Siguiente'),
+                iconAlignment: IconAlignment.end,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFormatTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle('📝 Formato de Texto'),
+          const SizedBox(height: 16),
+          _buildFeatureCard(
+            icon: Icons.format_bold,
+            title: 'Negrita',
+            description: 'Haz que tu texto destaque con negrita',
+            example: '**texto en negrita**',
+            shortcut: 'Ctrl + B',
+          ),
+          _buildFeatureCard(
+            icon: Icons.format_italic,
+            title: 'Cursiva',
+            description: 'Dale énfasis a tu texto con cursiva',
+            example: '*texto en cursiva*',
+            shortcut: 'Ctrl + I',
+          ),
+          _buildFeatureCard(
+            icon: Icons.format_underline,
+            title: 'Subrayado',
+            description: 'Subraya texto importante',
+            example: 'Usa el botón de toolbar',
+            shortcut: 'Ctrl + U',
+          ),
+          _buildFeatureCard(
+            icon: Icons.strikethrough_s,
+            title: 'Tachado',
+            description: 'Marca texto que ya no es relevante',
+            example: '~~texto tachado~~',
+            shortcut: 'Toolbar',
+          ),
+          const SizedBox(height: 24),
+          _buildSectionTitle('📐 Alineación'),
+          const SizedBox(height: 16),
+          _buildFeatureCard(
+            icon: Icons.format_align_left,
+            title: 'Alinear Izquierda',
+            description: 'Alineación predeterminada del texto',
+            example: 'Usa los botones de toolbar',
+          ),
+          _buildFeatureCard(
+            icon: Icons.format_align_center,
+            title: 'Centrar',
+            description: 'Centra tu texto o títulos',
+            example: 'Selecciona texto y usa toolbar',
+          ),
+          _buildFeatureCard(
+            icon: Icons.format_align_right,
+            title: 'Alinear Derecha',
+            description: 'Alinea texto a la derecha',
+            example: 'Útil para fechas o firmas',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShortcutsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle('⌨️ Atajos de Teclado'),
+          const SizedBox(height: 16),
+          _buildShortcutItem('Ctrl + B', 'Negrita', Icons.format_bold),
+          _buildShortcutItem('Ctrl + I', 'Cursiva', Icons.format_italic),
+          _buildShortcutItem('Ctrl + U', 'Subrayado', Icons.format_underline),
+          _buildShortcutItem('Ctrl + Z', 'Deshacer', Icons.undo),
+          _buildShortcutItem('Ctrl + Y', 'Rehacer', Icons.redo),
+          _buildShortcutItem('Ctrl + F', 'Buscar', Icons.search),
+          _buildShortcutItem('Ctrl + Enter', 'Abrir Wikilink', Icons.open_in_new),
+          const SizedBox(height: 24),
+          _buildSectionTitle('📋 Listas y Bloques'),
+          const SizedBox(height: 16),
+          _buildFeatureCard(
+            icon: Icons.format_list_bulleted,
+            title: 'Lista con Viñetas',
+            description: 'Crea listas no ordenadas',
+            example: '- Elemento\n- Otro elemento',
+            shortcut: 'Escribe: - + espacio',
+          ),
+          _buildFeatureCard(
+            icon: Icons.format_list_numbered,
+            title: 'Lista Numerada',
+            description: 'Crea listas ordenadas',
+            example: '1. Primero\n2. Segundo',
+            shortcut: 'Escribe: 1. + espacio',
+          ),
+          _buildFeatureCard(
+            icon: Icons.format_quote,
+            title: 'Cita',
+            description: 'Cita texto o referencias',
+            example: '> Esto es una cita',
+            shortcut: 'Escribe: > + espacio',
+          ),
+          _buildFeatureCard(
+            icon: Icons.code,
+            title: 'Bloque de Código',
+            description: 'Formatea código con monospace',
+            example: '``` código aquí ```',
+            shortcut: 'Escribe: ``` + espacio',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLatexTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle('🧮 Ecuaciones LaTeX'),
+          const SizedBox(height: 8),
+          Text(
+            'Escribe ecuaciones matemáticas profesionales con LaTeX',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildFeatureCard(
+            icon: Icons.functions,
+            title: 'Bloque LaTeX',
+            description: 'Ecuaciones grandes en su propia línea',
+            example: '\$\$ x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a} \$\$',
+            shortcut: 'Escribe: \$\$ + espacio',
+            color: Colors.blue,
+          ),
+          _buildFeatureCard(
+            icon: Icons.exposure,
+            title: 'LaTeX Inline',
+            description: 'Ecuaciones pequeñas dentro del texto',
+            example: 'La ecuación \$E=mc^2\$ es famosa',
+            shortcut: 'Escribe: \$ + espacio',
+            color: Colors.blue,
+          ),
+          const SizedBox(height: 24),
+          _buildSectionTitle('📚 Ejemplos Comunes'),
+          const SizedBox(height: 16),
+          _buildLatexExample('Fracción', '\\frac{a}{b}'),
+          _buildLatexExample('Raíz cuadrada', '\\sqrt{x}'),
+          _buildLatexExample('Exponente', 'x^2'),
+          _buildLatexExample('Subíndice', 'a_i'),
+          _buildLatexExample('Sumatoria', '\\sum_{i=1}^{n} x_i'),
+          _buildLatexExample('Integral', '\\int_0^\\infty e^{-x} dx'),
+          _buildLatexExample('Límite', '\\lim_{x \\to \\infty} f(x)'),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.lightbulb_outline, color: Colors.blue),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'El preview aparece automáticamente cuando escribes dentro de los delimitadores \$...\$ o \$\$...\$\$',
+                    style: TextStyle(color: Colors.blue.shade700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWikilinksTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle('🔗 Wikilinks - Enlaces entre Notas'),
+          const SizedBox(height: 8),
+          Text(
+            'Conecta tus notas creando una red de conocimiento',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildFeatureCard(
+            icon: Icons.link,
+            title: 'Crear Wikilink',
+            description: 'Enlaza a otra nota escribiendo [[',
+            example: '[[Nombre de la nota]]',
+            shortcut: 'Escribe: [[',
+            color: Colors.purple,
+          ),
+          _buildFeatureCard(
+            icon: Icons.search,
+            title: 'Autocompletado',
+            description: 'Al escribir [[ aparece un menú con sugerencias',
+            example: 'Escribe [[ y busca la nota',
+            color: Colors.purple,
+          ),
+          _buildFeatureCard(
+            icon: Icons.open_in_new,
+            title: 'Abrir Wikilink',
+            description: 'Navega rápidamente entre notas',
+            example: 'Coloca el cursor en un [[link]]',
+            shortcut: 'Ctrl + Enter',
+            color: Colors.purple,
+          ),
+          const SizedBox(height: 24),
+          _buildSectionTitle('💡 Casos de Uso'),
+          const SizedBox(height: 16),
+          _buildUseCaseCard(
+            '📚 Base de Conocimiento',
+            'Conecta conceptos relacionados:\n"En [[Física Cuántica]] se estudia el [[Principio de Incertidumbre]]"',
+          ),
+          _buildUseCaseCard(
+            '📝 Diario Personal',
+            'Referencia entradas pasadas:\n"Como mencioné en [[2024-10-01]], el proyecto avanza"',
+          ),
+          _buildUseCaseCard(
+            '🎯 Gestión de Proyectos',
+            'Enlaza tareas y documentos:\n"Ver detalles en [[Especificaciones del Proyecto]]"',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMarkdownTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle('📄 Atajos Markdown'),
+          const SizedBox(height: 8),
+          Text(
+            'Escribe más rápido con sintaxis Markdown',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildMarkdownShortcut('# ', 'Título Grande (H1)', '# Mi Título'),
+          _buildMarkdownShortcut('## ', 'Título Mediano (H2)', '## Subtítulo'),
+          _buildMarkdownShortcut('### ', 'Título Pequeño (H3)', '### Sección'),
+          _buildMarkdownShortcut('- ', 'Lista con Viñetas', '- Elemento de lista'),
+          _buildMarkdownShortcut('* ', 'Lista con Viñetas (alt)', '* Otro elemento'),
+          _buildMarkdownShortcut('1. ', 'Lista Numerada', '1. Primer paso'),
+          _buildMarkdownShortcut('> ', 'Cita', '> Texto citado'),
+          _buildMarkdownShortcut('``` ', 'Bloque de Código', '``` tu código aquí'),
+          _buildMarkdownShortcut('--- ', 'Línea Horizontal', '--- (en línea nueva)'),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.tips_and_updates, color: Colors.green),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Tip Pro',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Todos estos atajos se activan automáticamente cuando escribes el patrón seguido de ESPACIO.',
+                  style: TextStyle(color: Colors.green.shade700),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTipsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle('✨ Tips y Trucos'),
+          const SizedBox(height: 24),
+          _buildTipCard(
+            Icons.save,
+            'Guardado Automático',
+            'La nota se guarda automáticamente sin perder el foco del cursor. Puedes seguir escribiendo sin interrupciones.',
+            Colors.blue,
+          ),
+          _buildTipCard(
+            Icons.preview,
+            'Vista Previa LaTeX',
+            'El preview de ecuaciones LaTeX aparece automáticamente en la esquina inferior derecha cuando tu cursor está dentro de los delimitadores.',
+            Colors.purple,
+          ),
+          _buildTipCard(
+            Icons.link_off,
+            'Salir de Formatos',
+            'Presiona BACKSPACE al inicio de una línea formateada (lista, cita, etc.) para salir del formato.',
+            Colors.orange,
+          ),
+          _buildTipCard(
+            Icons.search,
+            'Búsqueda Rápida',
+            'Usa Ctrl+F para buscar texto en tu nota. El editor resaltará y navegará a los resultados.',
+            Colors.green,
+          ),
+          _buildTipCard(
+            Icons.color_lens,
+            'Colores Personalizados',
+            'Selecciona texto y usa el selector de color en la toolbar para dar énfasis visual.',
+            Colors.red,
+          ),
+          _buildTipCard(
+            Icons.fullscreen,
+            'Modo Pantalla Completa',
+            'Haz clic en el botón de pantalla completa para una experiencia de escritura sin distracciones.',
+            Colors.indigo,
+          ),
+          _buildTipCard(
+            Icons.image,
+            'Imágenes y Enlaces',
+            'Inserta imágenes con URLs y crea enlaces clickeables usando los botones de la toolbar.',
+            Colors.teal,
+          ),
+          const SizedBox(height: 24),
+          _buildSectionTitle('📊 Estadísticas'),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                _buildStatRow(Icons.article_outlined, 'Contador de palabras', 'En la barra inferior'),
+                _buildStatRow(Icons.text_fields, 'Contador de caracteres', 'Junto al contador de palabras'),
+                _buildStatRow(Icons.history, 'Historial infinito', 'Ctrl+Z y Ctrl+Y ilimitados'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  Widget _buildFeatureCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required String example,
+    String? shortcut,
+    Color? color,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color?.withValues(alpha: 0.3) ?? Theme.of(context).dividerColor,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: (color ?? Theme.of(context).colorScheme.primary).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color ?? Theme.of(context).colorScheme.primary, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    if (shortcut != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          shortcut,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: color ?? Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    example,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShortcutItem(String shortcut, String action, IconData icon) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              action,
+              style: const TextStyle(fontSize: 15),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Text(
+              shortcut,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.primary,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLatexExample(String name, String latex) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              name,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                latex,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUseCaseCard(String title, String example) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.purple.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.purple.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Colors.purple.shade700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            example,
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMarkdownShortcut(String shortcut, String result, String example) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              shortcut,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Icon(Icons.arrow_forward, size: 16),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  result,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  example,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTipCard(IconData icon, String title, String description, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
