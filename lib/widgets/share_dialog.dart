@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../services/sharing_service.dart';
 import '../services/toast_service.dart';
 import '../theme/app_theme.dart';
+import '../services/firestore_service.dart';
 
 /// Dialog para compartir una nota o carpeta con diseño moderno
 class ShareDialog extends StatefulWidget {
@@ -137,26 +138,72 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
 
     try {
       final suggestions = <Map<String, dynamic>>[];
-      
+
+      // 1) Email exact or prefix (if user types full email)
       if (query.contains('@') && !query.startsWith('@')) {
         final user = await SharingService().findUserByEmail(query);
-        if (user != null) {
-          suggestions.add(user);
-        }
-      } else {
-        final cleanQuery = query.startsWith('@') ? query.substring(1) : query;
-        if (cleanQuery.isNotEmpty) {
-          final user = await SharingService().findUserByUsername(cleanQuery);
-          if (user != null) {
-            suggestions.add(user);
-          }
-        }
+        if (user != null) suggestions.add(user);
       }
-      
+
+      // 2) Username/handle prefix using handles collection
+      final clean = query.startsWith('@') ? query.substring(1) : query;
+      if (clean.isNotEmpty) {
+        try {
+          final handles = await FirestoreService.instance.listHandles(limit: 50);
+          final matched = handles
+              .where((h) => (h['username']?.toString() ?? '').toLowerCase().startsWith(clean.toLowerCase()))
+              .take(5)
+              .toList();
+          for (final h in matched) {
+            final uid = h['uid']?.toString();
+            if (uid == null) continue;
+            final p = await FirestoreService.instance.getUserProfile(uid: uid);
+            if (p != null) {
+              suggestions.add({
+                'uid': uid,
+                'email': p['email'],
+                'fullName': p['fullName'],
+                'username': p['username'],
+              });
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3) Fallback: list few recent profiles and filter by name prefix
+      if (suggestions.isEmpty) {
+        try {
+          final profiles = await FirestoreService.instance.listUserProfiles(limit: 50);
+          final matched = profiles
+              .where((u) => ((u['fullName'] ?? u['username'] ?? u['email'] ?? '')
+                      .toString()
+                      .toLowerCase())
+                  .startsWith(query.toLowerCase()))
+              .take(5)
+              .map((u) => {
+                    'uid': u['id'],
+                    'email': u['email'],
+                    'fullName': u['fullName'],
+                    'username': u['username'],
+                  })
+              .toList();
+          suggestions.addAll(matched);
+        } catch (_) {}
+      }
+
+      // Deduplicate by uid
+      final seen = <String>{};
+      final deduped = <Map<String, dynamic>>[];
+      for (final s in suggestions) {
+        final uid = s['uid']?.toString();
+        if (uid == null) continue;
+        if (seen.add(uid)) deduped.add(s);
+      }
+
       setState(() {
-        _suggestions = suggestions;
-        _showSuggestions = suggestions.isNotEmpty;
-        _errorMessage = suggestions.isEmpty ? 'No se encontraron usuarios que coincidan' : null;
+        _suggestions = deduped;
+        _showSuggestions = deduped.isNotEmpty;
+        _errorMessage = deduped.isEmpty ? 'No se encontraron usuarios que coincidan' : null;
       });
     } catch (e) {
       setState(() {

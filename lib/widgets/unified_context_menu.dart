@@ -205,7 +205,7 @@ class ContextMenuBuilder {
   }) {
     return [
       ContextMenuAction(
-        label: 'Editar',
+        label: 'Renombrar',
         icon: Icons.edit_rounded,
         value: ContextMenuActionType.editNote,
         shortcut: 'Enter',
@@ -280,7 +280,7 @@ class ContextMenuBuilder {
   static List<ContextMenuAction> folder() {
     return [
       ContextMenuAction(
-        label: 'Editar',
+        label: 'Renombrar',
         icon: Icons.edit_rounded,
         value: ContextMenuActionType.editFolder,
       ),

@@ -82,7 +82,9 @@ class _RichTextEditorState extends State<RichTextEditor> {
     final text = _controller.text;
     final sel = _controller.selection;
     final i = sel.isValid ? sel.baseOffset : text.length;
-    final lineStart = text.lastIndexOf('\n', i - 1) + 1;
+    final searchFrom = (i - 1) < 0 ? 0 : (i - 1);
+    final prevNewline = text.isEmpty ? -1 : text.lastIndexOf('\n', searchFrom);
+    final lineStart = (prevNewline < 0 ? -1 : prevNewline) + 1;
     _controller.value = _controller.value.copyWith(
       text: text.replaceRange(lineStart, lineStart, prefix),
       selection: TextSelection.collapsed(offset: (sel.baseOffset + prefix.length)),

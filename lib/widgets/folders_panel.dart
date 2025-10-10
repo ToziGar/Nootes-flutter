@@ -308,7 +308,7 @@ class FoldersPanel extends StatelessWidget {
                               children: [
                                 Icon(Icons.edit_rounded, size: 18, color: AppColors.textPrimary),
                                 SizedBox(width: AppColors.space12),
-                                Text('Editar', style: TextStyle(color: AppColors.textPrimary)),
+                                Text('Renombrar', style: TextStyle(color: AppColors.textPrimary)),
                               ],
                             ),
                           ),

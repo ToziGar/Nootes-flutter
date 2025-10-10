@@ -383,35 +383,29 @@ class SharingService {
     
     print('✅ Nota verificada: ${note['title'] ?? 'Sin título'}');
 
-    // Verificar si ya existe una compartición pendiente o activa
+    // Verificar si ya existe una compartición (usando ID determinístico)
     print('🔍 Verificando comparticiones existentes...');
+    final shareId = '${recipient['uid']}_${currentUser.uid}_$noteId';
     try {
-      final existing = await _firestore
-          .collection('shared_items')
-          .where('itemId', isEqualTo: noteId)
-          .where('ownerId', isEqualTo: currentUser.uid)
-          .where('recipientId', isEqualTo: recipient['uid'])
-          .where('status', whereIn: ['pending', 'accepted'])
-          .get();
-
-      if (existing.docs.isNotEmpty) {
-        print('❌ Nota ya compartida con este usuario');
-        throw Exception('Esta nota ya está compartida con este usuario');
+      final existingDoc = await _firestore.collection('shared_items').doc(shareId).get();
+      if (existingDoc.exists) {
+        final data = existingDoc.data() as Map<String, dynamic>;
+        final existingStatus = (data['status'] as String?) ?? 'pending';
+        if (existingStatus == SharingStatus.pending.name || existingStatus == SharingStatus.accepted.name) {
+          print('❌ Nota ya compartida con este usuario (estado: $existingStatus)');
+          throw Exception('Esta nota ya está compartida con este usuario');
+        }
       }
     } catch (e) {
-      print('❌ Error verificando comparticiones existentes: $e');
-      if (e.toString().contains('Esta nota ya está compartida')) {
-        rethrow;
-      }
-      
+      print('❌ Error verificando compartición existente: $e');
       final errorStr = e.toString().toLowerCase();
       if (errorStr.contains('permission') || errorStr.contains('denied') || 
           errorStr.contains('unauthorized') || errorStr.contains('403')) {
         throw Exception('No tienes permisos para crear comparticiones.');
       } else if (errorStr.contains('network') || errorStr.contains('connection')) {
         throw Exception('Error de conexión al verificar comparticiones existentes.');
-      } else {
-        throw Exception('Error verificando comparticiones: ${e.toString()}');
+      } else if (e.toString().contains('Esta nota ya está compartida')) {
+        rethrow;
       }
     }
     
@@ -451,11 +445,9 @@ class SharingService {
         },
       );
 
-      final docRef = await _firestore
-          .collection('shared_items')
-          .add(sharedItem.toMap());
-
-      print('✅ Compartición creada exitosamente: ${docRef.id}');
+    final docRef = _firestore.collection('shared_items').doc(shareId);
+    await docRef.set(sharedItem.toMap());
+    print('✅ Compartición creada exitosamente: ${docRef.id}');
       
       // Enviar notificación al destinatario
       final notificationService = NotificationService();
@@ -511,17 +503,15 @@ class SharingService {
       throw Exception('Carpeta no encontrada');
     }
 
-    // Verificar si ya existe una compartición
-    final existing = await _firestore
-        .collection('shared_items')
-        .where('itemId', isEqualTo: folderId)
-        .where('ownerId', isEqualTo: currentUser.uid)
-        .where('recipientId', isEqualTo: recipient['uid'])
-        .where('status', whereIn: ['pending', 'accepted'])
-        .get();
-
-    if (existing.docs.isNotEmpty) {
-      throw Exception('Esta carpeta ya está compartida con este usuario');
+    // Verificar si ya existe una compartición (ID determinístico)
+    final shareId = '${recipient['uid']}_${currentUser.uid}_$folderId';
+    final existingDoc = await _firestore.collection('shared_items').doc(shareId).get();
+    if (existingDoc.exists) {
+      final data = existingDoc.data() as Map<String, dynamic>;
+      final existingStatus = (data['status'] as String?) ?? 'pending';
+      if (existingStatus == SharingStatus.pending.name || existingStatus == SharingStatus.accepted.name) {
+        throw Exception('Esta carpeta ya está compartida con este usuario');
+      }
     }
 
     // Obtener perfil del propietario
@@ -547,9 +537,8 @@ class SharingService {
       },
     );
 
-    final docRef = await _firestore
-        .collection('shared_items')
-        .add(sharedItem.toMap());
+  final docRef = _firestore.collection('shared_items').doc(shareId);
+  await docRef.set(sharedItem.toMap());
 
     // Enviar notificación al destinatario
     final notificationService = NotificationService();

@@ -734,8 +734,49 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       _selectedFolderId = null;
     });
     
+    // Pedir título obligatorio antes de crear
+    final title = await showDialog<String?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        final c = TextEditingController();
+        return AlertDialog(
+          title: const Text('Nueva nota'),
+          content: TextField(
+            controller: c,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Título de la nota',
+              hintText: 'Escribe un título',
+            ),
+            onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: const Text('Crear')),
+          ],
+        );
+      },
+    );
+    if (title == null || title.isEmpty) {
+      // Restaurar filtros si cancela o deja vacío
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          setState(() {
+            _filterTags = tempFilterTags;
+            _filterDateRange = tempFilterDateRange;
+            _selectedFolderId = tempSelectedFolder;
+          });
+        }
+      });
+      if (title != null && title.isEmpty) {
+        ToastService.warning('El título no puede estar vacío');
+      }
+      return;
+    }
+
     final id = await FirestoreService.instance.createNote(uid: _uid, data: {
-      'title': '',
+      'title': title,
       'content': '',
       'tags': <String>[],
       'links': <String>[],
@@ -1032,7 +1073,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                           noteId: id,
                           pinned: !(note['pinned'] == true),
                         );
-                        await _loadNotes();
+                        // ✅ CORRECCIÓN: Actualizar localmente en lugar de recargar todo
+                        _updateNoteInList(id, {'pinned': !(note['pinned'] == true)});
                       },
                       onDelete: () => _delete(id),
                       onSetIcon: () => _showNoteIconPicker(noteId: id, initialIcon: note['icon']?.toString(), initialColor: note['iconColor'] is int ? Color(note['iconColor']) : null),
@@ -1157,7 +1199,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         await _createFromTemplate();
         break;
       case ContextMenuActionType.editNote:
-        if (noteId != null) await _select(noteId);
+        if (noteId != null) await _showRenameNoteDialog(noteId);
         break;
       case ContextMenuActionType.duplicateNote:
         if (noteId != null) await _duplicateNote(noteId);
@@ -1199,7 +1241,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       case ContextMenuActionType.editFolder:
         if (folderId != null) {
           final folder = _folders.firstWhere((f) => f.id == folderId);
-          await _showEditFolderDialog(folder);
+          await _showRenameFolderDialog(folder);
         }
         break;
       case ContextMenuActionType.deleteFolder:
@@ -1282,6 +1324,14 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         case 'open':
         case 'edit':
           if (noteId != null) await _select(noteId);
+          break;
+        case 'rename':
+          if (noteId != null) {
+            await _showRenameNoteDialog(noteId);
+          } else if (folderId != null) {
+            final folder = _folders.firstWhere((f) => f.id == folderId);
+            await _showRenameFolderDialog(folder);
+          }
           break;
         case 'duplicate':
           if (noteId != null) {
@@ -1737,7 +1787,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
               Navigator.pop(ctx);
               _showEditFolderDialog(folder);
             },
-            child: const Text('Editar'),
+            child: const Text('Renombrar'),
           ),
         ],
       ),
@@ -3183,6 +3233,71 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         _notes[notesIndex] = {..._notes[notesIndex], ...updates};
       }
     });
+  }
+
+  Future<void> _showRenameNoteDialog(String noteId) async {
+    final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId, orElse: () => {});
+    final controller = TextEditingController(text: (note['title']?.toString() ?? '').trim());
+    final newTitle = await showDialog<String?>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Renombrar nota'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Título',
+              hintText: 'Introduce un nombre',
+            ),
+            onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Guardar')),
+          ],
+        );
+      },
+    );
+    if (newTitle == null) return;
+    if (newTitle.isEmpty) {
+      ToastService.warning('El título no puede estar vacío');
+      return;
+    }
+    await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'title': newTitle});
+    _updateNoteInList(noteId, {'title': newTitle});
+  }
+
+  Future<void> _showRenameFolderDialog(Folder folder) async {
+    final controller = TextEditingController(text: folder.name);
+    final newName = await showDialog<String?>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Renombrar carpeta'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Nombre',
+              hintText: 'Introduce un nombre',
+            ),
+            onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Guardar')),
+          ],
+        );
+      },
+    );
+    if (newName == null) return;
+    if (newName.isEmpty) {
+      ToastService.warning('El nombre no puede estar vacío');
+      return;
+    }
+    await FirestoreService.instance.updateFolder(uid: _uid, folderId: folder.id, data: {'name': newName});
+    await _loadFolders();
   }
 
   Future<void> _showFolderIconPicker(String folderId) async {

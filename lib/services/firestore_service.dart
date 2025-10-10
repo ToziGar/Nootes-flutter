@@ -733,8 +733,15 @@ class _RestFirestoreService implements FirestoreService {
   }
 
   Future<void> _patchNoteFields(String uid, String noteId, Map<String, dynamic> fields) async {
-    final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
-    final body = jsonEncode({'fields': fields});
+    // Ensure updatedAt is always bumped
+    final patched = Map<String, dynamic>.from(fields);
+    patched['updatedAt'] = _encodeValue(DateTime.now().toUtc());
+    // Build update mask so only provided fields are modified (non-destructive)
+    final qs = patched.keys
+        .map((k) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(k)}')
+        .join('&');
+    final uri = Uri.parse('$_base/users/$uid/notes/$noteId?$qs');
+    final body = jsonEncode({'fields': patched});
     final resp = await http.patch(uri, headers: await _authHeader(), body: body);
     if (resp.statusCode < 200 || resp.statusCode >= 300) throw Exception('firestore-patch-note-${resp.statusCode}');
   }
@@ -909,9 +916,15 @@ class _RestFirestoreService implements FirestoreService {
 
   @override
   Future<void> updateNote({required String uid, required String noteId, required Map<String, dynamic> data}) async {
-    final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
+    // Non-destructive update with explicit updateMask
     final fields = <String, dynamic>{};
     data.forEach((k, v) => fields[k] = _encodeValue(v));
+    // Ensure updatedAt is present
+    fields.putIfAbsent('updatedAt', () => _encodeValue(DateTime.now().toUtc()));
+    final qs = fields.keys
+        .map((k) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(k)}')
+        .join('&');
+    final uri = Uri.parse('$_base/users/$uid/notes/$noteId?$qs');
     final body = jsonEncode({'fields': fields});
     final resp = await http.patch(uri, headers: await _authHeader(), body: body);
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
@@ -932,8 +945,14 @@ class _RestFirestoreService implements FirestoreService {
     if (value == null) return {'nullValue': null};
     if (value is String) return {'stringValue': value};
     if (value is bool) return {'booleanValue': value};
-    if (value is num) return {'doubleValue': value};
+    // Use integerValue for ints and doubleValue for doubles
+    if (value is int) return {'integerValue': value.toString()};
+    if (value is double) return {'doubleValue': value};
     if (value is DateTime) return {'timestampValue': value.toUtc().toIso8601String()};
+    // Map server timestamp markers from SDK to a timestamp
+    if (value is fs.FieldValue) {
+      return {'timestampValue': DateTime.now().toUtc().toIso8601String()};
+    }
     if (value is List) {
       return {
         'arrayValue': {

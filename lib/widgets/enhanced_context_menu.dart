@@ -246,9 +246,9 @@ class EnhancedContextMenuBuilder {
         shortcut: 'Enter',
       ),
       ContextMenuAction(
-        label: 'Editar',
+        label: 'Renombrar',
         icon: Icons.edit_rounded,
-        value: 'edit',
+        value: 'rename',
         shortcut: 'F2',
       ),
       ContextMenuAction.divider,
@@ -355,9 +355,9 @@ class EnhancedContextMenuBuilder {
         shortcut: 'Enter',
       ),
       ContextMenuAction(
-        label: 'Editar',
+        label: 'Renombrar',
         icon: Icons.edit_rounded,
-        value: 'edit',
+        value: 'rename',
         shortcut: 'F2',
       ),
       ContextMenuAction.divider,
