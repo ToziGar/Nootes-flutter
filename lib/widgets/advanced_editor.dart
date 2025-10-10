@@ -44,7 +44,8 @@ class AdvancedEditor extends StatefulWidget {
 class _AdvancedEditorState extends State<AdvancedEditor> {
   late TextEditingController _controller;
   late FocusNode _focusNode;
-  late ScrollController _scrollController;
+  late ScrollController _editorScrollController;
+  late ScrollController _lineNumbersScrollController;
   late ScrollController _minimapScrollController;
   
   final AutoCompleteService _autoCompleteService = AutoCompleteService();
@@ -82,8 +83,26 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
     super.initState();
     _controller = TextEditingController(text: widget.initialText);
     _focusNode = FocusNode();
-    _scrollController = ScrollController();
+    _editorScrollController = ScrollController();
+    _lineNumbersScrollController = ScrollController();
     _minimapScrollController = ScrollController();
+
+    // Mantener sincronizado el scroll de los números de línea con el editor
+    _editorScrollController.addListener(() {
+      if (!_lineNumbersScrollController.hasClients) return;
+      final offset = _editorScrollController.offset;
+      // Intentar mantener los scrolls alineados, ignorando desbordes
+      try {
+        _lineNumbersScrollController.jumpTo(
+          offset.clamp(
+            0.0,
+            (_lineNumbersScrollController.position.maxScrollExtent),
+          ),
+        );
+      } catch (_) {
+        // En algunos casos (cambio de tamaño), la posición todavía no está lista
+      }
+    });
     
     // Inicializar servicios básicos
     _autoCompleteService.initialize();
@@ -113,7 +132,8 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
   void dispose() {
     _controller.dispose();
     _focusNode.dispose();
-    _scrollController.dispose();
+    _editorScrollController.dispose();
+    _lineNumbersScrollController.dispose();
     _minimapScrollController.dispose();
     super.dispose();
   }
@@ -355,7 +375,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
       width: 50,
       color: Theme.of(context).scaffoldBackgroundColor.withOpacityCompat(0.5),
       child: ListView.builder(
-        controller: _scrollController,
+        controller: _lineNumbersScrollController,
         itemCount: _totalLines,
         itemBuilder: (context, index) {
           final lineNumber = index + 1;
@@ -488,7 +508,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
     return TextField(
       controller: _controller,
       focusNode: _focusNode,
-      scrollController: _scrollController,
+      scrollController: _editorScrollController,
       maxLines: null,
       expands: true,
       style: TextStyle(
@@ -517,7 +537,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
     return TextField(
       controller: _controller,
       focusNode: _focusNode,
-      scrollController: _scrollController,
+      scrollController: _editorScrollController,
       maxLines: null,
       expands: true,
       style: TextStyle(

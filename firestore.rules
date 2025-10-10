@@ -40,11 +40,18 @@ service cloud.firestore {
       allow read: if isOwner(uid);
       allow create: if isAuthed() && (
         isOwner(uid) || (
-          // Sender can create a notification for recipient when there is a valid share
+          // Sender can create a notification for the counterparty when tied to a valid share
           request.resource.data.shareId is string &&
           exists(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)) &&
-          get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.ownerId == request.auth.uid &&
-          get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.recipientId == uid
+          (
+            // Owner notifying recipient
+            (get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.ownerId == request.auth.uid &&
+             get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.recipientId == uid)
+            ||
+            // Recipient notifying owner
+            (get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.recipientId == request.auth.uid &&
+             get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.ownerId == uid)
+          )
         )
       );
       allow update, delete: if isOwner(uid);

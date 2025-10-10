@@ -68,6 +68,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
 
   @override
   void dispose() {
+    _auto?.cancel();
     _title.dispose();
     _content.dispose();
     super.dispose();
@@ -77,6 +78,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     _auto?.cancel();
     setState(() => _autoSaving = true);
     _auto = Timer(const Duration(milliseconds: 800), () async {
+      if (!mounted) return;
       await _save(autosave: true);
       if (mounted) setState(() => _autoSaving = false);
     });

@@ -179,7 +179,12 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => setState(() => _init = _loadData()),
+            onPressed: () {
+              final future = _loadData();
+              setState(() {
+                _init = future;
+              });
+            },
             tooltip: 'Actualizar',
           ),
         ],
