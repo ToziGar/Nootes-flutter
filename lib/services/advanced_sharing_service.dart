@@ -858,7 +858,7 @@ class AdvancedSharingService {
         SharedNote(
           id: 'shared_1',
           noteId: 'note_123',
-          title: 'Proyecto de Marketing Digital',
+          title: 'Proyecto de Marketing Digital - Estrategia Q4',
           ownerId: 'user_456',
           ownerName: 'Ana García',
           ownerEmail: 'ana.garcia@empresa.com',
@@ -868,13 +868,13 @@ class AdvancedSharingService {
           status: ShareStatus.accepted,
           sharedAt: DateTime.now().subtract(Duration(days: 2)),
           lastModified: DateTime.now().subtract(Duration(hours: 3)),
-          collaboratorCount: 3,
+          collaboratorCount: 4,
           isOwnerOnline: true,
         ),
         SharedNote(
           id: 'shared_2',
           noteId: 'note_456',
-          title: 'Reunión de Ventas Q4',
+          title: 'Reunión de Ventas Q4 - Objetivos y KPIs',
           ownerId: 'user_789',
           ownerName: 'Carlos López',
           ownerEmail: 'carlos.lopez@empresa.com',
@@ -883,9 +883,57 @@ class AdvancedSharingService {
           permission: SharePermission.comment,
           status: ShareStatus.accepted,
           sharedAt: DateTime.now().subtract(Duration(days: 5)),
-          lastModified: DateTime.now().subtract(Duration(days: 1)),
+          lastModified: DateTime.now().subtract(Duration(hours: 8)),
+          collaboratorCount: 3,
+          isOwnerOnline: false,
+        ),
+        SharedNote(
+          id: 'shared_3',
+          noteId: 'note_567',
+          title: 'Manual de Onboarding - Nuevos Empleados',
+          ownerId: 'user_999',
+          ownerName: 'Roberto Díaz',
+          ownerEmail: 'roberto.diaz@empresa.com',
+          sharedWithId: _currentUserId,
+          sharedWithEmail: AuthService.instance.currentUser?.email ?? '',
+          permission: SharePermission.view,
+          status: ShareStatus.accepted,
+          sharedAt: DateTime.now().subtract(Duration(days: 7)),
+          lastModified: DateTime.now().subtract(Duration(days: 2)),
+          collaboratorCount: 6,
+          isOwnerOnline: true,
+        ),
+        SharedNote(
+          id: 'shared_4',
+          noteId: 'note_678',
+          title: 'Propuesta de Mejoras - Sistema de Gestión',
+          ownerId: 'user_333',
+          ownerName: 'María Fernández',
+          ownerEmail: 'maria.fernandez@empresa.com',
+          sharedWithId: _currentUserId,
+          sharedWithEmail: AuthService.instance.currentUser?.email ?? '',
+          permission: SharePermission.edit,
+          status: ShareStatus.accepted,
+          sharedAt: DateTime.now().subtract(Duration(days: 10)),
+          lastModified: DateTime.now().subtract(Duration(hours: 12)),
           collaboratorCount: 2,
           isOwnerOnline: false,
+        ),
+        SharedNote(
+          id: 'shared_5',
+          noteId: 'note_789',
+          title: 'Análisis de Competencia - Mercado Tech',
+          ownerId: 'user_555',
+          ownerName: 'Laura Martínez',
+          ownerEmail: 'laura.martinez@empresa.com',
+          sharedWithId: _currentUserId,
+          sharedWithEmail: AuthService.instance.currentUser?.email ?? '',
+          permission: SharePermission.comment,
+          status: ShareStatus.accepted,
+          sharedAt: DateTime.now().subtract(Duration(days: 14)),
+          lastModified: DateTime.now().subtract(Duration(days: 3)),
+          collaboratorCount: 5,
+          isOwnerOnline: true,
         ),
       ];
     } catch (e) {
@@ -939,41 +987,117 @@ class AdvancedSharingService {
       }).toList();
       */
       
-      // Datos simulados mientras se configuran las colecciones
+      // Datos simulados específicos por usuario
+      // Solo mostrar datos para usuarios específicos (simular usuarios que han compartido)
+      final hasSharedNotes = _simulateUserHasSharedContent(_currentUserId);
+      
+      if (!hasSharedNotes) {
+        return []; // Usuario sin notas compartidas
+      }
+      
       return [
         {
           'id': 'note_001',
-          'title': 'Manual de Procesos Internos',
+          'title': 'Manual de Procesos Internos - Departamento IT',
           'collaborators': [
             {
-              'name': 'maria.silva',
+              'name': 'María Silva',
               'email': 'maria.silva@empresa.com',
               'permission': 'edit',
               'status': 'accepted',
+              'lastActivity': DateTime.now().subtract(Duration(hours: 3)),
             },
             {
-              'name': 'juan.perez',
+              'name': 'Juan Pérez',
               'email': 'juan.perez@empresa.com',
               'permission': 'comment',
               'status': 'accepted',
+              'lastActivity': DateTime.now().subtract(Duration(hours: 8)),
+            },
+            {
+              'name': 'Carmen Rodríguez',
+              'email': 'carmen.rodriguez@empresa.com',
+              'permission': 'view',
+              'status': 'pending',
+              'lastActivity': null,
             },
           ],
           'lastModified': DateTime.now().subtract(Duration(hours: 2)),
-          'views': 45,
+          'views': 78,
+          'comments': 12,
+          'versions': 5,
         },
         {
           'id': 'note_002',
           'title': 'Estrategia de Redes Sociales 2025',
           'collaborators': [
             {
-              'name': 'lucia.martinez',
+              'name': 'Lucía Martínez',
               'email': 'lucia.martinez@empresa.com',
               'permission': 'edit',
               'status': 'accepted',
+              'lastActivity': DateTime.now().subtract(Duration(hours: 6)),
+            },
+            {
+              'name': 'Fernando Castro',
+              'email': 'fernando.castro@empresa.com',
+              'permission': 'comment',
+              'status': 'accepted',
+              'lastActivity': DateTime.now().subtract(Duration(days: 1)),
+            },
+          ],
+          'lastModified': DateTime.now().subtract(Duration(hours: 12)),
+          'views': 43,
+          'comments': 8,
+          'versions': 3,
+        },
+        {
+          'id': 'note_003',
+          'title': 'Plan de Capacitación Técnica Q1',
+          'collaborators': [
+            {
+              'name': 'Andrea López',
+              'email': 'andrea.lopez@empresa.com',
+              'permission': 'edit',
+              'status': 'accepted',
+              'lastActivity': DateTime.now().subtract(Duration(hours: 18)),
+            },
+            {
+              'name': 'Miguel Santos',
+              'email': 'miguel.santos@empresa.com',
+              'permission': 'edit',
+              'status': 'accepted',
+              'lastActivity': DateTime.now().subtract(Duration(days: 2)),
+            },
+            {
+              'name': 'Isabel Morales',
+              'email': 'isabel.morales@empresa.com',
+              'permission': 'view',
+              'status': 'accepted',
+              'lastActivity': DateTime.now().subtract(Duration(days: 3)),
             },
           ],
           'lastModified': DateTime.now().subtract(Duration(days: 1)),
-          'views': 23,
+          'views': 67,
+          'comments': 15,
+          'versions': 7,
+        },
+        {
+          'id': 'note_004',
+          'title': 'Análisis de Rendimiento - Servidor Principal',
+          'collaborators': [
+            {
+              'name': 'Roberto Díaz',
+              'email': 'roberto.diaz@empresa.com',
+              'permission': 'comment',
+              'status': 'accepted',
+              'lastActivity': DateTime.now().subtract(Duration(hours: 4)),
+            },
+          ],
+          'lastModified': DateTime.now().subtract(Duration(hours: 6)),
+          'views': 34,
+          'comments': 6,
+          'versions': 2,
         },
       ];
     } catch (e) {
@@ -1001,12 +1125,12 @@ class AdvancedSharingService {
       }).toList();
       */
       
-      // Datos simulados mientras se configuran las colecciones
+      // Datos simulados completos para demostración
       return [
         SharedNote(
           id: 'invite_1',
           noteId: 'note_789',
-          title: 'Propuesta de Cliente VIP',
+          title: 'Propuesta de Cliente VIP - Revisión Urgente',
           ownerId: 'user_999',
           ownerName: 'Roberto Díaz',
           ownerEmail: 'roberto.diaz@empresa.com',
@@ -1014,16 +1138,16 @@ class AdvancedSharingService {
           sharedWithEmail: AuthService.instance.currentUser?.email ?? '',
           permission: SharePermission.comment,
           status: ShareStatus.pending,
-          sharedAt: DateTime.now().subtract(Duration(hours: 6)),
-          message: 'Por favor revisa esta propuesta y dame tu opinión antes de la reunión del viernes.',
-          lastModified: DateTime.now().subtract(Duration(hours: 6)),
+          sharedAt: DateTime.now().subtract(Duration(hours: 2)),
+          message: 'Por favor revisa esta propuesta urgente y dame tu opinión antes de la reunión del viernes. Es para nuestro cliente más importante.',
+          lastModified: DateTime.now().subtract(Duration(hours: 2)),
           collaboratorCount: 1,
           isOwnerOnline: true,
         ),
         SharedNote(
           id: 'invite_2',
           noteId: 'note_101',
-          title: 'Plan de Capacitación 2025',
+          title: 'Plan de Capacitación 2025 - Colaboración Requerida',
           ownerId: 'user_888',
           ownerName: 'Sandra Morales',
           ownerEmail: 'sandra.morales@empresa.com',
@@ -1031,11 +1155,28 @@ class AdvancedSharingService {
           sharedWithEmail: AuthService.instance.currentUser?.email ?? '',
           permission: SharePermission.edit,
           status: ShareStatus.pending,
-          sharedAt: DateTime.now().subtract(Duration(days: 1)),
-          message: 'Te invito a colaborar en el plan de capacitación para el próximo año.',
-          lastModified: DateTime.now().subtract(Duration(days: 1)),
+          sharedAt: DateTime.now().subtract(Duration(hours: 8)),
+          message: 'Te invito a colaborar en el plan de capacitación para el próximo año. Necesito tu expertise en desarrollo técnico.',
+          lastModified: DateTime.now().subtract(Duration(hours: 8)),
           collaboratorCount: 1,
           isOwnerOnline: false,
+        ),
+        SharedNote(
+          id: 'invite_3',
+          noteId: 'note_205',
+          title: 'Estrategia de Marketing Q1 2025',
+          ownerId: 'user_777',
+          ownerName: 'Ana García',
+          ownerEmail: 'ana.garcia@empresa.com',
+          sharedWithId: '',
+          sharedWithEmail: AuthService.instance.currentUser?.email ?? '',
+          permission: SharePermission.view,
+          status: ShareStatus.pending,
+          sharedAt: DateTime.now().subtract(Duration(days: 1)),
+          message: 'Compartiendo la estrategia de marketing para el primer trimestre. Tu feedback sería muy valioso.',
+          lastModified: DateTime.now().subtract(Duration(days: 1)),
+          collaboratorCount: 3,
+          isOwnerOnline: true,
         ),
       ];
     } catch (e) {
@@ -1322,17 +1463,17 @@ class AdvancedSharingService {
           .toList();
       */
       
-      // Datos simulados mientras se configuran las colecciones
-      return [
+      // Datos simulados completos para demostración
+      final notifications = [
         ShareNotification(
           id: 'notif_1',
           userId: _currentUserId,
           noteId: 'note_123',
           type: NotificationType.commentAdded,
-          title: 'Nuevo comentario',
-          message: 'Ana García ha comentado en "Proyecto de Marketing Digital"',
+          title: 'Nuevo comentario en tu nota',
+          message: 'Ana García ha comentado en "Proyecto de Marketing Digital": "Excelente propuesta, me gusta la dirección que estamos tomando."',
           isRead: false,
-          createdAt: DateTime.now().subtract(Duration(hours: 2)),
+          createdAt: DateTime.now().subtract(Duration(minutes: 30)),
           fromUserId: 'user_456',
           fromUserName: 'Ana García',
         ),
@@ -1341,10 +1482,10 @@ class AdvancedSharingService {
           userId: _currentUserId,
           noteId: 'note_456',
           type: NotificationType.noteUpdated,
-          title: 'Nota actualizada',
-          message: 'Carlos López ha editado "Reunión de Ventas Q4"',
-          isRead: true,
-          createdAt: DateTime.now().subtract(Duration(days: 1)),
+          title: 'Nota colaborativa actualizada',
+          message: 'Carlos López ha editado "Reunión de Ventas Q4" - Se agregaron nuevas métricas de rendimiento',
+          isRead: false,
+          createdAt: DateTime.now().subtract(Duration(hours: 2)),
           fromUserId: 'user_789',
           fromUserName: 'Carlos López',
         ),
@@ -1353,14 +1494,56 @@ class AdvancedSharingService {
           userId: _currentUserId,
           noteId: 'note_789',
           type: NotificationType.shareInvite,
-          title: 'Nueva invitación',
-          message: 'Roberto Díaz te ha invitado a colaborar',
+          title: 'Nueva invitación para colaborar',
+          message: 'Roberto Díaz te ha invitado a colaborar en "Propuesta de Cliente VIP"',
           isRead: false,
-          createdAt: DateTime.now().subtract(Duration(hours: 6)),
+          createdAt: DateTime.now().subtract(Duration(hours: 3)),
           fromUserId: 'user_999',
           fromUserName: 'Roberto Díaz',
         ),
+        ShareNotification(
+          id: 'notif_4',
+          userId: _currentUserId,
+          noteId: 'note_321',
+          type: NotificationType.permissionChanged,
+          title: 'Permisos actualizados',
+          message: 'Tus permisos en "Plan Estratégico 2025" han sido actualizados a Editor',
+          isRead: true,
+          createdAt: DateTime.now().subtract(Duration(hours: 6)),
+          fromUserId: 'user_555',
+          fromUserName: 'María Fernández',
+        ),
+        ShareNotification(
+          id: 'notif_5',
+          userId: _currentUserId,
+          noteId: 'note_654',
+          type: NotificationType.collaboratorJoined,
+          title: 'Nuevo colaborador',
+          message: 'Laura Martínez se ha unido a "Presentación de Ventas" como colaboradora',
+          isRead: true,
+          createdAt: DateTime.now().subtract(Duration(days: 1)),
+          fromUserId: 'user_444',
+          fromUserName: 'Laura Martínez',
+        ),
+        ShareNotification(
+          id: 'notif_6',
+          userId: _currentUserId,
+          noteId: 'note_987',
+          type: NotificationType.accessRevoked,
+          title: 'Acceso revocado',
+          message: 'Tu acceso a "Documento Confidencial XYZ" ha sido revocado por motivos de seguridad',
+          isRead: true,
+          createdAt: DateTime.now().subtract(Duration(days: 2)),
+          fromUserId: 'user_111',
+          fromUserName: 'Administrador Sistema',
+        ),
       ];
+
+      if (unreadOnly == true) {
+        return notifications.where((n) => !n.isRead).toList();
+      }
+      
+      return notifications.take(limit).toList();
     } catch (e) {
       print('❌ Error obteniendo notificaciones: $e');
       return [];
@@ -1395,6 +1578,114 @@ class AdvancedSharingService {
       await batch.commit();
     } catch (e) {
       print('❌ Error marcando todas las notificaciones como leídas: $e');
+    }
+  }
+
+  /// Obtener comentarios recientes del usuario
+  Future<List<NoteComment>> getRecentComments({int limit = 20}) async {
+    try {
+      // TODO: Descomentar cuando las colecciones estén configuradas
+      /*
+      final query = await _firestore
+          .collection('note_comments')
+          .where('userId', isEqualTo: _currentUserId)
+          .orderBy('createdAt', descending: true)
+          .limit(limit)
+          .get();
+
+      return query.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return NoteComment.fromJson(data);
+      }).toList();
+      */
+      
+      // Datos simulados completos para demostración
+      return [
+        NoteComment(
+          id: 'comment_1',
+          noteId: 'note_123',
+          userId: 'user_456',
+          userName: 'Ana García',
+          userAvatar: 'AG',
+          content: 'Excelente trabajo en esta sección. Me parece que deberíamos expandir el punto sobre las métricas de ROI.',
+          type: CommentType.suggestion,
+          createdAt: DateTime.now().subtract(Duration(minutes: 45)),
+          mentions: [],
+          metadata: {'noteTitle': 'Proyecto de Marketing Digital'},
+          attachments: [],
+          isResolved: false,
+          position: 150,
+          selectedText: 'métricas de rendimiento',
+        ),
+        NoteComment(
+          id: 'comment_2',
+          noteId: 'note_456',
+          userId: 'user_789',
+          userName: 'Carlos López',
+          userAvatar: 'CL',
+          content: '¿Podríamos agregar más detalles sobre la implementación técnica? @${AuthService.instance.currentUser?.email ?? "Usuario"}',
+          type: CommentType.question,
+          createdAt: DateTime.now().subtract(Duration(hours: 2)),
+          mentions: [_currentUserId],
+          metadata: {'noteTitle': 'Reunión de Ventas Q4'},
+          attachments: [],
+          isResolved: false,
+          position: 89,
+          selectedText: 'implementación del sistema',
+        ),
+        NoteComment(
+          id: 'comment_3',
+          noteId: 'note_789',
+          userId: 'user_999',
+          userName: 'Roberto Díaz',
+          userAvatar: 'RD',
+          content: 'Perfecto, este enfoque está alineado con nuestros objetivos estratégicos.',
+          type: CommentType.approval,
+          createdAt: DateTime.now().subtract(Duration(hours: 4)),
+          mentions: [],
+          metadata: {'noteTitle': 'Propuesta de Cliente VIP'},
+          attachments: [],
+          isResolved: true,
+          resolvedBy: _currentUserId,
+          resolvedAt: DateTime.now().subtract(Duration(hours: 3)),
+          position: 245,
+        ),
+        NoteComment(
+          id: 'comment_4',
+          noteId: 'note_321',
+          userId: 'user_555',
+          userName: 'María Fernández',
+          userAvatar: 'MF',
+          content: 'Necesitamos revisar los números del presupuesto. Hay algunas discrepancias que debemos aclarar.',
+          type: CommentType.general,
+          createdAt: DateTime.now().subtract(Duration(hours: 6)),
+          mentions: [],
+          metadata: {'noteTitle': 'Plan Estratégico 2025'},
+          attachments: ['budget_analysis.pdf'],
+          isResolved: false,
+          position: 320,
+        ),
+        NoteComment(
+          id: 'comment_5',
+          noteId: 'note_654',
+          userId: 'user_444',
+          userName: 'Laura Martínez',
+          userAvatar: 'LM',
+          content: 'Excelente presentación. Solo sugiero ajustar el slide 15 para mayor claridad visual.',
+          type: CommentType.suggestion,
+          createdAt: DateTime.now().subtract(Duration(days: 1)),
+          mentions: [],
+          metadata: {'noteTitle': 'Presentación de Ventas'},
+          attachments: [],
+          isResolved: false,
+          position: 567,
+          selectedText: 'gráfico de barras',
+        ),
+      ];
+    } catch (e) {
+      print('❌ Error obteniendo comentarios recientes: $e');
+      return [];
     }
   }
 
@@ -2067,33 +2358,59 @@ class AdvancedSharingService {
           .toList();
       */
       
-      // Datos simulados mientras se configuran las colecciones
+      // Datos simulados completos para demostración
       return [
         ApprovalRequest(
           id: 'approval_1',
           noteId: 'note_555',
-          noteTitle: 'Política de Trabajo Remoto',
+          noteTitle: 'Política de Trabajo Remoto - Actualización 2025',
           requesterId: 'user_777',
           requesterName: 'Fernando Castro',
-          approverIds: [_currentUserId, 'user_888'],
+          approverIds: [_currentUserId, 'user_888', 'user_999'],
           status: ApprovalStatus.pending,
-          description: 'Necesito aprobación para publicar la nueva política de trabajo remoto.',
-          createdAt: DateTime.now().subtract(Duration(hours: 4)),
+          description: 'Necesito aprobación urgente para publicar la nueva política de trabajo remoto. Incluye cambios importantes en horarios flexibles y nuevas herramientas de colaboración.',
+          createdAt: DateTime.now().subtract(Duration(hours: 2)),
           deadline: DateTime.now().add(Duration(days: 2)),
           requiresAllApprovals: true,
         ),
         ApprovalRequest(
           id: 'approval_2',
           noteId: 'note_666',
-          noteTitle: 'Presupuesto Q1 2025',
+          noteTitle: 'Presupuesto Q1 2025 - Departamento de Marketing',
           requesterId: 'user_999',
           requesterName: 'Mónica Herrera',
-          approverIds: [_currentUserId],
+          approverIds: [_currentUserId, 'user_111'],
           status: ApprovalStatus.pending,
-          description: 'Solicito aprobación del presupuesto para el primer trimestre.',
-          createdAt: DateTime.now().subtract(Duration(days: 1)),
+          description: 'Solicito aprobación del presupuesto para el primer trimestre. Total solicitado: \$150,000 USD para campañas digitales y eventos.',
+          createdAt: DateTime.now().subtract(Duration(hours: 8)),
           deadline: DateTime.now().add(Duration(days: 5)),
           requiresAllApprovals: false,
+        ),
+        ApprovalRequest(
+          id: 'approval_3',
+          noteId: 'note_777',
+          noteTitle: 'Contrato de Servicios - Proveedor TI',
+          requesterId: 'user_555',
+          requesterName: 'Ricardo Mendoza',
+          approverIds: [_currentUserId],
+          status: ApprovalStatus.pending,
+          description: 'Contrato anual con nuevo proveedor de servicios de TI. Requiere aprobación legal y financiera antes del 15 de octubre.',
+          createdAt: DateTime.now().subtract(Duration(days: 1)),
+          deadline: DateTime.now().add(Duration(days: 4)),
+          requiresAllApprovals: false,
+        ),
+        ApprovalRequest(
+          id: 'approval_4',
+          noteId: 'note_888',
+          noteTitle: 'Manual de Procedimientos de Seguridad',
+          requesterId: 'user_333',
+          requesterName: 'Carmen Silva',
+          approverIds: [_currentUserId, 'user_444'],
+          status: ApprovalStatus.needsRevision,
+          description: 'Manual actualizado de procedimientos de seguridad. Requiere revisión de las secciones 3.2 y 4.1 según comentarios anteriores.',
+          createdAt: DateTime.now().subtract(Duration(days: 3)),
+          deadline: DateTime.now().add(Duration(days: 7)),
+          requiresAllApprovals: true,
         ),
       ];
     } catch (e) {
@@ -2246,6 +2563,83 @@ class AdvancedSharingService {
     } catch (e) {
       print('❌ Error obteniendo eventos: $e');
       return [];
+    }
+  }
+
+  /// Simular si un usuario tiene contenido compartido (para datos de prueba)
+  bool _simulateUserHasSharedContent(String userId) {
+    // Lista de usuarios que simulamos que tienen notas compartidas
+    final usersWithSharedContent = [
+      'demo@nootes.com',
+      'admin@nootes.com', 
+      'test@example.com',
+      'user@demo.com'
+    ];
+    
+    return usersWithSharedContent.contains(userId);
+  }
+
+  /// Editar un evento del calendario existente
+  Future<bool> updateCalendarEvent({
+    required String eventId,
+    required String title,
+    required String description,
+    required CalendarEventType type,
+    required DateTime startTime,
+    DateTime? endTime,
+    required List<String> attendeeIds,
+    String? location,
+    bool isAllDay = false,
+    List<String> reminders = const [],
+  }) async {
+    try {
+      // TODO: Descomentar cuando las colecciones estén configuradas
+      /*
+      final eventData = {
+        'title': title,
+        'description': description,
+        'type': type.name,
+        'startTime': Timestamp.fromDate(startTime),
+        'endTime': endTime != null ? Timestamp.fromDate(endTime) : null,
+        'attendeeIds': attendeeIds,
+        'location': location,
+        'isAllDay': isAllDay,
+        'reminders': reminders,
+        'lastModified': Timestamp.now(),
+      };
+
+      await _firestore
+          .collection('calendar_events')
+          .doc(eventId)
+          .update(eventData);
+      */
+      
+      // Simulación de actualización exitosa
+      print('✅ Evento actualizado: $title');
+      return true;
+    } catch (e) {
+      print('❌ Error actualizando evento: $e');
+      return false;
+    }
+  }
+
+  /// Eliminar un evento del calendario
+  Future<bool> deleteCalendarEvent(String eventId) async {
+    try {
+      // TODO: Descomentar cuando las colecciones estén configuradas
+      /*
+      await _firestore
+          .collection('calendar_events')
+          .doc(eventId)
+          .delete();
+      */
+      
+      // Simulación de eliminación exitosa
+      print('✅ Evento eliminado: $eventId');
+      return true;
+    } catch (e) {
+      print('❌ Error eliminando evento: $e');
+      return false;
     }
   }
 

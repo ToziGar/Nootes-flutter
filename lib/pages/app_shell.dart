@@ -7,6 +7,7 @@ import '../services/advanced_sharing_service.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 import '../services/toast_service.dart';
+import '../widgets/edit_event_dialog.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -396,6 +397,13 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
           _loading = false;
         });
         
+        // Debug: Verificar datos cargados
+        print('🔍 Compartidos contigo: ${_sharedWithMe.length}');
+        print('🔍 Compartidos por mi: ${_sharedByMe.length}');
+        if (_sharedByMe.isNotEmpty) {
+          print('🔍 Primer elemento por mi: ${_sharedByMe.first}');
+        }
+        
         // Cargar comentarios recientes
         _loadRecentComments();
       }
@@ -408,11 +416,21 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
   }
 
   Future<void> _loadRecentComments() async {
-    // En una implementación real, cargar comentarios recientes de notas compartidas
-    // Por ahora dejamos la lista vacía
-    setState(() {
-      _recentComments = [];
-    });
+    try {
+      final comments = await _sharingService.getRecentComments();
+      if (mounted) {
+        setState(() {
+          _recentComments = comments;
+        });
+      }
+    } catch (e) {
+      print('Error loading recent comments: $e');
+      if (mounted) {
+        setState(() {
+          _recentComments = [];
+        });
+      }
+    }
   }
 
   Future<void> _loadSharedNotes() async {
@@ -439,6 +457,7 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: [
             Tab(
               icon: const Icon(Icons.inbox_rounded),
@@ -454,15 +473,15 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
             ),
             Tab(
               icon: const Icon(Icons.notifications_rounded),
-              text: 'Notificaciones (${_notifications.where((n) => !n.isRead).length})',
+              text: 'Notif. (${_notifications.where((n) => !n.isRead).length})',
             ),
             Tab(
               icon: const Icon(Icons.comment_rounded),
-              text: 'Comentarios (${_recentComments.length})',
+              text: 'Coment. (${_recentComments.length})',
             ),
             Tab(
               icon: const Icon(Icons.check_circle_outline_rounded),
-              text: 'Aprobaciones (${_pendingApprovals.length})',
+              text: 'Aprob. (${_pendingApprovals.length})',
             ),
             Tab(
               icon: const Icon(Icons.calendar_today_rounded),
@@ -519,6 +538,8 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
   }
 
   Widget _buildSharedByMeTab() {
+    print('🔍 Construyendo pestaña Por Mi con ${_sharedByMe.length} elementos');
+    
     if (_sharedByMe.isEmpty) {
       return _buildEmptyState(
         icon: Icons.share_rounded,
@@ -534,6 +555,7 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
       itemCount: _sharedByMe.length,
       itemBuilder: (context, index) {
         final note = _sharedByMe[index];
+        print('🔍 Mostrando nota $index: ${note['title']}');
         return _buildSharedByMeCard(note);
       },
     );
@@ -1054,6 +1076,8 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
                         ),
                         const SizedBox(height: AppColors.space4),
                         Row(
@@ -1071,17 +1095,20 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                               ),
                             ),
                             const SizedBox(width: AppColors.space8),
-                            Text(
-                              'Por ${note.ownerName}',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
+                            Expanded(
+                              child: Text(
+                                'Por ${note.ownerName}',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             if (isOnline) ...[
-                              const SizedBox(width: AppColors.space8),
+                              const SizedBox(width: AppColors.space4),
                               Container(
-                                width: 8,
-                                height: 8,
+                                width: 6,
+                                height: 6,
                                 decoration: const BoxDecoration(
                                   color: AppColors.success,
                                   shape: BoxShape.circle,
@@ -1089,10 +1116,11 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                               ),
                               const SizedBox(width: AppColors.space4),
                               Text(
-                                'En línea',
+                                'Online',
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: AppColors.success,
                                   fontWeight: FontWeight.w500,
+                                  fontSize: 11,
                                 ),
                               ),
                             ],
@@ -1136,12 +1164,16 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
   }
 
   Widget _buildSharedByMeCard(Map<String, dynamic> note) {
-    final collaborators = note['collaborators'] as List;
+    final collaborators = (note['collaborators'] as List?) ?? [];
+    final title = note['title'] as String? ?? 'Sin título';
+    final id = note['id'] as String? ?? '';
+    final views = note['views'] as int? ?? 0;
+    final lastModified = note['lastModified'] as DateTime?;
     
     return Card(
       margin: const EdgeInsets.only(bottom: AppColors.space12),
       child: InkWell(
-        onTap: () => _openNote(note['id'] as String, note['title'] as String),
+        onTap: () => _openNote(id, title),
         borderRadius: BorderRadius.circular(AppColors.radiusMd),
         child: Padding(
           padding: const EdgeInsets.all(AppColors.space16),
@@ -1152,7 +1184,7 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                 children: [
                   Expanded(
                     child: Text(
-                      note['title'],
+                      title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -1206,51 +1238,56 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
               const SizedBox(height: AppColors.space12),
               Row(
                 children: [
-                  SizedBox(
-                    width: 100,
-                    child: Stack(
-                      children: List.generate(
-                        collaborators.length > 3 ? 3 : collaborators.length,
-                        (index) => Positioned(
-                          left: index * 20.0,
-                          child: CircleAvatar(
-                            radius: 12,
-                            backgroundColor: AppColors.primary,
-                            child: Text(
-                              collaborators[index]['name'][0].toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                  Flexible(
+                    flex: 2,
+                    child: SizedBox(
+                      width: 100,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: List.generate(
+                          collaborators.length > 3 ? 3 : collaborators.length,
+                          (index) => Positioned(
+                            left: index * 18.0,
+                            child: CircleAvatar(
+                              radius: 12,
+                              backgroundColor: AppColors.primary,
+                              child: Text(
+                                collaborators[index]['name'][0].toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      )..addAll(
-                        collaborators.length > 3 
-                          ? [
-                              Positioned(
-                                left: 60,
-                                child: CircleAvatar(
-                                  radius: 12,
-                                  backgroundColor: AppColors.textSecondary,
-                                  child: Text(
-                                    '+${collaborators.length - 3}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
+                        )..addAll(
+                          collaborators.length > 3 
+                            ? [
+                                Positioned(
+                                  left: 54,
+                                  child: CircleAvatar(
+                                    radius: 12,
+                                    backgroundColor: AppColors.textSecondary,
+                                    child: Text(
+                                      '+${collaborators.length - 3}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ]
-                          : [],
+                              ]
+                            : [],
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: AppColors.space16),
+                  const SizedBox(width: AppColors.space8),
                   Expanded(
+                    flex: 3,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1259,20 +1296,27 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          '${note['views']} visualizaciones',
+                          '$views visualizaciones',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppColors.textSecondary,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                  Text(
-                    _formatTime(note['lastModified']),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                  Flexible(
+                    flex: 1,
+                    child: Text(
+                      lastModified != null ? _formatTime(lastModified) : 'Sin fecha',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
                     ),
                   ),
                 ],
@@ -1316,6 +1360,8 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
                       ),
                       const SizedBox(height: AppColors.space4),
                       Text(
@@ -1323,6 +1369,7 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -1660,19 +1707,66 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
   }
 
   void _editEvent(CalendarEvent event) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edición de eventos próximamente disponible')),
+    _showEditEventDialog(event);
+  }
+
+  void _showEditEventDialog(CalendarEvent event) {
+    showDialog(
+      context: context,
+      builder: (context) => EditEventDialog(
+        event: event,
+        onSave: (updatedEvent) async {
+          final success = await _sharingService.updateCalendarEvent(
+            eventId: updatedEvent.id,
+            title: updatedEvent.title,
+            description: updatedEvent.description,
+            type: updatedEvent.type,
+            startTime: updatedEvent.startTime,
+            endTime: updatedEvent.endTime,
+            attendeeIds: updatedEvent.attendeeIds,
+            location: updatedEvent.location,
+            isAllDay: updatedEvent.isAllDay,
+            reminders: updatedEvent.reminders,
+          );
+          
+          if (success) {
+            // Actualizar la lista local
+            setState(() {
+              final index = _upcomingEvents.indexWhere((e) => e.id == event.id);
+              if (index != -1) {
+                _upcomingEvents[index] = updatedEvent;
+              }
+            });
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Evento actualizado exitosamente')),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Error al actualizar el evento')),
+            );
+          }
+        },
+      ),
     );
   }
 
   Future<void> _deleteEvent(String eventId) async {
     try {
-      setState(() {
-        _upcomingEvents.removeWhere((event) => event.id == eventId);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Evento eliminado')),
-      );
+      final success = await _sharingService.deleteCalendarEvent(eventId);
+      
+      if (success) {
+        setState(() {
+          _upcomingEvents.removeWhere((event) => event.id == eventId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Evento eliminado exitosamente')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al eliminar evento')),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error al eliminar evento')),
@@ -1870,7 +1964,7 @@ class _ShareNoteDialogState extends State<_ShareNoteDialog> {
                   labelText: 'Seleccionar nota',
                   border: OutlineInputBorder(),
                 ),
-                value: _selectedNoteId,
+                initialValue: _selectedNoteId,
                 items: _userNotes.map((note) {
                   return DropdownMenuItem(
                     value: note['id'].toString(),
@@ -2088,7 +2182,7 @@ class _ShareNoteDialogState extends State<_ShareNoteDialog> {
                   labelText: 'Permisos',
                   border: OutlineInputBorder(),
                 ),
-                value: _selectedPermission,
+                initialValue: _selectedPermission,
                 items: SharePermission.values.map((permission) {
                   String label;
                   IconData icon;
@@ -2420,7 +2514,7 @@ class _InviteCollaboratorDialogState extends State<_InviteCollaboratorDialog> {
                   labelText: 'Permisos',
                   border: OutlineInputBorder(),
                 ),
-                value: _selectedPermission,
+                initialValue: _selectedPermission,
                 items: SharePermission.values.map((permission) {
                   String label;
                   IconData icon;
@@ -2692,7 +2786,7 @@ class _UseTemplateDialogState extends State<_UseTemplateDialog> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.note_rounded),
                 ),
-                value: _selectedNoteId,
+                initialValue: _selectedNoteId,
                 validator: (value) => value == null ? 'Selecciona una nota' : null,
                 items: _userNotes.map((note) {
                   return DropdownMenuItem(
