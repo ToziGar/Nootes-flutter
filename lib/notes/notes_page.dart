@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../widgets/glass.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../theme/app_theme.dart';
 import 'note_editor_page.dart';
 import 'collections_page.dart';
 import 'graph_page.dart';
@@ -177,9 +178,31 @@ class _NotesPageState extends State<NotesPage> {
                   children: [
                     TextField(
                       controller: _search,
-                      decoration: const InputDecoration(
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 16,
+                      ),
+                      decoration: InputDecoration(
                         labelText: 'Buscar por título',
-                        prefixIcon: Icon(Icons.search_rounded),
+                        labelStyle: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 16,
+                        ),
+                        prefixIcon: Icon(Icons.search_rounded, color: AppColors.primary),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
+                        ),
                       ),
                       onChanged: (_) {
                         _debounce?.cancel();
@@ -192,12 +215,32 @@ class _NotesPageState extends State<NotesPage> {
                         Expanded(
                           child: DropdownButtonFormField<String?>(
                             initialValue: _selectedCollection,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Colección',
-                              prefixIcon: Icon(Icons.folder_outlined),
+                              labelStyle: TextStyle(color: AppColors.primary, fontSize: 16),
+                              prefixIcon: Icon(Icons.folder_outlined, color: AppColors.primary),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: AppColors.primary, width: 2),
+                              ),
                             ),
+                            dropdownColor: Colors.white,
+                            style: const TextStyle(color: Colors.black87, fontSize: 16),
                             items: [
-                              DropdownMenuItem<String?>(value: null, child: const Text('Todas')),
+                              DropdownMenuItem<String?>(
+                                value: null, 
+                                child: const Text('Todas', style: TextStyle(color: Colors.black87)),
+                              ),
                               DropdownMenuItem<String?>(value: '', child: const Text('Sin colección')),
                               ..._collections.map((c) => DropdownMenuItem<String?>(
                                     value: c['id'].toString(),
@@ -269,6 +312,12 @@ class _NotesPageState extends State<NotesPage> {
                                         color: pinned ? Colors.amber : null,
                                       ),
                                       PopupMenuButton<String>(
+                                        color: Colors.white,
+                                        elevation: 8,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        icon: Icon(Icons.more_vert, color: Colors.black87),
                                         onSelected: (v) async {
                                           if (v == 'trash') {
                                             await _moveToTrash(n);
@@ -292,10 +341,37 @@ class _NotesPageState extends State<NotesPage> {
                                             await _reloadAll();
                                           }
                                         },
-                                        itemBuilder: (context) => const [
-                                          PopupMenuItem(value: 'duplicate', child: Text('Duplicar')),
-                                          PopupMenuItem(value: 'trash', child: Text('Mover a papelera')),
-                                          PopupMenuItem(value: 'purge', child: Text('Eliminar permanentemente')),
+                                        itemBuilder: (context) => [
+                                          PopupMenuItem(
+                                            value: 'duplicate', 
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.copy, color: AppColors.primary, size: 20),
+                                                const SizedBox(width: 8),
+                                                const Text('Duplicar', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                              ],
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'trash', 
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.delete, color: Colors.orange, size: 20),
+                                                const SizedBox(width: 8),
+                                                const Text('Mover a papelera', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                              ],
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'purge', 
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.delete_forever, color: Colors.red, size: 20),
+                                                const SizedBox(width: 8),
+                                                const Text('Eliminar permanentemente', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                              ],
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ],

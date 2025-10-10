@@ -2515,7 +2515,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
               ),
         drawer: narrow
             ? Drawer(
-                backgroundColor: AppColors.surface,
+                backgroundColor: AppColors.surfaceLight2,
                 child: SafeArea(child: _buildNotesList(width: constraints.maxWidth)),
               )
             : null,
@@ -2525,15 +2525,15 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                 ConstrainedBox(
                   constraints: const BoxConstraints(minWidth: 260, maxWidth: 360),
                   child: Container(
-                    decoration: BoxDecoration(
-                      border: Border(right: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+                    decoration: const BoxDecoration(
+                      border: Border(right: BorderSide(color: AppColors.borderColorLight)),
                     ),
                     child: SafeArea(child: _buildNotesList(width: constraints.maxWidth)),
                   ),
                 ),
               Expanded(
                 child: Container(
-                  color: AppColors.bg,
+                  color: AppColors.bgLight,
                   padding: EdgeInsets.all(narrow ? AppColors.space16 : AppColors.space24),
                   child: _selectedId == null
                       ? Center(
@@ -2543,9 +2543,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                               Container(
                                 padding: const EdgeInsets.all(AppColors.space24),
                                 decoration: BoxDecoration(
-                                  color: AppColors.surface,
+                                  color: AppColors.surfaceLight2,
                                   borderRadius: BorderRadius.circular(AppColors.radiusXl),
-                                  border: Border.all(color: AppColors.borderColor),
+                                  border: Border.all(color: AppColors.borderColorLight),
                                 ),
                                 child: Icon(
                                   Icons.edit_note_rounded,
@@ -2562,7 +2562,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                               Text(
                                 'o crea una nueva para comenzar',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.textSecondary,
+                                  color: AppColors.textSecondaryLight,
                                 ),
                               ),
                             ],

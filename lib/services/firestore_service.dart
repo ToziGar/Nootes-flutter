@@ -84,6 +84,10 @@ abstract class FirestoreService {
   Future<void> deleteFolder({required String uid, required String folderId});
   Future<void> addNoteToFolder({required String uid, required String noteId, required String folderId});
   Future<void> removeNoteFromFolder({required String uid, required String noteId, required String folderId});
+
+  // User settings (users/{uid}/settings)
+  Future<Map<String, dynamic>?> getUserSettings({required String uid});
+  Future<void> updateUserSettings({required String uid, required Map<String, dynamic> data});
 }
 
 class _FirebaseFirestoreService implements FirestoreService {
@@ -484,6 +488,24 @@ class _FirebaseFirestoreService implements FirestoreService {
       'updatedAt': fs.FieldValue.serverTimestamp(),
     });
   }
+
+  // ==================== USER SETTINGS ====================
+  @override
+  Future<Map<String, dynamic>?> getUserSettings({required String uid}) async {
+    final d = await _db.collection('users').doc(uid).collection('meta').doc('settings').get();
+    if (!d.exists) return null;
+    return d.data();
+  }
+
+  @override
+  Future<void> updateUserSettings({required String uid, required Map<String, dynamic> data}) async {
+    final ref = _db.collection('users').doc(uid).collection('meta').doc('settings');
+    await ref.set({
+      ...data,
+      'updatedAt': fs.FieldValue.serverTimestamp(),
+    }, fs.SetOptions(merge: true));
+  }
+
 }
 
 class _RestFirestoreService implements FirestoreService {
@@ -496,6 +518,45 @@ class _RestFirestoreService implements FirestoreService {
       'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',
     };
+  }
+
+  // ==================== USER SETTINGS (REST) ====================
+  @override
+  Future<Map<String, dynamic>?> getUserSettings({required String uid}) async {
+    final headers = await _authHeader();
+    final url = '$_base/users/$uid/meta/settings';
+    final resp = await http.get(Uri.parse(url), headers: headers);
+    if (resp.statusCode != 200) return null;
+    final data = jsonDecode(resp.body) as Map<String, dynamic>;
+    return _decodeFields(data['fields'] as Map<String, dynamic>?);
+  }
+
+  @override
+  Future<void> updateUserSettings({required String uid, required Map<String, dynamic> data}) async {
+    final headers = await _authHeader();
+    final existing = await getUserSettings(uid: uid);
+    final fields = <String, dynamic>{};
+    data.forEach((k, v) => fields[k] = _encodeValue(v));
+    fields['updatedAt'] = _encodeValue(DateTime.now().toUtc());
+    if (existing == null) {
+      // Create under meta with documentId=settings
+      final url = '$_base/users/$uid/meta?documentId=settings';
+      final payload = jsonEncode({'fields': fields});
+      final resp = await http.post(Uri.parse(url), headers: headers, body: payload);
+      if (resp.statusCode < 200 || resp.statusCode >= 300) {
+        throw Exception('firestore-create-settings-${resp.statusCode}');
+      }
+    } else {
+      // Patch existing
+      final baseUrl = '$_base/users/$uid/meta/settings';
+      final updateMask = fields.keys.map((k) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(k)}').join('&');
+      final url = '$baseUrl?$updateMask';
+      final payload = jsonEncode({'fields': fields});
+      final resp = await http.patch(Uri.parse(url), headers: headers, body: payload);
+      if (resp.statusCode < 200 || resp.statusCode >= 300) {
+        throw Exception('firestore-update-settings-${resp.statusCode}');
+      }
+    }
   }
 
   @override

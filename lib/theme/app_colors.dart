@@ -5,78 +5,88 @@ import 'color_utils.dart';
 class AppColors {
   // === COLORES PRIMARIOS MODERNOS ===
   
-  // Azul moderno con gradiente
-  static const Color primary = Color(0xFF6C5CE7);        // Púrpura vibrante
-  static const Color primaryDark = Color(0xFF5A4FCF);    // Púrpura oscuro
-  static const Color primaryLight = Color(0xFF8B7FF8);   // Púrpura claro
-  
-  // Acentos complementarios
-  static const Color secondary = Color(0xFF00CEC9);      // Turquesa moderno
-  static const Color secondaryLight = Color(0xFF55E6E1); // Turquesa claro
-  static const Color accent = Color(0xFFFF7675);         // Rosa coral
-  static const Color success = Color(0xFF00B894);        // Verde éxito
-  static const Color warning = Color(0xFFF39C12);        // Naranja advertencia
-  static const Color error = Color(0xFFE74C3C);          // Rojo error
-  static const Color info = Color(0xFF74B9FF);           // Azul información
+  // Azul aurora (paleta consistente con AppTheme)
+  static const Color primary = Color(0xFF4C6EF5);        // Azul aurora
+  static const Color primaryDark = Color(0xFF364FC7);    // Azul profundo
+  static const Color primaryLight = Color(0xFF91A7FF);   // Azul lavanda
+
+  // Acentos complementarios luminosos
+  static const Color secondary = Color(0xFF2FD6C6);      // Turquesa vibrante
+  static const Color secondaryLight = Color(0xFF70E7D9); // Turquesa claro
+  static const Color accent = Color(0xFFFF8A65);         // Coral melocotón
+  static const Color success = Color(0xFF2ECC71);        // Verde éxito
+  static const Color warning = Color(0xFFF4B947);        // Oro cálido
+  static const Color error = Color(0xFFFF6B6B);          // Rojo fresco
+  static const Color info = Color(0xFF5AC8FA);           // Azul cielo
 
   // === GRADIENTES MODERNOS ===
   
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF6C5CE7), Color(0xFF74B9FF)],
+    colors: [Color(0xFF6379FF), Color(0xFF4C6EF5), Color(0xFF38D9A9)],
   );
-  
+
   static const LinearGradient accentGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF00CEC9), Color(0xFF55E6E1)],
+    colors: [Color(0xFFFF9A9E), Color(0xFFFECFEF)],
+  );
+
+  static const LinearGradient backgroundGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFF7F9FF), Color(0xFFEFF3FF), Color(0xFFF9FEFF)],
   );
 
   // === TEMA CLARO MEJORADO ===
   
-  static const Color background = Color(0xFFFAFBFC);     // Blanco cálido
-  static const Color surface = Color(0xFFFFFFFF);       // Blanco puro
+  static const Color background = Color(0xFFF5F7FF);     // Azul hielo cálido
+  static const Color surface = Color(0xFFFFFFFF);        // Blanco puro
+  static const Color surfaceMuted = Color(0xFFF0F4FF);   // Blanco azulado
+  static const Color surfaceElevated = Color(0xFFFFFFFF); // Superficie elevada
   static const Color onPrimary = Color(0xFFFFFFFF);
-  static const Color onSecondary = Color(0xFFFFFFFF);
-  static const Color onSurface = Color(0xFF2D3436);     // Negro suave
-  static const Color onBackground = Color(0xFF2D3436);
+  static const Color onSecondary = Color.fromARGB(255, 197, 197, 197);
+  static const Color onSurface = Color.fromARGB(255, 163, 163, 163);      // Carbón suave
+  static const Color onBackground = Color.fromARGB(255, 181, 181, 181);
 
   // === TEMA OSCURO MEJORADO ===
   
-  static const Color darkBackground = Color(0xFF0D1117);     // Negro azulado
-  static const Color darkSurface = Color(0xFF161B22);       // Gris oscuro
+  static const Color darkBackground = Color(0xFF0F172A);     // Azul noche
+  static const Color darkSurface = Color(0xFFF8F9FA);        // Blanco grisáceo suave
+  static const Color darkSurfaceMuted = Color(0xFF1F2A44);   // Superficie elevada
+  static const Color darkSurfaceOverlay = Color(0x4025367B); // Overlay translúcido
   static const Color darkOnPrimary = Color(0xFFFFFFFF);
-  static const Color darkOnSecondary = Color(0xFFFFFFFF);
-  static const Color darkOnSurface = Color(0xFFF0F6FC);     // Blanco suave
-  static const Color darkOnBackground = Color(0xFFF0F6FC);
+  static const Color darkOnSecondary = Color(0xFF042F2F);
+  static const Color darkOnSurface = Color(0xFFE3E8FF);      // Blanco suave
+  static const Color darkOnBackground = Color(0xFFE4E9FF);
 
   // === COLORES DEL EDITOR MEJORADOS ===
   
-  static const Color editorBackground = Color(0xFFFAFBFC);   // Fondo suave
-  static const Color editorForeground = Color(0xFF2D3436);   // Texto principal
-  static const Color editorLineNumber = Color(0xFF95A5A6);   // Números de línea
-  static const Color editorSelection = Color(0xFF6C5CE7);    // Selección
-  static const Color editorCursor = Color(0xFF6C5CE7);       // Cursor
+  static const Color editorBackground = Color(0xFFF7F9FF);   // Fondo suave
+  static const Color editorForeground = Color(0xFF1F2937);   // Texto principal
+  static const Color editorLineNumber = Color(0xFF9AA5B1);   // Números de línea
+  static const Color editorSelection = Color(0xFF4C6EF5);    // Selección
+  static const Color editorCursor = Color(0xFF4C6EF5);       // Cursor
   
   // Editor modo oscuro
-  static const Color darkEditorBackground = Color(0xFF0D1117);
-  static const Color darkEditorForeground = Color(0xFFF0F6FC);
-  static const Color darkEditorLineNumber = Color(0xFF7D8590);
-  static const Color darkEditorSelection = Color(0xFF264F78);
-  static const Color darkEditorCursor = Color(0xFF8B7FF8);
+  static const Color darkEditorBackground = Color(0xFF101C34);
+  static const Color darkEditorForeground = Color(0xFFE3E8FF);
+  static const Color darkEditorLineNumber = Color(0xFF7683A6);
+  static const Color darkEditorSelection = Color(0xFF2C3F91);
+  static const Color darkEditorCursor = Color(0xFF91A7FF);
 
   // === COLORES PARA CATEGORÍAS ===
   
   static const List<Color> categoryColors = [
-    Color(0xFF6C5CE7),  // Púrpura
-    Color(0xFF00CEC9),  // Turquesa
-    Color(0xFFFF7675),  // Rosa coral
-    Color(0xFF74B9FF),  // Azul
-    Color(0xFF00B894),  // Verde
-    Color(0xFFF39C12),  // Naranja
-    Color(0xFFE84393),  // Rosa
-    Color(0xFF0984E3),  // Azul oscuro
+  Color(0xFF4C6EF5),  // Azul aurora
+  Color(0xFF2FD6C6),  // Turquesa vibrante
+  Color(0xFFFF8A65),  // Coral melocotón
+  Color(0xFF5AC8FA),  // Azul cielo
+  Color(0xFF2ECC71),  // Verde esmeralda
+  Color(0xFFF4B947),  // Oro cálido
+  Color(0xFFFF99BB),  // Rosa pastel
+  Color(0xFF4361EE),  // Azul índigo
   ];
 
   // === SHADOWS Y EFECTOS ===

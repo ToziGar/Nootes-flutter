@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'notes/workspace_page.dart';
+import 'pages/app_shell.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const NotesWorkspacePage();
+    return const AppShell();
   }
 }

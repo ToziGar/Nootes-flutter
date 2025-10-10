@@ -21,6 +21,7 @@ import 'services/preferences_service.dart';
 import 'services/app_service.dart';
 import 'services/toast_service.dart';
 import 'public_note_page.dart';
+import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,7 +55,6 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   Locale _locale = const Locale('es', '');
-  ThemeMode _themeMode = ThemeMode.system;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
@@ -64,7 +64,7 @@ class _MyAppState extends State<MyApp> {
     
     // Inicializar AppService con las funciones de cambio
     AppService.initialize(
-      onChangeTheme: changeTheme,
+      onChangeTheme: (mode) {},
       onChangeLocale: changeLocale,
     );
     
@@ -88,13 +88,6 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  /// Método para cambiar el tema desde otras pantallas
-  void changeTheme(ThemeMode themeMode) {
-    setState(() {
-      _themeMode = themeMode;
-    });
-  }
-
   /// Método para cambiar el idioma desde otras pantallas
   void changeLocale(Locale locale) {
     setState(() {
@@ -108,16 +101,9 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       navigatorKey: _navigatorKey,
       title: 'Nootes',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.blue,
-        useMaterial3: true,
-      ),
-      themeMode: _themeMode,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+  themeMode: ThemeMode.light,
       locale: _locale,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

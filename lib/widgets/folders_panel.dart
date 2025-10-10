@@ -42,19 +42,22 @@ class FoldersPanel extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(AppColors.space8),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
+                      gradient: LinearGradient(
+                        colors: [AppColors.primary.withValues(alpha: 0.1), AppColors.primaryLight.withValues(alpha: 0.05)],
+                      ),
                       borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
                     ),
                     child: const Icon(Icons.folder_rounded, color: AppColors.primary, size: 20),
                   ),
                   const SizedBox(width: AppColors.space12),
                   const Expanded(
-                    child: Text(
+                    child: const Text(
                       'Carpetas',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: Colors.black87,
                       ),
                     ),
                   ),
@@ -68,9 +71,13 @@ class FoldersPanel extends StatelessWidget {
                 label: const Text('Nueva carpeta'),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppColors.space12,
                     vertical: AppColors.space8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppColors.radiusMd),
                   ),
                 ),
               ),
@@ -94,8 +101,9 @@ class FoldersPanel extends StatelessWidget {
                       child: Text(
                         'Mantén presionada una nota para arrastrarla',
                         style: TextStyle(
-                          fontSize: 10,
-                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
@@ -146,8 +154,9 @@ class FoldersPanel extends StatelessWidget {
                 Text(
                   'No hay carpetas',
                   style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 14,
+                    color: Colors.black87,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: AppColors.space8),
@@ -155,8 +164,8 @@ class FoldersPanel extends StatelessWidget {
                   'Crea una carpeta para organizar tus notas',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
+                    color: AppColors.primary,
+                    fontSize: 14,
                   ),
                 ),
               ],
@@ -195,9 +204,21 @@ class FoldersPanel extends StatelessWidget {
         vertical: AppColors.space4,
       ),
       decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+        gradient: isSelected 
+          ? LinearGradient(
+              colors: [AppColors.primary.withValues(alpha: 0.15), AppColors.primaryLight.withValues(alpha: 0.1)],
+            )
+          : null,
+        color: !isSelected ? Colors.white : null,
         borderRadius: BorderRadius.circular(AppColors.radiusMd),
-        border: isSelected ? Border.all(color: AppColors.primary.withValues(alpha: 0.3)) : null,
+        border: isSelected ? Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 2) : null,
+        boxShadow: isSelected ? [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ] : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -273,11 +294,16 @@ class FoldersPanel extends StatelessWidget {
             vertical: AppColors.space4,
           ),
           decoration: BoxDecoration(
-            color: isSelected
-                ? AppColors.primary.withValues(alpha: 0.15)
+            gradient: isSelected
+                ? LinearGradient(
+                    colors: [AppColors.primary.withValues(alpha: 0.15), AppColors.primaryLight.withValues(alpha: 0.1)],
+                  )
                 : isHovering
-                    ? AppColors.success.withValues(alpha: 0.15)
-                    : Colors.transparent,
+                    ? LinearGradient(
+                        colors: [AppColors.success.withValues(alpha: 0.15), AppColors.success.withValues(alpha: 0.1)],
+                      )
+                    : null,
+            color: !isSelected && !isHovering ? Colors.white : null,
             borderRadius: BorderRadius.circular(AppColors.radiusMd),
             border: isHovering
                 ? Border.all(
@@ -286,17 +312,23 @@ class FoldersPanel extends StatelessWidget {
                     strokeAlign: BorderSide.strokeAlignInside,
                   )
                 : isSelected
-                    ? Border.all(color: AppColors.primary.withValues(alpha: 0.3))
-                    : null,
-            boxShadow: isHovering
+                    ? Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 2)
+                    : Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+            boxShadow: isHovering || isSelected
                 ? [
                     BoxShadow(
-                      color: AppColors.success.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      spreadRadius: 0,
+                      color: (isHovering ? AppColors.success : AppColors.primary).withValues(alpha: 0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     )
                   ]
-                : null,
+                : [
+                    BoxShadow(
+                      color: Colors.grey.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    )
+                  ],
           ),
           child: Material(
             color: Colors.transparent,
@@ -326,13 +358,13 @@ class FoldersPanel extends StatelessWidget {
                           Text(
                             name,
                             style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
                               color: isHovering 
                                   ? AppColors.success
                                   : isSelected 
                                       ? AppColors.primary 
-                                      : AppColors.textPrimary,
+                                      : Colors.black87,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -344,13 +376,13 @@ class FoldersPanel extends StatelessWidget {
                                   ? '¡Suelta aquí!' 
                                   : '$count nota${count != 1 ? "s" : ""}',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: isHovering 
                                     ? AppColors.success 
-                                    : AppColors.textMuted,
+                                    : Colors.black87,
                                 fontWeight: isHovering 
-                                    ? FontWeight.w600 
-                                    : FontWeight.normal,
+                                    ? FontWeight.w700 
+                                    : FontWeight.w500,
                               ),
                             ),
                           ],
@@ -373,8 +405,12 @@ class FoldersPanel extends StatelessWidget {
                       ),
                     if (folder != null && !isHovering)
                       PopupMenuButton(
-                        icon: const Icon(Icons.more_vert_rounded, size: 18, color: AppColors.textSecondary),
-                        color: AppColors.surface,
+                        icon: Icon(Icons.more_vert_rounded, size: 20, color: Colors.black87),
+                        color: Colors.white,
+                        elevation: 8,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                        ),
                         itemBuilder: (context) => [
                           PopupMenuItem(
                             onTap: onEdit,

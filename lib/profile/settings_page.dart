@@ -5,6 +5,7 @@ import '../services/firestore_service.dart';
 import '../services/preferences_service.dart';
 import '../services/app_service.dart';
 import '../widgets/export_import_dialog.dart';
+import '../widgets/gradient_button.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -30,27 +31,76 @@ class _SettingsPageState extends State<SettingsPage> {
   }
   
   Future<void> _loadSettings() async {
-    // Cargar configuraciones reales desde PreferencesService
+    // Preferencias locales para fallback inmediato
     final themeMode = await PreferencesService.getThemeModeString();
     final language = await PreferencesService.getLanguageString();
-    
-    if (mounted) {
-      setState(() {
-        _themeMode = themeMode;
-        _language = language;
-      });
+
+    // Cargar remotas desde Firestore (si existen)
+    final uid = _authService.currentUser?.uid;
+    Map<String, dynamic>? remote;
+    if (uid != null) {
+      try {
+        remote = await FirestoreService.instance.getUserSettings(uid: uid);
+      } catch (_) {}
     }
+
+    if (!mounted) return;
+    setState(() {
+      _themeMode = remote?['themeMode'] as String? ?? themeMode;
+      _language = remote?['language'] as String? ?? language;
+      _notifications = (remote?['notifications'] as bool?) ?? _notifications;
+      _autoSave = (remote?['autoSave'] as bool?) ?? _autoSave;
+      _backupEnabled = (remote?['backupEnabled'] as bool?) ?? _backupEnabled;
+      _defaultView = (remote?['defaultView'] as String?) ?? _defaultView;
+    });
   }
   
   Future<void> _saveSettings() async {
-    // TODO: Guardar configuraciones en Firestore
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✓ Configuración guardada'),
-        backgroundColor: AppColors.success,
-        duration: Duration(seconds: 2),
-      ),
-    );
+    final uid = _authService.currentUser?.uid;
+    try {
+      // Persistir localmente para arranque rápido
+      switch (_themeMode) {
+        case 'Claro':
+          await PreferencesService.setThemeMode(ThemeMode.light);
+          break;
+        case 'Oscuro':
+          await PreferencesService.setThemeMode(ThemeMode.dark);
+          break;
+        case 'Sistema':
+        default:
+          await PreferencesService.setThemeMode(ThemeMode.system);
+      }
+      await PreferencesService.setLocale(Locale(_language == 'English' ? 'en' : 'es', ''));
+
+      // Persistir en Firestore (si hay usuario)
+      if (uid != null) {
+        await FirestoreService.instance.updateUserSettings(uid: uid, data: {
+          'themeMode': _themeMode,
+          'language': _language,
+          'notifications': _notifications,
+          'autoSave': _autoSave,
+          'backupEnabled': _backupEnabled,
+          'defaultView': _defaultView,
+        });
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✓ Configuración guardada'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar: ${e.toString()}'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
   }
   
   Future<void> _exportData() async {
@@ -123,20 +173,20 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgLight,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.surfaceLight2,
         elevation: 0,
         title: const Text(
           'Ajustes',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: AppColors.textPrimaryLight,
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimaryLight),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -164,7 +214,7 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Idioma',
             subtitle: _language,
             icon: Icons.language_rounded,
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
             onTap: () => _showLanguageDialog(),
           ),
           const SizedBox(height: AppColors.space12),
@@ -172,7 +222,7 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Vista predeterminada',
             subtitle: _defaultView,
             icon: Icons.view_module_rounded,
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
             onTap: () => _showDefaultViewDialog(),
           ),
           const SizedBox(height: AppColors.space32),
@@ -225,7 +275,7 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Exportar datos',
             subtitle: 'Descargar todas tus notas',
             icon: Icons.download_rounded,
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
             onTap: _exportData,
           ),
           const SizedBox(height: AppColors.space12),
@@ -233,7 +283,7 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Importar datos',
             subtitle: 'Cargar notas desde un archivo',
             icon: Icons.upload_rounded,
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
             onTap: _importData,
           ),
           const SizedBox(height: AppColors.space32),
@@ -252,19 +302,10 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: AppColors.space48),
           
           // Botón Guardar
-          FilledButton(
+          GradientButton(
             onPressed: _saveSettings,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(vertical: AppColors.space16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppColors.radiusMd),
-              ),
-            ),
-            child: const Text(
-              'Guardar Cambios',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
+            icon: Icons.check_circle_rounded,
+            child: const Text('Guardar Cambios'),
           ),
         ],
       ),
@@ -288,7 +329,7 @@ class _SettingsPageState extends State<SettingsPage> {
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: AppColors.textPrimaryLight,
           ),
         ),
       ],
@@ -299,9 +340,9 @@ class _SettingsPageState extends State<SettingsPage> {
     return Container(
       padding: const EdgeInsets.all(AppColors.space20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.surfaceLight2,
         borderRadius: BorderRadius.circular(AppColors.radiusLg),
-        border: Border.all(color: AppColors.borderColor),
+        border: Border.all(color: AppColors.borderColorLight),
       ),
       child: Row(
         children: [
@@ -324,7 +365,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: AppColors.textPrimaryLight,
                   ),
                 ),
                 const SizedBox(height: AppColors.space4),
@@ -332,7 +373,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   'Cuenta Premium',
                   style: TextStyle(
                     fontSize: 14,
-                    color: AppColors.textSecondary,
+                    color: AppColors.textSecondaryLight,
                   ),
                 ),
               ],
@@ -363,9 +404,9 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Container(
         padding: const EdgeInsets.all(AppColors.space16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: AppColors.surfaceLight2,
           borderRadius: BorderRadius.circular(AppColors.radiusMd),
-          border: Border.all(color: AppColors.borderColor),
+          border: Border.all(color: AppColors.borderColorLight),
         ),
         child: Row(
           children: [
@@ -387,7 +428,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: textColor ?? AppColors.textPrimary,
+                      color: textColor ?? AppColors.textPrimaryLight,
                     ),
                   ),
                   const SizedBox(height: AppColors.space4),
@@ -395,7 +436,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     subtitle,
                     style: const TextStyle(
                       fontSize: 13,
-                      color: AppColors.textSecondary,
+                      color: AppColors.textSecondaryLight,
                     ),
                   ),
                 ],
@@ -412,8 +453,8 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Seleccionar tema', style: TextStyle(color: AppColors.textPrimary)),
+        backgroundColor: AppColors.surfaceLight2,
+        title: const Text('Seleccionar tema', style: TextStyle(color: AppColors.textPrimaryLight)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -428,7 +469,7 @@ class _SettingsPageState extends State<SettingsPage> {
   
   Widget _buildThemeOption(String name, ThemeMode mode) {
     return ListTile(
-      title: Text(name, style: const TextStyle(color: AppColors.textPrimary)),
+      title: Text(name, style: const TextStyle(color: AppColors.textPrimaryLight)),
       trailing: _themeMode == name
           ? const Icon(Icons.check_rounded, color: AppColors.primary)
           : null,
@@ -446,8 +487,8 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Seleccionar idioma', style: TextStyle(color: AppColors.textPrimary)),
+        backgroundColor: AppColors.surfaceLight2,
+        title: const Text('Seleccionar idioma', style: TextStyle(color: AppColors.textPrimaryLight)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -461,7 +502,7 @@ class _SettingsPageState extends State<SettingsPage> {
   
   Widget _buildLanguageOption(String name, String code) {
     return ListTile(
-      title: Text(name, style: const TextStyle(color: AppColors.textPrimary)),
+      title: Text(name, style: const TextStyle(color: AppColors.textPrimaryLight)),
       trailing: _language == name
           ? const Icon(Icons.check_rounded, color: AppColors.primary)
           : null,
@@ -480,8 +521,8 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Vista predeterminada', style: TextStyle(color: AppColors.textPrimary)),
+        backgroundColor: AppColors.surfaceLight2,
+        title: const Text('Vista predeterminada', style: TextStyle(color: AppColors.textPrimaryLight)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -497,7 +538,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildViewOption(String name, IconData icon) {
     return ListTile(
       leading: Icon(icon, color: AppColors.primary),
-      title: Text(name, style: const TextStyle(color: AppColors.textPrimary)),
+      title: Text(name, style: const TextStyle(color: AppColors.textPrimaryLight)),
       trailing: _defaultView == name
           ? const Icon(Icons.check_rounded, color: AppColors.primary)
           : null,
@@ -512,11 +553,11 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Cerrar sesión', style: TextStyle(color: AppColors.textPrimary)),
+        backgroundColor: AppColors.surfaceLight2,
+        title: const Text('Cerrar sesión', style: TextStyle(color: AppColors.textPrimaryLight)),
         content: const Text(
           '¿Estás seguro que deseas cerrar sesión?',
-          style: TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(color: AppColors.textSecondaryLight),
         ),
         actions: [
           TextButton(
