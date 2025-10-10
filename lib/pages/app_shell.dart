@@ -619,11 +619,17 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                   ? FontWeight.normal 
                   : FontWeight.bold,
               ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(notification.message),
+                Text(
+                  notification.message,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
                 const SizedBox(height: 4),
                 Text(
                   '${notification.createdAt.difference(DateTime.now()).inHours.abs()}h',
@@ -683,10 +689,12 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                           Text(
                             comment.userName,
                             style: const TextStyle(fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           Text(
                             '${comment.createdAt.difference(DateTime.now()).inHours.abs()}h en nota',
                             style: Theme.of(context).textTheme.bodySmall,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -696,15 +704,23 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                   ],
                 ),
                 const SizedBox(height: AppColors.space12),
-                Text(comment.content),
+                Text(
+                  comment.content,
+                  overflow: TextOverflow.visible,
+                ),
                 if (comment.mentions.isNotEmpty) ...[
                   const SizedBox(height: AppColors.space8),
                   Wrap(
                     spacing: 4,
+                    runSpacing: 4,
                     children: comment.mentions.map((mention) => 
                       Chip(
-                        label: Text('@$mention'),
+                        label: Text(
+                          '@$mention',
+                          style: const TextStyle(fontSize: 12),
+                        ),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
                       )
                     ).toList(),
                   ),
@@ -757,36 +773,47 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                       child: Text(
                         approval.noteTitle,
                         style: const TextStyle(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: AppColors.space8),
-                Text(approval.description),
+                Text(
+                  approval.description,
+                  overflow: TextOverflow.visible,
+                ),
                 const SizedBox(height: AppColors.space12),
                 Text(
                   'Solicitado por: ${approval.requesterId}',
                   style: Theme.of(context).textTheme.bodySmall,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   'Fecha límite: ${approval.deadline?.toString().split(' ')[0] ?? 'Sin fecha límite'}',
                   style: Theme.of(context).textTheme.bodySmall,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (approval.status == ApprovalStatus.pending) ...[
                   const SizedBox(height: AppColors.space16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      TextButton.icon(
-                        onPressed: () => _respondToApproval(approval.id, false),
-                        icon: const Icon(Icons.close, color: Colors.red),
-                        label: const Text('Rechazar', style: TextStyle(color: Colors.red)),
+                      Flexible(
+                        child: TextButton.icon(
+                          onPressed: () => _respondToApproval(approval.id, false),
+                          icon: const Icon(Icons.close, color: Colors.red, size: 16),
+                          label: const Text('Rechazar', style: TextStyle(color: Colors.red)),
+                        ),
                       ),
-                      const SizedBox(width: AppColors.space8),
-                      FilledButton.icon(
-                        onPressed: () => _respondToApproval(approval.id, true),
-                        icon: const Icon(Icons.check),
-                        label: const Text('Aprobar'),
+                      const SizedBox(width: AppColors.space4),
+                      Flexible(
+                        child: FilledButton.icon(
+                          onPressed: () => _respondToApproval(approval.id, true),
+                          icon: const Icon(Icons.check, size: 16),
+                          label: const Text('Aprobar'),
+                        ),
                       ),
                     ],
                   ),
@@ -833,15 +860,25 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                 color: Colors.white,
               ),
             ),
-            title: Text(event.title),
+            title: Text(
+              event.title,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (event.description.isNotEmpty) Text(event.description),
+                if (event.description.isNotEmpty) 
+                  Text(
+                    event.description,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                  ),
                 const SizedBox(height: 4),
                 Text(
                   '${event.startTime.toString().split(' ')[0]} a las ${event.startTime.toString().split(' ')[1].substring(0, 5)}',
                   style: Theme.of(context).textTheme.bodySmall,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -1105,22 +1142,22 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
                               ),
                             ),
                             if (isOnline) ...[
-                              const SizedBox(width: AppColors.space4),
+                              const SizedBox(width: 2),
                               Container(
-                                width: 6,
-                                height: 6,
+                                width: 4,
+                                height: 4,
                                 decoration: const BoxDecoration(
                                   color: AppColors.success,
                                   shape: BoxShape.circle,
                                 ),
                               ),
-                              const SizedBox(width: AppColors.space4),
+                              const SizedBox(width: 2),
                               Text(
                                 'Online',
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: AppColors.success,
                                   fontWeight: FontWeight.w500,
-                                  fontSize: 11,
+                                  fontSize: 10,
                                 ),
                               ),
                             ],
@@ -1397,18 +1434,20 @@ class _SharedPageState extends State<_SharedPage> with TickerProviderStateMixin 
             const SizedBox(height: AppColors.space16),
             Row(
               children: [
-                Text(
-                  _formatTime(invite.sharedAt),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
+                Expanded(
+                  child: Text(
+                    _formatTime(invite.sharedAt),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
                 TextButton(
                   onPressed: () => _declineInvite(invite),
                   child: const Text('Rechazar'),
                 ),
-                const SizedBox(width: AppColors.space8),
+                const SizedBox(width: AppColors.space4),
                 FilledButton(
                   onPressed: () => _acceptInvite(invite),
                   child: const Text('Aceptar'),
