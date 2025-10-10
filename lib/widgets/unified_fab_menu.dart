@@ -76,6 +76,7 @@ class _UnifiedFABMenuState extends State<UnifiedFABMenu>
         ScaleTransition(
           scale: Tween<double>(begin: 1.0, end: 0.95).animate(_expandAnimation),
           child: FloatingActionButton(
+            heroTag: 'unified_fab_main',
             onPressed: _toggle,
             backgroundColor: AppColors.primary,
             child: AnimatedRotation(

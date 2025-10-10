@@ -113,6 +113,39 @@ class FoldersPanel extends StatelessWidget {
           isSelected: selectedFolderId == null,
           onTap: () => onFolderSelected(null),
         ),
+
+        // Shared sections
+        const SizedBox(height: AppColors.space8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppColors.space8),
+          child: Text(
+            'Compartidas',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppColors.space4),
+        _buildVirtualTile(
+          context: context,
+          id: '__SHARED_WITH_ME__',
+          name: 'Conmigo',
+          icon: Icons.inbox_rounded,
+          color: AppColors.info,
+          isSelected: selectedFolderId == '__SHARED_WITH_ME__',
+          onTap: () => onFolderSelected('__SHARED_WITH_ME__'),
+        ),
+        _buildVirtualTile(
+          context: context,
+          id: '__SHARED_BY_ME__',
+          name: 'Por mí',
+          icon: Icons.send_rounded,
+          color: AppColors.secondary,
+          isSelected: selectedFolderId == '__SHARED_BY_ME__',
+          onTap: () => onFolderSelected('__SHARED_BY_ME__'),
+        ),
         
         const Divider(color: AppColors.borderColor, height: 1),
         
@@ -160,6 +193,66 @@ class FoldersPanel extends StatelessWidget {
           )),
         const SizedBox(height: AppColors.space16),
       ],
+      ),
+    );
+  }
+
+  Widget _buildVirtualTile({
+    required BuildContext context,
+    required String id,
+    required String name,
+    required IconData icon,
+    required Color color,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppColors.space8,
+        vertical: AppColors.space4,
+      ),
+      decoration: BoxDecoration(
+        color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppColors.radiusMd),
+        border: isSelected ? Border.all(color: AppColors.primary.withValues(alpha: 0.3)) : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppColors.space12,
+              vertical: AppColors.space12,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppColors.space8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(width: AppColors.space12),
+                Expanded(
+                  child: Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

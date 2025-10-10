@@ -291,7 +291,36 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     final svc = FirestoreService.instance;
     
     try {
-      // Cargar directamente desde Firestore (caché deshabilitado temporalmente por problema de serialización)
+      // Modo especial: secciones "Compartidas"
+      if (_selectedFolderId == '__SHARED_WITH_ME__') {
+        // Notas compartidas conmigo y aceptadas
+        final sharedNotes = await SharingService().getSharedNotes();
+        if (!mounted) return;
+        setState(() {
+          _allNotes = sharedNotes;
+          _notes = sharedNotes;
+          _loading = false;
+        });
+        return;
+      } else if (_selectedFolderId == '__SHARED_BY_ME__') {
+        // Notas que yo he compartido
+        final sharedByMe = await SharingService().getSharedByMe(
+          type: SharedItemType.note,
+        );
+        final sharedIds = sharedByMe.map((s) => s.itemId).toSet();
+        // Cargar mis notas y filtrar por las compartidas
+        List<Map<String, dynamic>> myNotes = await svc.listNotesSummary(uid: _uid);
+        final filtered = myNotes.where((n) => sharedIds.contains(n['id'].toString())).toList();
+        if (!mounted) return;
+        setState(() {
+          _allNotes = filtered;
+          _notes = filtered;
+          _loading = false;
+        });
+        return;
+      }
+
+      // Cargar notas propias (caché deshabilitado temporalmente por problema de serialización)
       List<Map<String, dynamic>> allNotes = await svc.listNotesSummary(uid: _uid);
       
       if (!mounted) return;
@@ -301,8 +330,10 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       // Aplicar filtros
       var filteredNotes = List<Map<String, dynamic>>.from(allNotes);
       
-      // Filtro por carpeta
-      if (_selectedFolderId != null) {
+      // Filtro por carpeta (excluye virtuales)
+      if (_selectedFolderId != null &&
+          _selectedFolderId != '__SHARED_WITH_ME__' &&
+          _selectedFolderId != '__SHARED_BY_ME__') {
         try {
           final folder = _folders.firstWhere((f) => f.id == _selectedFolderId);
           filteredNotes = filteredNotes.where((note) {
@@ -440,7 +471,16 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       _selectedId = id;
       _saving = true;
     });
-    final n = await FirestoreService.instance.getNote(uid: _uid, noteId: id);
+    // Si la nota es compartida conmigo, obtenerla desde el propietario
+    String ownerUid = _uid;
+    try {
+      final Map<String, dynamic> maybe = _notes.firstWhere((n) => (n['id']?.toString() ?? '') == id, orElse: () => <String, dynamic>{});
+      final owner = (maybe['ownerId'] as String?) ?? '';
+      if (maybe['isShared'] == true && owner.isNotEmpty) {
+        ownerUid = owner;
+      }
+    } catch (_) {}
+    final n = await FirestoreService.instance.getNote(uid: ownerUid, noteId: id);
     if (!mounted) return;
     setState(() {
       _title.text = (n?['title']?.toString() ?? '');
@@ -553,6 +593,68 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     PreferencesService.setSelectedFolder(null);
     
     _loadNotes();
+  }
+
+  Widget _buildVirtualSharedTile({
+    required String id,
+    required String name,
+    required IconData icon,
+    required Color color,
+  }) {
+    final isSelected = _selectedFolderId == id;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppColors.space8,
+        vertical: AppColors.space4,
+      ),
+      decoration: BoxDecoration(
+        color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppColors.radiusMd),
+        border: isSelected ? Border.all(color: AppColors.primary.withValues(alpha: 0.3)) : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () async {
+            setState(() => _selectedFolderId = id);
+            await PreferencesService.setSelectedFolder(id);
+            _loadNotes();
+          },
+          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppColors.space12,
+              vertical: AppColors.space12,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppColors.space8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(width: AppColors.space12),
+                Expanded(
+                  child: Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
   
   Future<void> _onNoteDroppedInFolder(String noteId, String folderId) async {
@@ -2909,30 +3011,70 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         ),
                         child: Builder(
                           builder: (context) {
-                            // Obtener IDs de notas que están en carpetas
-                            final Set<String> notesInFolders = {};
-                            for (final folder in _folders) {
-                              notesInFolders.addAll(folder.noteIds);
+                            // En secciones virtuales de "Compartidas", no mostramos carpetas
+                            final bool inVirtualShared = _selectedFolderId == '__SHARED_WITH_ME__' || _selectedFolderId == '__SHARED_BY_ME__';
+                            final List<Map<String, dynamic>> notesWithoutFolder;
+                            if (inVirtualShared) {
+                              notesWithoutFolder = List<Map<String, dynamic>>.from(_notes);
+                            } else {
+                              // Obtener IDs de notas que están en carpetas
+                              final Set<String> notesInFolders = {};
+                              for (final folder in _folders) {
+                                notesInFolders.addAll(folder.noteIds);
+                              }
+                              // Filtrar notas que NO están en carpetas
+                              notesWithoutFolder = _notes
+                                  .where((n) => !notesInFolders.contains(n['id'].toString()))
+                                  .toList();
                             }
-                            
-                            // Filtrar notas que NO están en carpetas
-                            final notesWithoutFolder = _notes
-                                .where((n) => !notesInFolders.contains(n['id'].toString()))
-                                .toList();
                             
                             return ListView.builder(
                               padding: const EdgeInsets.all(AppColors.space12),
-                              itemCount: _folders.length + notesWithoutFolder.length,
+                              itemCount: (inVirtualShared ? 0 : _folders.length) + notesWithoutFolder.length + 2,
                               itemBuilder: (context, i) {
+                                // Sección "Compartidas"
+                                if (i == 0) {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: AppColors.space8, vertical: AppColors.space4),
+                                    child: Text(
+                                      'Compartidas',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textMuted,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                if (i == 1) {
+                                  return Column(
+                                    children: [
+                                      _buildVirtualSharedTile(
+                                        id: '__SHARED_WITH_ME__',
+                                        name: 'Conmigo',
+                                        icon: Icons.inbox_rounded,
+                                        color: AppColors.info,
+                                      ),
+                                      _buildVirtualSharedTile(
+                                        id: '__SHARED_BY_ME__',
+                                        name: 'Por mí',
+                                        icon: Icons.send_rounded,
+                                        color: AppColors.secondary,
+                                      ),
+                                      const Divider(color: AppColors.borderColor, height: 1),
+                                    ],
+                                  );
+                                }
                                 // Sección de carpetas con sus notas
-                                if (i < _folders.length) {
-                                  final folder = _folders[i];
+                                final baseIndex = 2; // virtual header + tiles
+                                if (!inVirtualShared && i - baseIndex < _folders.length) {
+                                  final folder = _folders[i - baseIndex];
                                   final noteCount = folder.noteIds.length;
                                   return _buildFolderCard(folder, noteCount);
                                 }
                                 
                                 // Notas sin carpeta (con menú contextual)
-                                final noteIndex = i - _folders.length;
+                                final noteIndex = i - (inVirtualShared ? 0 : _folders.length) - baseIndex;
                                 final note = notesWithoutFolder[noteIndex];
                                 final id = note['id'].toString();
                                 return EnhancedContextMenuRegion(
@@ -2953,6 +3095,10 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                     isSelected: id == _selectedId,
                                     onTap: () => _select(id),
                                     onPin: () async {
+                                      if (inVirtualShared || note['isShared'] == true) {
+                                        ToastService.info('No puedes anclar notas compartidas');
+                                        return;
+                                      }
                                       await FirestoreService.instance.setPinned(
                                         uid: _uid,
                                         noteId: id,
@@ -2960,10 +3106,16 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                       );
                                       await _loadNotes();
                                     },
-                                    onDelete: () => _delete(id),
+                                    onDelete: () async {
+                                      if (inVirtualShared || note['isShared'] == true) {
+                                        ToastService.info('No puedes eliminar notas compartidas');
+                                        return;
+                                      }
+                                      await _delete(id);
+                                    },
                                     onSetIcon: () => _showNoteIconPicker(noteId: id, initialIcon: note['icon']?.toString(), initialColor: note['iconColor'] is int ? Color(note['iconColor']) : null),
                                     onClearIcon: () async => _clearNoteIcon(id),
-                                    enableDrag: true,
+                                    enableDrag: !inVirtualShared,
                                     compact: _compactMode,
                                   ),
                                 );

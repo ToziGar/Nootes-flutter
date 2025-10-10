@@ -391,6 +391,22 @@ class SharingService {
       if (existingDoc.exists) {
         final data = existingDoc.data() as Map<String, dynamic>;
         final existingStatus = (data['status'] as String?) ?? 'pending';
+        // Si estaba revocada o rechazada, permitimos reactivar/actualizar
+        if (existingStatus == SharingStatus.revoked.name || existingStatus == SharingStatus.rejected.name) {
+          print('♻️ Reactivando compartición existente ($existingStatus)');
+          await _firestore.collection('shared_items').doc(shareId).update({
+            'permission': permission.name,
+            'status': SharingStatus.pending.name,
+            'updatedAt': fs.FieldValue.serverTimestamp(),
+            if (message != null) 'message': message,
+            if (expiresAt != null) 'expiresAt': Timestamp.fromDate(expiresAt),
+            'metadata': {
+              'noteTitle': note['title'] ?? 'Sin título',
+              'ownerName': currentUser.email?.split('@').first ?? 'Usuario',
+            },
+          });
+          return shareId;
+        }
         if (existingStatus == SharingStatus.pending.name || existingStatus == SharingStatus.accepted.name) {
           print('❌ Nota ya compartida con este usuario (estado: $existingStatus)');
           throw Exception('Esta nota ya está compartida con este usuario');
@@ -448,17 +464,21 @@ class SharingService {
     final docRef = _firestore.collection('shared_items').doc(shareId);
     await docRef.set(sharedItem.toMap());
     print('✅ Compartición creada exitosamente: ${docRef.id}');
-      
-      // Enviar notificación al destinatario
-      final notificationService = NotificationService();
-      await notificationService.notifyNewShare(
-        recipientId: recipient['uid'],
-        senderName: ownerProfile?['fullName'] ?? currentUser.email?.split('@').first ?? 'Usuario',
-        senderEmail: currentUser.email ?? '',
-        itemTitle: note['title'] ?? 'Sin título',
-        shareId: docRef.id,
-        itemType: SharedItemType.note,
-      );
+
+      // Enviar notificación al destinatario (no bloquear si falla)
+      try {
+        final notificationService = NotificationService();
+        await notificationService.notifyNewShare(
+          recipientId: recipient['uid'],
+          senderName: ownerProfile?['fullName'] ?? currentUser.email?.split('@').first ?? 'Usuario',
+          senderEmail: currentUser.email ?? '',
+          itemTitle: note['title'] ?? 'Sin título',
+          shareId: docRef.id,
+          itemType: SharedItemType.note,
+        );
+      } catch (e) {
+        print('⚠️ No se pudo crear la notificación de compartición: $e');
+      }
       
       return docRef.id;
     } catch (e) {
@@ -540,16 +560,20 @@ class SharingService {
   final docRef = _firestore.collection('shared_items').doc(shareId);
   await docRef.set(sharedItem.toMap());
 
-    // Enviar notificación al destinatario
-    final notificationService = NotificationService();
-    await notificationService.notifyNewShare(
-      recipientId: recipient['uid'],
-      senderName: ownerProfile?['fullName'] ?? currentUser.email?.split('@').first ?? 'Usuario',
-      senderEmail: currentUser.email ?? '',
-      itemTitle: folder['name'] ?? 'Sin nombre',
-      shareId: docRef.id,
-      itemType: SharedItemType.folder,
-    );
+    // Enviar notificación al destinatario (no bloquear si falla)
+    try {
+      final notificationService = NotificationService();
+      await notificationService.notifyNewShare(
+        recipientId: recipient['uid'],
+        senderName: ownerProfile?['fullName'] ?? currentUser.email?.split('@').first ?? 'Usuario',
+        senderEmail: currentUser.email ?? '',
+        itemTitle: folder['name'] ?? 'Sin nombre',
+        shareId: docRef.id,
+        itemType: SharedItemType.folder,
+      );
+    } catch (e) {
+      print('⚠️ No se pudo crear la notificación de compartición (carpeta): $e');
+    }
 
     return docRef.id;
   }
@@ -798,6 +822,7 @@ class SharingService {
           'isShared': true,
           'sharingId': sharing.id,
           'sharedBy': sharing.ownerEmail,
+          'ownerId': sharing.ownerId,
           'permission': sharing.permission.name,
           'sharedAt': sharing.createdAt,
         });

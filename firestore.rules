@@ -32,6 +32,24 @@ service cloud.firestore {
       allow write: if isAuthed() && request.resource.data.uid == request.auth.uid;
     }
 
+    // Notifications subcollection under users
+    // - The user (owner of the user doc) can read/write their own notifications
+    // - Additionally, allow creating a notification for a user if it's tied to a shared_items doc
+    //   where the requester is the owner and the recipient matches {uid}
+    match /users/{uid}/notifications/{notificationId} {
+      allow read: if isOwner(uid);
+      allow create: if isAuthed() && (
+        isOwner(uid) || (
+          // Sender can create a notification for recipient when there is a valid share
+          request.resource.data.shareId is string &&
+          exists(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)) &&
+          get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.ownerId == request.auth.uid &&
+          get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.recipientId == uid
+        )
+      );
+      allow update, delete: if isOwner(uid);
+    }
+
     // Shared items with deterministic ID: recipient_owner_item
     match /shared_items/{shareId} {
       allow create: if isAuthed() &&
@@ -49,7 +67,7 @@ service cloud.firestore {
 
       // Owner can update permission or status; recipient can update status only
       allow update: if isAuthed() && (
-        (resource.data.ownerId == request.auth.uid && request.resource.data.diff(resource.data).changedKeys().hasOnly(['permission','status','updatedAt'])) ||
+        (resource.data.ownerId == request.auth.uid && request.resource.data.diff(resource.data).changedKeys().hasOnly(['permission','status','updatedAt','expiresAt','message','metadata'])) ||
         (resource.data.recipientId == request.auth.uid && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status','updatedAt']))
       );
 

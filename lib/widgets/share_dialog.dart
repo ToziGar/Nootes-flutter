@@ -34,6 +34,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
   bool _loadingExisting = true;
   String? _publicToken;
   bool _publicBusy = false;
+  bool _showMessage = false;
   
   // Autocomplete
   List<Map<String, dynamic>> _suggestions = [];
@@ -1064,26 +1065,43 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Mensaje (opcional)',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _messageController,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'Añade un mensaje personalizado...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Mensaje (opcional)',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: AppColors.textPrimary,
+                ),
               ),
-              filled: true,
-              fillColor: Colors.white,
-            ),
+              TextButton.icon(
+                onPressed: () => setState(() => _showMessage = !_showMessage),
+                icon: Icon(_showMessage ? Icons.expand_less : Icons.add_comment_rounded),
+                label: Text(_showMessage ? 'Ocultar' : 'Añadir'),
+              ),
+            ],
+          ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: !_showMessage
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: TextFormField(
+                      controller: _messageController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Añade un mensaje personalizado...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),
