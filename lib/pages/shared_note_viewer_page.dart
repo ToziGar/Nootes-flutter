@@ -9,6 +9,7 @@ import '../services/comment_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/visual_improvements.dart';
+import '../widgets/comments_section.dart';
 
 /// Página para ver y editar notas compartidas según permisos
 class SharedNoteViewerPage extends StatefulWidget {
@@ -279,10 +280,52 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       border: Border(
-                        left: BorderSide(color: AppColors.borderColor),
+                        left: BorderSide(color: Colors.grey[300]!),
                       ),
                     ),
-                    child: _buildCommentsPanel(),
+                    child: Column(
+                      children: [
+                        // Header con botón cerrar
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey[300]!),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.comment_rounded, color: AppColors.primary),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Comentarios',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                              const Spacer(),
+                              IconButton(
+                                icon: const Icon(Icons.close, size: 20),
+                                onPressed: () {
+                                  setState(() => _showComments = false);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Widget de comentarios
+                        Expanded(
+                          child: CommentsWidget(
+                            noteId: widget.noteId,
+                            ownerId: widget.sharingInfo.ownerId,
+                            canComment: _hasCommentPermission,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 
                 // Panel lateral de actividad
@@ -415,114 +458,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
     );
   }
 
-  Widget _buildCommentsPanel() {
-    return Column(
-      children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: AppColors.borderColor),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.comment_rounded, color: AppColors.primary),
-              const SizedBox(width: 12),
-              Text(
-                'Comentarios',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Spacer(),
-              IconButton(
-                icon: Icon(Icons.close, size: 20),
-                onPressed: () {
-                  setState(() => _showComments = false);
-                },
-              ),
-            ],
-          ),
-        ),
-        
-        // Lista de comentarios
-        Expanded(
-          child: StreamBuilder<List<Comment>>(
-            stream: CommentService().getCommentsStream(widget.noteId),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 48, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text('Error: ${snapshot.error}'),
-                    ],
-                  ),
-                );
-              }
 
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
-              }
-
-              final comments = snapshot.data ?? [];
-
-              if (comments.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.comment_outlined,
-                        size: 48,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Sin comentarios',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _hasCommentPermission
-                            ? 'Sé el primero en comentar'
-                            : 'Los comentarios aparecerán aquí',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[400],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: comments.length,
-                itemBuilder: (context, index) {
-                  return _buildCommentCard(comments[index]);
-                },
-              );
-            },
-          ),
-        ),
-        
-        // Input de comentario (solo si tiene permisos)
-        if (_hasCommentPermission)
-          _buildCommentInput(),
-      ],
-    );
-  }
 
   Widget _buildActivityPanel() {
     return Column(

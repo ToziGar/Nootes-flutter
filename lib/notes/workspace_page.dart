@@ -297,34 +297,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     final svc = FirestoreService.instance;
     
     try {
-      // Modo especial: secciones "Compartidas"
-      if (_selectedFolderId == '__SHARED_WITH_ME__') {
-        // Notas compartidas conmigo y aceptadas
-        final sharedNotes = await SharingService().getSharedNotes();
-        if (!mounted) return;
-        setState(() {
-          _allNotes = sharedNotes;
-          _notes = sharedNotes;
-          _loading = false;
-        });
-        return;
-      } else if (_selectedFolderId == '__SHARED_BY_ME__') {
-        // Notas que yo he compartido
-        final sharedByMe = await SharingService().getSharedByMe(
-          type: SharedItemType.note,
-        );
-        final sharedIds = sharedByMe.map((s) => s.itemId).toSet();
-        // Cargar mis notas y filtrar por las compartidas
-        List<Map<String, dynamic>> myNotes = await svc.listNotesSummary(uid: _uid);
-        final filtered = myNotes.where((n) => sharedIds.contains(n['id'].toString())).toList();
-        if (!mounted) return;
-        setState(() {
-          _allNotes = filtered;
-          _notes = filtered;
-          _loading = false;
-        });
-        return;
-      }
+
 
       // Cargar notas propias (caché deshabilitado temporalmente por problema de serialización)
       List<Map<String, dynamic>> allNotes = await svc.listNotesSummary(uid: _uid);
@@ -336,10 +309,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       // Aplicar filtros
       var filteredNotes = List<Map<String, dynamic>>.from(allNotes);
       
-      // Filtro por carpeta (excluye virtuales)
-      if (_selectedFolderId != null &&
-          _selectedFolderId != '__SHARED_WITH_ME__' &&
-          _selectedFolderId != '__SHARED_BY_ME__') {
+      // Filtro por carpeta
+      if (_selectedFolderId != null) {
         try {
           final folder = _folders.firstWhere((f) => f.id == _selectedFolderId);
           filteredNotes = filteredNotes.where((note) {
@@ -608,13 +579,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     _loadNotes();
   }
 
-  Widget _buildVirtualSharedTile({
-    required String id,
-    required String name,
-    required IconData icon,
-    required Color color,
-  }) {
-    final isSelected = _selectedFolderId == id;
+  Widget _buildSharedNavigationTile() {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
@@ -623,17 +588,14 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         vertical: AppColors.space4,
       ),
       decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(AppColors.radiusMd),
-        border: isSelected ? Border.all(color: AppColors.primary.withValues(alpha: 0.3)) : null,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () async {
-            setState(() => _selectedFolderId = id);
-            await PreferencesService.setSelectedFolder(id);
-            _loadNotes();
+          onTap: () {
+            Navigator.of(context).pushNamed('/shared-notes');
           },
           borderRadius: BorderRadius.circular(AppColors.radiusMd),
           child: Padding(
@@ -646,21 +608,27 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                 Container(
                   padding: const EdgeInsets.all(AppColors.space8),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
+                    color: AppColors.info.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(AppColors.radiusSm),
                   ),
-                  child: Icon(icon, color: color, size: 20),
+                  child: Icon(Icons.group_rounded, color: AppColors.info, size: 20),
                 ),
                 const SizedBox(width: AppColors.space12),
                 Expanded(
                   child: Text(
-                    name,
+                    'Compartidas',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
                   ),
+                ),
+                const SizedBox(width: AppColors.space4),
+                Icon(
+                  Icons.open_in_new_rounded, 
+                  color: AppColors.textSecondary, 
+                  size: 16,
                 ),
               ],
             ),
@@ -3061,26 +3029,19 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         ),
                         child: Builder(
                           builder: (context) {
-                            // En secciones virtuales de "Compartidas", no mostramos carpetas
-                            final bool inVirtualShared = _selectedFolderId == '__SHARED_WITH_ME__' || _selectedFolderId == '__SHARED_BY_ME__';
-                            final List<Map<String, dynamic>> notesWithoutFolder;
-                            if (inVirtualShared) {
-                              notesWithoutFolder = List<Map<String, dynamic>>.from(_notes);
-                            } else {
-                              // Obtener IDs de notas que están en carpetas
-                              final Set<String> notesInFolders = {};
-                              for (final folder in _folders) {
-                                notesInFolders.addAll(folder.noteIds);
-                              }
-                              // Filtrar notas que NO están en carpetas
-                              notesWithoutFolder = _notes
-                                  .where((n) => !notesInFolders.contains(n['id'].toString()))
-                                  .toList();
+                            // Obtener IDs de notas que están en carpetas
+                            final Set<String> notesInFolders = {};
+                            for (final folder in _folders) {
+                              notesInFolders.addAll(folder.noteIds);
                             }
+                            // Filtrar notas que NO están en carpetas
+                            final notesWithoutFolder = _notes
+                                .where((n) => !notesInFolders.contains(n['id'].toString()))
+                                .toList();
                             
                             return ListView.builder(
                               padding: const EdgeInsets.all(AppColors.space12),
-                              itemCount: (inVirtualShared ? 0 : _folders.length) + notesWithoutFolder.length + 2,
+                              itemCount: _folders.length + notesWithoutFolder.length + 2,
                               itemBuilder: (context, i) {
                                 // Sección "Compartidas"
                                 if (i == 0) {
@@ -3099,32 +3060,21 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                 if (i == 1) {
                                   return Column(
                                     children: [
-                                      _buildVirtualSharedTile(
-                                        id: '__SHARED_WITH_ME__',
-                                        name: 'Conmigo',
-                                        icon: Icons.inbox_rounded,
-                                        color: AppColors.info,
-                                      ),
-                                      _buildVirtualSharedTile(
-                                        id: '__SHARED_BY_ME__',
-                                        name: 'Por mí',
-                                        icon: Icons.send_rounded,
-                                        color: AppColors.secondary,
-                                      ),
+                                      _buildSharedNavigationTile(),
                                       const Divider(color: AppColors.borderColor, height: 1),
                                     ],
                                   );
                                 }
                                 // Sección de carpetas con sus notas
                                 final baseIndex = 2; // virtual header + tiles
-                                if (!inVirtualShared && i - baseIndex < _folders.length) {
+                                if (i - baseIndex < _folders.length) {
                                   final folder = _folders[i - baseIndex];
                                   final noteCount = folder.noteIds.length;
                                   return _buildFolderCard(folder, noteCount);
                                 }
                                 
                                 // Notas sin carpeta (con menú contextual)
-                                final noteIndex = i - (inVirtualShared ? 0 : _folders.length) - baseIndex;
+                                final noteIndex = i - _folders.length - baseIndex;
                                 final note = notesWithoutFolder[noteIndex];
                                 final id = note['id'].toString();
                                 
@@ -3146,7 +3096,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                     isSelected: id == _selectedId,
                                     onTap: () => _select(id),
                                     onPin: () async {
-                                      if (inVirtualShared || note['isShared'] == true) {
+                                      if (note['isShared'] == true) {
                                         ToastService.info('No puedes anclar notas compartidas');
                                         return;
                                       }
@@ -3158,7 +3108,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                       await _loadNotes();
                                     },
                                     onDelete: () async {
-                                      if (inVirtualShared || note['isShared'] == true) {
+                                      if (note['isShared'] == true) {
                                         ToastService.info('No puedes eliminar notas compartidas');
                                         return;
                                       }
@@ -3166,7 +3116,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                     },
                                     onSetIcon: () => _showNoteIconPicker(noteId: id, initialIcon: note['icon']?.toString(), initialColor: note['iconColor'] is int ? Color(note['iconColor']) : null),
                                     onClearIcon: () async => _clearNoteIcon(id),
-                                    enableDrag: !inVirtualShared,
+                                    enableDrag: true,
                                     compact: _compactMode,
                                   ),
                                 );
@@ -3970,150 +3920,5 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     }
   }
 
-  Widget _buildPendingInvitationCard(Map<String, dynamic> invitation) {
-    final title = invitation['title']?.toString() ?? 'Nota compartida';
-    final sharedBy = invitation['sharedBy']?.toString() ?? 'Desconocido';
-    final message = invitation['message']?.toString();
-    final permission = invitation['permission']?.toString() ?? 'read';
-    final sharingId = invitation['sharingId']?.toString() ?? '';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppColors.space8),
-      decoration: BoxDecoration(
-        color: AppColors.warning.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppColors.radiusMd),
-        border: Border.all(color: AppColors.warning.withOpacity(0.3)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppColors.space12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.mail_outline,
-                  color: AppColors.warning,
-                  size: 20,
-                ),
-                const SizedBox(width: AppColors.space8),
-                Expanded(
-                  child: Text(
-                    'Invitación pendiente',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.warning,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppColors.space8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 16,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: AppColors.space4),
-            Text(
-              'Compartido por: $sharedBy',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-            if (message != null && message.isNotEmpty) ...[
-              const SizedBox(height: AppColors.space4),
-              Text(
-                'Mensaje: $message',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-            const SizedBox(height: AppColors.space4),
-            Text(
-              'Permisos: ${_getPermissionText(permission)}',
-              style: TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: AppColors.space12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _acceptInvitation(sharingId),
-                    icon: const Icon(Icons.check, size: 16),
-                    label: const Text('Aceptar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppColors.space8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _rejectInvitation(sharingId),
-                    icon: const Icon(Icons.close, size: 16),
-                    label: const Text('Rechazar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                      side: BorderSide(color: AppColors.danger),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getPermissionText(String permission) {
-    switch (permission) {
-      case 'read':
-        return 'Solo lectura';
-      case 'comment':
-        return 'Comentar';
-      case 'edit':
-        return 'Editar';
-      default:
-        return permission;
-    }
-  }
-
-  Future<void> _acceptInvitation(String sharingId) async {
-    try {
-      await SharingService().acceptSharing(sharingId);
-      ToastService.success('Invitación aceptada');
-      _loadNotes(); // Recargar la lista
-    } catch (e) {
-      ToastService.error('Error al aceptar invitación: $e');
-    }
-  }
-
-  Future<void> _rejectInvitation(String sharingId) async {
-    try {
-      await SharingService().rejectSharing(sharingId);
-      ToastService.success('Invitación rechazada');
-      _loadNotes(); // Recargar la lista
-    } catch (e) {
-      ToastService.error('Error al rechazar invitación: $e');
-    }
-  }
 }

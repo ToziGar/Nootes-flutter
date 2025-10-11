@@ -21,11 +21,15 @@ class CommentService {
     final user = _authService.currentUser;
     if (user == null) throw Exception('Usuario no autenticado');
 
+    // Obtener el nombre del usuario desde el email (simplificado por ahora)
+    final userName = user.email?.split('@')[0] ?? 'Usuario';
+
     final commentData = {
       'noteId': noteId,
       'ownerId': ownerId,
       'authorId': user.uid,
       'authorEmail': user.email ?? 'Desconocido',
+      'authorName': userName,
       'content': content,
       'parentCommentId': parentCommentId,
       'createdAt': FieldValue.serverTimestamp(),
@@ -133,6 +137,7 @@ class Comment {
   final String ownerId;
   final String authorId;
   final String authorEmail;
+  final String authorName;
   final String content;
   final String? parentCommentId;
   final DateTime createdAt;
@@ -146,6 +151,7 @@ class Comment {
     required this.ownerId,
     required this.authorId,
     required this.authorEmail,
+    required this.authorName,
     required this.content,
     this.parentCommentId,
     required this.createdAt,
@@ -161,6 +167,7 @@ class Comment {
       ownerId: data['ownerId'] ?? '',
       authorId: data['authorId'] ?? '',
       authorEmail: data['authorEmail'] ?? 'Desconocido',
+      authorName: data['authorName'] ?? data['authorEmail']?.split('@')[0] ?? 'Usuario',
       content: data['content'] ?? '',
       parentCommentId: data['parentCommentId'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
