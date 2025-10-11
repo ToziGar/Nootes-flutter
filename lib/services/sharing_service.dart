@@ -797,6 +797,48 @@ class SharingService {
   }
 
   /// Revoca una compartición (por el propietario)
+  /// Actualiza los permisos de una compartición existente
+  Future<void> updatePermission(String sharingId, PermissionLevel newPermission) async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) throw Exception('Usuario no autenticado');
+    
+    // Obtener información de la compartición
+    final shareDoc = await _firestore.collection('shared_items').doc(sharingId).get();
+    if (!shareDoc.exists) throw Exception('Compartición no encontrada');
+    
+    final shareData = shareDoc.data()!;
+    
+    // Verificar que el usuario actual es el propietario
+    if (shareData['ownerId'] != currentUser.uid) {
+      throw Exception('Solo el propietario puede cambiar permisos');
+    }
+    
+    final recipientId = shareData['recipientId'] as String;
+    final itemTitle = shareData['metadata']?['noteTitle'] ?? shareData['metadata']?['folderName'] ?? 'Sin título';
+    
+    // Actualizar el permiso
+    await _firestore.collection('shared_items').doc(sharingId).update({
+      'permission': newPermission.name,
+      'updatedAt': fs.FieldValue.serverTimestamp(),
+    });
+    
+    // Enviar notificación al receptor
+    final notificationService = NotificationService();
+    await notificationService.createNotification(
+      userId: recipientId,
+      type: 'permissionChanged',
+      title: 'Permisos actualizados',
+      message: 'Tus permisos para "$itemTitle" han sido actualizados',
+      metadata: {
+        'shareId': sharingId,
+        'newPermission': newPermission.name,
+        'itemTitle': itemTitle,
+      },
+    );
+    
+    debugPrint('✅ Permisos actualizados para compartición $sharingId');
+  }
+
   Future<void> revokeSharing(String sharingId) async {
     // Obtener información de la compartición antes de actualizarla
     final shareDoc = await _firestore.collection('shared_items').doc(sharingId).get();

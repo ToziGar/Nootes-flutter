@@ -86,5 +86,58 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isAuthed() && request.resource.data.ownerId == request.auth.uid;
     }
+
+    // Activity logs: accessible by owner or recipient of the shared item
+    match /activity_logs/{logId} {
+      allow create: if isAuthed() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.ownerId == request.auth.uid ||
+        request.resource.data.recipientId == request.auth.uid
+      );
+      allow read: if isAuthed() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.ownerId == request.auth.uid ||
+        resource.data.recipientId == request.auth.uid
+      );
+      allow list: if isAuthed();
+      allow update, delete: if isAuthed() && resource.data.userId == request.auth.uid;
+    }
+
+    // Comments: accessible by owner or participants in the shared item
+    match /shared_items/{shareId}/comments/{commentId} {
+      allow create: if isAuthed() && exists(/databases/$(database)/documents/shared_items/$(shareId)) && (
+        get(/databases/$(database)/documents/shared_items/$(shareId)).data.ownerId == request.auth.uid ||
+        get(/databases/$(database)/documents/shared_items/$(shareId)).data.recipientId == request.auth.uid
+      );
+      allow read, list: if isAuthed() && exists(/databases/$(database)/documents/shared_items/$(shareId)) && (
+        get(/databases/$(database)/documents/shared_items/$(shareId)).data.ownerId == request.auth.uid ||
+        get(/databases/$(database)/documents/shared_items/$(shareId)).data.recipientId == request.auth.uid
+      );
+      allow update, delete: if isAuthed() && resource.data.userId == request.auth.uid;
+    }
+
+    // Presence: users can write their own presence, anyone authenticated can read
+    match /presence/{userId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && userId == request.auth.uid;
+    }
+
+    // Global notifications (for backwards compatibility and sharing notifications)
+    match /notifications/{notificationId} {
+      allow read: if isAuthed() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthed() && (
+        request.resource.data.userId == request.auth.uid ||
+        (
+          // Allow creating notifications for shared items participants
+          request.resource.data.shareId is string &&
+          exists(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)) &&
+          (
+            get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.ownerId == request.auth.uid ||
+            get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.recipientId == request.auth.uid
+          )
+        )
+      );
+      allow update, delete: if isAuthed() && resource.data.userId == request.auth.uid;
+    }
   }
 }

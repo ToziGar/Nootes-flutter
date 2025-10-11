@@ -359,141 +359,214 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
 
   Widget _buildSliverAppBar() {
     return SliverAppBar(
-      expandedHeight: 280,
       floating: false,
       pinned: true,
       backgroundColor: AppColors.bg,
       foregroundColor: AppColors.textPrimary,
-      actions: _isMultiSelectMode ? _buildMultiSelectActions() : _buildNormalActions(),
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.primary,
-                AppColors.primaryLight,
-                AppColors.secondary,
+      elevation: 0,
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.primary, AppColors.secondary],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
+            child: const Icon(Icons.share_rounded, color: Colors.white, size: 20),
           ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header con estadísticas
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.textPrimary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.textPrimary.withValues(alpha: 0.2),
-                            width: 2,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.share_rounded,
-                          color: AppColors.textPrimary,
-                          size: 32,
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Notas Compartidas',
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 28,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Gestiona tu contenido colaborativo',
-                              style: TextStyle(
-                                color: AppColors.textPrimary.withValues(alpha: 0.8),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Estadísticas
-                  if (_stats.isNotEmpty) _buildStatsCards(),
-                ],
-              ),
+          const SizedBox(width: 12),
+          Text(
+            'Compartidas',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
             ),
           ),
-        ),
+        ],
       ),
+      actions: [
+        // Botón de búsqueda con estilo
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderColor),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.search_rounded, size: 20),
+            tooltip: 'Buscar',
+            onPressed: _showSearchDialog,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        // Botón de filtros con badge si hay filtros activos
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          decoration: BoxDecoration(
+            color: (_selectedStatus != null || _selectedType != null || _searchQuery.isNotEmpty)
+                ? AppColors.primary.withValues(alpha: 0.1)
+                : AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: (_selectedStatus != null || _selectedType != null || _searchQuery.isNotEmpty)
+                  ? AppColors.primary
+                  : AppColors.borderColor,
+            ),
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.filter_list_rounded, size: 20),
+                tooltip: 'Filtros',
+                onPressed: _showFilterDialog,
+                color: (_selectedStatus != null || _selectedType != null || _searchQuery.isNotEmpty)
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
+              ),
+              if (_selectedStatus != null || _selectedType != null || _searchQuery.isNotEmpty)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        // Botón actualizar
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderColor),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.refresh_rounded, size: 20),
+            tooltip: 'Actualizar',
+            onPressed: _loadData,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(width: 8),
+      ],
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(120),
+        preferredSize: const Size.fromHeight(56),
         child: Container(
           color: AppColors.bg,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             children: [
-              // Barra de búsqueda
-              _buildSearchBar(),
-              
-              // Tabs
+              // Tabs con diseño mejorado
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.borderColor),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: TabBar(
                   controller: _tabController,
-                  indicator: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                  ),
-                  indicatorPadding: const EdgeInsets.all(4),
                   labelColor: AppColors.primary,
                   unselectedLabelColor: AppColors.textSecondary,
-                  labelStyle: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                  indicator: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.primary.withValues(alpha: 0.1),
+                        AppColors.secondary.withValues(alpha: 0.1),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                   ),
+                  indicatorPadding: const EdgeInsets.all(4),
+                  labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                  dividerColor: Colors.transparent,
                   tabs: [
                     Tab(
+                      height: 44,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.send_rounded, size: 18),
-                          const SizedBox(width: 8),
-                          Text('Enviadas (${_sharedByMe.length})'),
+                          const SizedBox(width: 6),
+                          Text('Enviadas'),
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${_sharedByMe.length}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     Tab(
+                      height: 44,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.inbox_rounded, size: 18),
-                          const SizedBox(width: 8),
-                          Text('Recibidas (${_sharedWithMe.length})'),
+                          const SizedBox(width: 6),
+                          Text('Recibidas'),
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${_sharedWithMe.length}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.secondary,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     Tab(
+                      height: 44,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -503,17 +576,26 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                               const Icon(Icons.notifications_rounded, size: 18),
                               if (_unreadNotifications > 0)
                                 Positioned(
-                                  right: -4,
-                                  top: -4,
+                                  right: -6,
+                                  top: -6,
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.red,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [Colors.red, Colors.red.shade700],
+                                      ),
                                       shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.red.withValues(alpha: 0.4),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
                                     constraints: const BoxConstraints(
-                                      minWidth: 16,
-                                      minHeight: 16,
+                                      minWidth: 18,
+                                      minHeight: 18,
                                     ),
                                     child: Text(
                                       _unreadNotifications > 9 ? '9+' : '$_unreadNotifications',
@@ -528,8 +610,8 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                                 ),
                             ],
                           ),
-                          const SizedBox(width: 8),
-                          Text('Notificaciones'),
+                          const SizedBox(width: 6),
+                          Text('Notifs'),
                         ],
                       ),
                     ),
@@ -540,228 +622,6 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  List<Widget> _buildNormalActions() {
-    return [
-      // Botón de marcar todas las notificaciones como leídas (solo en tab de notificaciones)
-      if (_tabController.index == 2 && _unreadNotifications > 0)
-        IconButton(
-          icon: const Icon(Icons.done_all_rounded),
-          tooltip: 'Marcar todas como leídas',
-          onPressed: _markAllAsRead,
-        ),
-      IconButton(
-        icon: const Icon(Icons.checklist_rounded),
-        tooltip: 'Selección múltiple',
-        onPressed: _toggleMultiSelectMode,
-      ),
-      IconButton(
-        icon: const Icon(Icons.tune_rounded),
-        tooltip: 'Filtros',
-        onPressed: _showFilterDialog,
-      ),
-      IconButton(
-        icon: const Icon(Icons.refresh_rounded),
-        tooltip: 'Actualizar',
-        onPressed: _loadData,
-      ),
-    ];
-  }
-
-  List<Widget> _buildMultiSelectActions() {
-    return [
-      if (_selectedItems.isNotEmpty) ...[
-        IconButton(
-          icon: const Icon(Icons.select_all_rounded),
-          tooltip: 'Seleccionar todo',
-          onPressed: _selectAllItems,
-        ),
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert_rounded),
-          tooltip: 'Acciones masivas',
-          onSelected: _performBulkAction,
-          itemBuilder: (context) => [
-            if (_tabController.index == 0) ...[
-              const PopupMenuItem(
-                value: 'revocar',
-                child: ListTile(
-                  leading: Icon(Icons.block_rounded, color: Colors.red),
-                  title: Text('Revocar acceso'),
-                  dense: true,
-                ),
-              ),
-            ] else ...[
-              const PopupMenuItem(
-                value: 'aceptar',
-                child: ListTile(
-                  leading: Icon(Icons.check_rounded, color: Colors.green),
-                  title: Text('Aceptar'),
-                  dense: true,
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'rechazar',
-                child: ListTile(
-                  leading: Icon(Icons.close_rounded, color: Colors.red),
-                  title: Text('Rechazar'),
-                  dense: true,
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'salir',
-                child: ListTile(
-                  leading: Icon(Icons.logout_rounded, color: Colors.orange),
-                  title: Text('Salir'),
-                  dense: true,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ],
-      IconButton(
-        icon: const Icon(Icons.close_rounded),
-        tooltip: 'Cancelar selección',
-        onPressed: _clearSelection,
-      ),
-    ];
-  }
-
-  Widget _buildStatsCards() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'Pendientes',
-            (_stats['sentPending'] ?? 0) + (_stats['receivedPending'] ?? 0),
-            Icons.schedule_rounded,
-            AppColors.warning,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Activas',
-            (_stats['sentAccepted'] ?? 0) + (_stats['receivedAccepted'] ?? 0),
-            Icons.check_circle_rounded,
-            AppColors.success,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Total',
-            _sharedByMe.length + _sharedWithMe.length,
-            Icons.analytics_rounded,
-            AppColors.info,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String label, int value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.textPrimary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value.toString(),
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              color: AppColors.textPrimary.withValues(alpha: 0.7),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.borderColor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchController,
-                style: TextStyle(color: AppColors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Buscar notas o usuarios...',
-                  hintStyle: TextStyle(color: AppColors.textSecondary),
-                  prefixIcon: Icon(Icons.search_rounded, color: AppColors.textSecondary),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                ),
-                onChanged: (value) {
-                  setState(() => _searchQuery = value);
-                  // Debounce la búsqueda
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    if (_searchQuery == value) {
-                      _loadData();
-                    }
-                  });
-                },
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.borderColor),
-            ),
-            child: IconButton(
-              onPressed: _showFilterDialog,
-              icon: Icon(
-                Icons.tune_rounded,
-                color: (_selectedStatus != null || _selectedType != null || 
-                       _userFilterQuery.isNotEmpty || _dateFrom != null || _dateTo != null)
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
-              ),
-              tooltip: 'Filtros',
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1658,10 +1518,36 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                   _buildMessageBox(item.message!),
                 ],
                 
-                // Botones de acción
-                if (_shouldShowActions(item, isSentByMe)) ...[
+                // Botones de acción y gestión
+                if (_shouldShowActions(item, isSentByMe) || isSentByMe) ...[
                   const SizedBox(height: 16),
-                  _buildActionButtons(item, isSentByMe),
+                  Row(
+                    children: [
+                      // Botón de gestión (solo para el propietario)
+                      if (isSentByMe && item.status == SharingStatus.accepted)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showManageAccessDialog(item),
+                            icon: const Icon(Icons.settings_rounded, size: 16),
+                            label: const Text('Gestionar'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: BorderSide(color: AppColors.primary),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (isSentByMe && item.status == SharingStatus.accepted && _shouldShowActions(item, isSentByMe))
+                        const SizedBox(width: 8),
+                      // Botones de acción existentes
+                      if (_shouldShowActions(item, isSentByMe))
+                        Expanded(
+                          child: _buildActionButtons(item, isSentByMe),
+                        ),
+                    ],
+                  ),
                 ],
               ],
             ),
@@ -2012,6 +1898,36 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     }
   }
 
+  Future<void> _showManageAccessDialog(SharedItem item) async {
+    try {
+      // Obtener todas las comparticiones de esta nota/carpeta
+      final sharingService = SharingService();
+      final allShares = await sharingService.getSharedByMe();
+      
+      // Filtrar solo las comparticiones del mismo item
+      final itemShares = allShares.where((share) => 
+        share.itemId == item.itemId && 
+        share.status != SharingStatus.rejected &&
+        share.status != SharingStatus.left
+      ).toList();
+
+      if (!mounted) return;
+
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => _ManageAccessSheet(
+          item: item,
+          shares: itemShares,
+          onRefresh: _loadData,
+        ),
+      );
+    } catch (e) {
+      ToastService.error('Error cargando accesos: $e');
+    }
+  }
+
   void _openSharedItem(SharedItem item) {
     if (item.type == SharedItemType.note) {
       if (item.itemId.isEmpty) {
@@ -2151,6 +2067,73 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         ToastService.error('❌ Error: $e');
       }
     }
+  }
+
+  void _showSearchDialog() {
+    final searchController = TextEditingController(text: _searchQuery);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Buscar',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: TextField(
+          controller: searchController,
+          autofocus: true,
+          style: TextStyle(color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            hintText: 'Título de nota o carpeta...',
+            hintStyle: TextStyle(color: AppColors.textSecondary),
+            prefixIcon: Icon(Icons.search, color: AppColors.textSecondary),
+            filled: true,
+            fillColor: AppColors.surfaceLight,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            suffixIcon: searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.clear, color: AppColors.textSecondary),
+                    onPressed: () {
+                      searchController.clear();
+                      setState(() => _searchQuery = '');
+                      Navigator.pop(context);
+                      _loadData();
+                    },
+                  )
+                : null,
+          ),
+          onChanged: (value) {
+            setState(() {});
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() => _searchQuery = searchController.text.trim());
+              Navigator.pop(context);
+              _loadData();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Buscar'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showFilterDialog() {
@@ -2442,127 +2425,374 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               }
 
               return SafeArea(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                        child: Row(
-                          children: [
-                            Icon(Icons.bolt_rounded, color: AppColors.textSecondary),
-                            const SizedBox(width: 8),
-                            Text('Compartir rápido', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                            const Spacer(),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceLight,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: AppColors.borderColor),
-                              ),
-                              child: Row(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewInsets.bottom,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header mejorado
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.primary.withValues(alpha: 0.05),
+                                AppColors.secondary.withValues(alpha: 0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
-                                  _segmentedButton(
-                                    selected: showNotes,
-                                    icon: Icons.description_rounded,
-                                    label: 'Notas',
-                                    onTap: () => setModalState(() => showNotes = true),
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [AppColors.primary, AppColors.secondary],
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppColors.primary.withValues(alpha: 0.3),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(Icons.share_rounded, color: Colors.white, size: 20),
                                   ),
-                                  _segmentedButton(
-                                    selected: !showNotes,
-                                    icon: Icons.folder_rounded,
-                                    label: 'Carpetas',
-                                    onTap: () => setModalState(() => showNotes = false),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Compartir',
+                                        style: TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.textPrimary,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Selecciona qué compartir',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    icon: Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: AppColors.surface,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 16),
+                              // Selector de tipo mejorado
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: AppColors.borderColor),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.05),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: _modernSegmentedButton(
+                                        selected: showNotes,
+                                        icon: Icons.description_rounded,
+                                        label: 'Notas',
+                                        count: filteredNotes.length,
+                                        onTap: () => setModalState(() => showNotes = true),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: _modernSegmentedButton(
+                                        selected: !showNotes,
+                                        icon: Icons.folder_rounded,
+                                        label: 'Carpetas',
+                                        count: filteredFolders.length,
+                                        onTap: () => setModalState(() => showNotes = false),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
 
-                      // Search
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Buscar por título...',
-                            filled: true,
-                            fillColor: AppColors.surfaceLight,
-                            prefixIcon: Icon(Icons.search_rounded, color: AppColors.textSecondary),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: AppColors.borderColor),
+                        // Búsqueda mejorada
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+                          child: TextField(
+                            autofocus: false,
+                            style: TextStyle(color: AppColors.textPrimary),
+                            decoration: InputDecoration(
+                              hintText: showNotes ? 'Buscar notas...' : 'Buscar carpetas...',
+                              hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.6)),
+                              filled: true,
+                              fillColor: AppColors.surfaceLight,
+                              prefixIcon: Icon(Icons.search_rounded, color: AppColors.primary, size: 22),
+                              suffixIcon: search.isNotEmpty
+                                  ? IconButton(
+                                      icon: Icon(Icons.clear_rounded, color: AppColors.textSecondary),
+                                      onPressed: () => setModalState(() => search = ''),
+                                    )
+                                  : null,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(color: AppColors.borderColor, width: 1),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(color: AppColors.primary, width: 2),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            ),
+                            onChanged: (v) => setModalState(() => search = v.trim()),
+                          ),
+                        ),
+
+                        // Lista mejorada con contador
+                        if (showNotes && filteredNotes.isEmpty || !showNotes && filteredFolders.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(40),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  showNotes ? Icons.description_outlined : Icons.folder_outlined,
+                                  size: 64,
+                                  color: AppColors.textSecondary.withValues(alpha: 0.3),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  showNotes ? 'No hay notas' : 'No hay carpetas',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  search.isNotEmpty
+                                      ? 'Intenta con otra búsqueda'
+                                      : showNotes
+                                          ? 'Crea una nota para compartirla'
+                                          : 'Crea una carpeta para compartirla',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.textSecondary.withValues(alpha: 0.7),
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Flexible(
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                              itemCount: showNotes ? filteredNotes.length : filteredFolders.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 8),
+                              itemBuilder: (context, index) {
+                                if (showNotes) {
+                                  final n = filteredNotes[index];
+                                  final title = (n['title']?.toString() ?? '').trim().isEmpty ? 'Sin título' : n['title'].toString();
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceLight,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: AppColors.borderColor),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.03),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ListTile(
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      leading: Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              AppColors.info.withValues(alpha: 0.2),
+                                              AppColors.info.withValues(alpha: 0.1),
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: AppColors.info.withValues(alpha: 0.3),
+                                          ),
+                                        ),
+                                        child: Icon(Icons.description_rounded, color: AppColors.info, size: 24),
+                                      ),
+                                      title: Text(
+                                        title,
+                                        style: TextStyle(
+                                          color: AppColors.textPrimary,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      subtitle: (n['collectionName'] != null && (n['collectionName'].toString()).isNotEmpty)
+                                          ? Row(
+                                              children: [
+                                                Icon(Icons.folder_outlined, size: 14, color: AppColors.textSecondary),
+                                                const SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    n['collectionName'].toString(),
+                                                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : null,
+                                      trailing: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withValues(alpha: 0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(Icons.chevron_right_rounded, color: AppColors.primary, size: 20),
+                                      ),
+                                      onTap: () async {
+                                        Navigator.of(context).pop();
+                                        await showDialog(
+                                          context: this.context,
+                                          builder: (_) => ShareDialog(
+                                            itemId: n['id'].toString(),
+                                            itemType: SharedItemType.note,
+                                            itemTitle: title,
+                                          ),
+                                        );
+                                        if (mounted) _loadData();
+                                      },
+                                    ),
+                                  );
+                                } else {
+                                  final f = filteredFolders[index];
+                                  final name = (f['name']?.toString() ?? '').trim().isEmpty ? 'Sin nombre' : f['name'].toString();
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceLight,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: AppColors.borderColor),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.03),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ListTile(
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      leading: Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              AppColors.warning.withValues(alpha: 0.2),
+                                              AppColors.warning.withValues(alpha: 0.1),
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: AppColors.warning.withValues(alpha: 0.3),
+                                          ),
+                                        ),
+                                        child: Icon(Icons.folder_rounded, color: AppColors.warning, size: 24),
+                                      ),
+                                      title: Text(
+                                        name,
+                                        style: TextStyle(
+                                          color: AppColors.textPrimary,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      trailing: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withValues(alpha: 0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(Icons.chevron_right_rounded, color: AppColors.primary, size: 20),
+                                      ),
+                                      onTap: () async {
+                                        Navigator.of(context).pop();
+                                        await showDialog(
+                                          context: this.context,
+                                          builder: (_) => ShareDialog(
+                                            itemId: f['id'].toString(),
+                                            itemType: SharedItemType.folder,
+                                            itemTitle: name,
+                                          ),
+                                        );
+                                        if (mounted) _loadData();
+                                      },
+                                    ),
+                                  );
+                                }
+                              },
                             ),
                           ),
-                          onChanged: (v) => setModalState(() => search = v.trim()),
-                        ),
-                      ),
-
-                      // List
-                      Flexible(
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                          itemCount: showNotes ? filteredNotes.length : filteredFolders.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
-                          itemBuilder: (context, index) {
-                            if (showNotes) {
-                              final n = filteredNotes[index];
-                              final title = (n['title']?.toString() ?? '').trim().isEmpty ? 'Sin título' : n['title'].toString();
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: AppColors.info.withValues(alpha: 0.15),
-                                  child: Icon(Icons.description_rounded, color: AppColors.info),
-                                ),
-                                title: Text(title, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-                                subtitle: (n['collectionName'] != null && (n['collectionName'].toString()).isNotEmpty)
-                                    ? Text(n['collectionName'].toString(), style: TextStyle(color: AppColors.textSecondary))
-                                    : null,
-                                onTap: () async {
-                                  Navigator.of(context).pop();
-                                  await showDialog(
-                                    context: this.context,
-                                    builder: (_) => ShareDialog(
-                                      itemId: n['id'].toString(),
-                                      itemType: SharedItemType.note,
-                                      itemTitle: title,
-                                    ),
-                                  );
-                                  if (mounted) _loadData();
-                                },
-                              );
-                            } else {
-                              final f = filteredFolders[index];
-                              final name = (f['name']?.toString() ?? '').trim().isEmpty ? 'Sin nombre' : f['name'].toString();
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: AppColors.secondary.withValues(alpha: 0.15),
-                                  child: Icon(Icons.folder_rounded, color: AppColors.secondary),
-                                ),
-                                title: Text(name, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-                                onTap: () async {
-                                  Navigator.of(context).pop();
-                                  await showDialog(
-                                    context: this.context,
-                                    builder: (_) => ShareDialog(
-                                      itemId: f['id'].toString(),
-                                      itemType: SharedItemType.folder,
-                                      itemTitle: name,
-                                    ),
-                                  );
-                                  if (mounted) _loadData();
-                                },
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -2575,24 +2805,831 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     }
   }
 
-  Widget _segmentedButton({required bool selected, required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _modernSegmentedButton({
+    required bool selected,
+    required IconData icon,
+    required String label,
+    required int count,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(12),
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          gradient: selected
+              ? LinearGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.15),
+                    AppColors.secondary.withValues(alpha: 0.15),
+                  ],
+                )
+              : null,
+          color: selected ? null : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: selected
+              ? Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5)
+              : null,
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: selected ? AppColors.primary : AppColors.textSecondary),
+            Icon(
+              icon,
+              size: 20,
+              color: selected ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.primary : AppColors.textSecondary,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
             const SizedBox(width: 6),
-            Text(label, style: TextStyle(color: selected ? AppColors.primary : AppColors.textSecondary, fontWeight: FontWeight.w600)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppColors.primary.withValues(alpha: 0.2)
+                    : AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: selected
+                      ? AppColors.primary.withValues(alpha: 0.3)
+                      : AppColors.borderColor,
+                ),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? AppColors.primary : AppColors.textSecondary,
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+}
+
+/// Widget para gestionar los accesos de una nota/carpeta compartida
+class _ManageAccessSheet extends StatefulWidget {
+  final SharedItem item;
+  final List<SharedItem> shares;
+  final VoidCallback onRefresh;
+
+  const _ManageAccessSheet({
+    required this.item,
+    required this.shares,
+    required this.onRefresh,
+  });
+
+  @override
+  State<_ManageAccessSheet> createState() => _ManageAccessSheetState();
+}
+
+class _ManageAccessSheetState extends State<_ManageAccessSheet> {
+  bool _isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.05),
+                    AppColors.secondary.withValues(alpha: 0.05),
+                  ],
+                ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.primary, AppColors.secondary],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.people_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Gestionar Acceso',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        Text(
+                          '${widget.shares.length} usuario${widget.shares.length != 1 ? 's' : ''} con acceso',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.surfaceLight,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Info del item
+            Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.borderColor),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          widget.item.type == SharedItemType.note
+                              ? AppColors.info.withValues(alpha: 0.2)
+                              : AppColors.warning.withValues(alpha: 0.2),
+                          widget.item.type == SharedItemType.note
+                              ? AppColors.info.withValues(alpha: 0.1)
+                              : AppColors.warning.withValues(alpha: 0.1),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: widget.item.type == SharedItemType.note
+                            ? AppColors.info.withValues(alpha: 0.3)
+                            : AppColors.warning.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Icon(
+                      widget.item.type == SharedItemType.note
+                          ? Icons.description_rounded
+                          : Icons.folder_rounded,
+                      color: widget.item.type == SharedItemType.note
+                          ? AppColors.info
+                          : AppColors.warning,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.item.metadata?['noteTitle'] ??
+                              widget.item.metadata?['folderName'] ??
+                              'Sin título',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          widget.item.type == SharedItemType.note ? 'Nota' : 'Carpeta',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Lista de usuarios con acceso
+            if (widget.shares.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(40),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.person_off_rounded,
+                      size: 64,
+                      color: AppColors.textSecondary.withValues(alpha: 0.3),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No hay usuarios con acceso',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  itemCount: widget.shares.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final share = widget.shares[index];
+                    return _buildUserAccessCard(share);
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserAccessCard(SharedItem share) {
+    final permissionColor = _getPermissionColor(share.permission);
+    final permissionIcon = _getPermissionIcon(share.permission);
+    final permissionText = _getPermissionText(share.permission);
+    final statusColor = _getStatusColor(share.status);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // Avatar
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                  child: Text(
+                    share.recipientEmail.substring(0, 1).toUpperCase(),
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Email y estado
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        share.recipientEmail,
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            _getStatusIcon(share.status),
+                            size: 12,
+                            color: statusColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _getStatusDisplayText(share.status),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Permiso
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: permissionColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: permissionColor.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(permissionIcon, size: 14, color: permissionColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        permissionText,
+                        style: TextStyle(
+                          color: permissionColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            // Fecha de compartición
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.borderColor.withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.schedule_rounded, size: 14, color: AppColors.textSecondary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Compartido ${_formatDate(share.createdAt)}',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Mensaje si existe
+            if (share.message?.isNotEmpty == true) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.info.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.message_rounded, size: 14, color: AppColors.info),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        share.message!,
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // Acciones
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                // Cambiar permisos
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : () => _changePermission(share),
+                    icon: const Icon(Icons.edit_rounded, size: 16),
+                    label: const Text('Cambiar', style: TextStyle(fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Revocar acceso
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : () => _revokeAccess(share),
+                    icon: const Icon(Icons.block_rounded, size: 16),
+                    label: const Text('Revocar', style: TextStyle(fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.danger,
+                      side: BorderSide(color: AppColors.danger),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _changePermission(SharedItem share) async {
+    final newPermission = await showDialog<PermissionLevel>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Cambiar permisos',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Usuario: ${share.recipientEmail}',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            _permissionOption(
+              PermissionLevel.read,
+              'Solo Lectura',
+              'Puede ver el contenido',
+              Icons.visibility_rounded,
+              Colors.blue,
+            ),
+            const SizedBox(height: 12),
+            _permissionOption(
+              PermissionLevel.comment,
+              'Comentarios',
+              'Puede ver y comentar',
+              Icons.comment_rounded,
+              Colors.orange,
+            ),
+            const SizedBox(height: 12),
+            _permissionOption(
+              PermissionLevel.edit,
+              'Edición',
+              'Puede ver y editar',
+              Icons.edit_rounded,
+              Colors.green,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+        ],
+      ),
+    );
+
+    if (newPermission != null && newPermission != share.permission) {
+      setState(() => _isLoading = true);
+      try {
+        await SharingService().updatePermission(share.id, newPermission);
+        ToastService.success('✅ Permisos actualizados');
+        widget.onRefresh();
+        if (mounted) Navigator.pop(context);
+      } catch (e) {
+        ToastService.error('❌ Error: $e');
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Widget _permissionOption(
+    PermissionLevel permission,
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+  ) {
+    return InkWell(
+      onTap: () => Navigator.pop(context, permission),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _revokeAccess(SharedItem share) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_rounded, color: AppColors.danger, size: 24),
+            const SizedBox(width: 12),
+            Text(
+              'Revocar acceso',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¿Estás seguro de revocar el acceso a:',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.danger.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppColors.danger.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.person_rounded, color: AppColors.danger, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      share.recipientEmail,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Esta acción no se puede deshacer.',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Revocar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _isLoading = true);
+      try {
+        await SharingService().revokeSharing(share.id);
+        ToastService.success('✅ Acceso revocado');
+        widget.onRefresh();
+        if (mounted) Navigator.pop(context);
+      } catch (e) {
+        ToastService.error('❌ Error: $e');
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Color _getPermissionColor(PermissionLevel permission) {
+    switch (permission) {
+      case PermissionLevel.read:
+        return Colors.blue;
+      case PermissionLevel.comment:
+        return Colors.orange;
+      case PermissionLevel.edit:
+        return Colors.green;
+    }
+  }
+
+  IconData _getPermissionIcon(PermissionLevel permission) {
+    switch (permission) {
+      case PermissionLevel.read:
+        return Icons.visibility_rounded;
+      case PermissionLevel.comment:
+        return Icons.comment_rounded;
+      case PermissionLevel.edit:
+        return Icons.edit_rounded;
+    }
+  }
+
+  String _getPermissionText(PermissionLevel permission) {
+    switch (permission) {
+      case PermissionLevel.read:
+        return 'Lectura';
+      case PermissionLevel.comment:
+        return 'Comentar';
+      case PermissionLevel.edit:
+        return 'Editar';
+    }
+  }
+
+  Color _getStatusColor(SharingStatus status) {
+    switch (status) {
+      case SharingStatus.pending:
+        return AppColors.warning;
+      case SharingStatus.accepted:
+        return AppColors.success;
+      case SharingStatus.rejected:
+        return AppColors.danger;
+      case SharingStatus.revoked:
+        return AppColors.textSecondary;
+      case SharingStatus.left:
+        return AppColors.textSecondary;
+    }
+  }
+
+  IconData _getStatusIcon(SharingStatus status) {
+    switch (status) {
+      case SharingStatus.pending:
+        return Icons.schedule_rounded;
+      case SharingStatus.accepted:
+        return Icons.check_circle_rounded;
+      case SharingStatus.rejected:
+        return Icons.cancel_rounded;
+      case SharingStatus.revoked:
+        return Icons.block_rounded;
+      case SharingStatus.left:
+        return Icons.logout_rounded;
+    }
+  }
+
+  String _getStatusDisplayText(SharingStatus status) {
+    switch (status) {
+      case SharingStatus.pending:
+        return 'Pendiente';
+      case SharingStatus.accepted:
+        return 'Aceptada';
+      case SharingStatus.rejected:
+        return 'Rechazada';
+      case SharingStatus.revoked:
+        return 'Revocada';
+      case SharingStatus.left:
+        return 'Abandonada';
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      return 'hoy';
+    } else if (difference.inDays == 1) {
+      return 'ayer';
+    } else if (difference.inDays < 7) {
+      return 'hace ${difference.inDays} días';
+    } else if (difference.inDays < 30) {
+      return 'hace ${(difference.inDays / 7).floor()} semanas';
+    } else if (difference.inDays < 365) {
+      return 'hace ${(difference.inDays / 30).floor()} meses';
+    } else {
+      return 'hace ${(difference.inDays / 365).floor()} años';
+    }
   }
 }

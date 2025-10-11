@@ -25,6 +25,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final _language = TextEditingController();
   final _preferredTheme = TextEditingController();
   bool _newsOptIn = false;
+  String _avatarEmoji = '👤';
 
   Map<String, dynamic>? _profile;
 
@@ -63,12 +64,107 @@ class _ProfilePageState extends State<ProfilePage> {
         _language.text = (_profile?['language'] ?? '').toString();
         _preferredTheme.text = (_profile?['preferredTheme'] ?? '').toString();
         _newsOptIn = (_profile?['newsOptIn'] ?? false) == true;
+        _avatarEmoji = (_profile?['avatarEmoji'] ?? '👤').toString();
         _loading = false;
       });
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  String _getAvatarText() {
+    return _avatarEmoji;
+  }
+
+  Future<void> _changeAvatar() async {
+    final emojis = [
+      '👤', '😀', '😎', '🤓', '🧑‍💻', '👨‍💻', '👩‍💻', '🧑‍🎨', '👨‍🎨', '👩‍🎨',
+      '🧑‍🏫', '👨‍🏫', '👩‍🏫', '🧑‍🔬', '👨‍🔬', '👩‍🔬', '🧑‍💼', '👨‍💼', '👩‍💼',
+      '🎨', '🎭', '🎪', '🎬', '🎮', '🎯', '🎲', '🎰', '🎳', '🎵', '🎶', '🎸',
+      '🚀', '✈️', '🚁', '🛸', '⛵', '🏄', '⚽', '🏀', '🏈', '⚾', '🎾', '🏐',
+      '🔥', '⭐', '🌟', '✨', '💫', '💥', '💯', '🎉', '🎊', '🎈', '🎁', '🏆',
+      '💎', '👑', '🌈', '🌺', '🌸', '🌼', '🌻', '🌹', '🍀', '🌿', '🌱', '🌲',
+    ];
+
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Elige tu avatar'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: GridView.builder(
+            shrinkWrap: true,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 6,
+              childAspectRatio: 1,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: emojis.length,
+            itemBuilder: (context, index) {
+              final emoji = emojis[index];
+              final isSelected = emoji == _avatarEmoji;
+              return InkWell(
+                onTap: () => Navigator.of(context).pop(emoji),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected 
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : Theme.of(context).colorScheme.surfaceVariant,
+                    borderRadius: BorderRadius.circular(12),
+                    border: isSelected
+                        ? Border.all(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2,
+                          )
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      emoji,
+                      style: const TextStyle(fontSize: 28),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected != null && selected != _avatarEmoji) {
+      setState(() => _avatarEmoji = selected);
+      
+      // Guardar inmediatamente
+      final uid = AuthService.instance.currentUser?.uid;
+      if (uid != null) {
+        try {
+          await FirestoreService.instance.updateUserProfile(uid: uid, data: {
+            'avatarEmoji': _avatarEmoji,
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Avatar actualizado')),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error al guardar avatar: $e')),
+            );
+          }
+        }
       }
     }
   }
@@ -88,6 +184,7 @@ class _ProfilePageState extends State<ProfilePage> {
         'language': _language.text.trim(),
         'preferredTheme': _preferredTheme.text.trim(),
         'newsOptIn': _newsOptIn,
+        'avatarEmoji': _avatarEmoji,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perfil actualizado')));
@@ -160,7 +257,52 @@ class _ProfilePageState extends State<ProfilePage> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text('Perfil', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 20),
+                              
+                              // Avatar selector
+                              Center(
+                                child: GestureDetector(
+                                  onTap: _changeAvatar,
+                                  child: Stack(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 50,
+                                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                                        child: Text(
+                                          _getAvatarText(),
+                                          style: TextStyle(
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        right: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).colorScheme.primary,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Theme.of(context).colorScheme.surface,
+                                              width: 2,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            Icons.edit,
+                                            size: 16,
+                                            color: Theme.of(context).colorScheme.onPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              
                               TextFormField(
                                 controller: _fullName,
                                 decoration: const InputDecoration(labelText: 'Nombre completo', prefixIcon: Icon(Icons.person_outline_rounded)),
