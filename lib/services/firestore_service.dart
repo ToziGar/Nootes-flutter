@@ -492,14 +492,29 @@ class _FirebaseFirestoreService implements FirestoreService {
   // ==================== USER SETTINGS ====================
   @override
   Future<Map<String, dynamic>?> getUserSettings({required String uid}) async {
-    final d = await _db.collection('users').doc(uid).collection('meta').doc('settings').get();
+    final d = await _db.collection('users').doc(uid).get();
     if (!d.exists) return null;
-    return d.data();
+    final data = d.data();
+    if (data == null) return null;
+    final current = {
+      if (data.containsKey('themeMode')) 'themeMode': data['themeMode'],
+      if (data.containsKey('language')) 'language': data['language'],
+      if (data.containsKey('notifications')) 'notifications': data['notifications'],
+      if (data.containsKey('autoSave')) 'autoSave': data['autoSave'],
+      if (data.containsKey('backupEnabled')) 'backupEnabled': data['backupEnabled'],
+      if (data.containsKey('defaultView')) 'defaultView': data['defaultView'],
+      if (data.containsKey('updatedAt')) 'updatedAt': data['updatedAt'],
+    };
+    if (current.isNotEmpty) return current;
+    // Fallback: legacy location users/{uid}/meta/settings
+    final legacy = await _db.collection('users').doc(uid).collection('meta').doc('settings').get();
+    if (!legacy.exists) return null;
+    return legacy.data();
   }
 
   @override
   Future<void> updateUserSettings({required String uid, required Map<String, dynamic> data}) async {
-    final ref = _db.collection('users').doc(uid).collection('meta').doc('settings');
+    final ref = _db.collection('users').doc(uid);
     await ref.set({
       ...data,
       'updatedAt': fs.FieldValue.serverTimestamp(),
@@ -524,38 +539,43 @@ class _RestFirestoreService implements FirestoreService {
   @override
   Future<Map<String, dynamic>?> getUserSettings({required String uid}) async {
     final headers = await _authHeader();
-    final url = '$_base/users/$uid/meta/settings';
+    final url = '$_base/users/$uid';
     final resp = await http.get(Uri.parse(url), headers: headers);
+    if (resp.statusCode == 404) return null;
     if (resp.statusCode != 200) return null;
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
-    return _decodeFields(data['fields'] as Map<String, dynamic>?);
+    final fields = _decodeFields(data['fields'] as Map<String, dynamic>?);
+    final current = {
+      if (fields.containsKey('themeMode')) 'themeMode': fields['themeMode'],
+      if (fields.containsKey('language')) 'language': fields['language'],
+      if (fields.containsKey('notifications')) 'notifications': fields['notifications'],
+      if (fields.containsKey('autoSave')) 'autoSave': fields['autoSave'],
+      if (fields.containsKey('backupEnabled')) 'backupEnabled': fields['backupEnabled'],
+      if (fields.containsKey('defaultView')) 'defaultView': fields['defaultView'],
+      if (fields.containsKey('updatedAt')) 'updatedAt': fields['updatedAt'],
+    };
+    if (current.isNotEmpty) return current;
+    // Fallback: legacy location users/{uid}/meta/settings
+    final legacyUrl = '$_base/users/$uid/meta/settings';
+    final legacyResp = await http.get(Uri.parse(legacyUrl), headers: headers);
+    if (legacyResp.statusCode != 200) return null;
+    final legacyData = jsonDecode(legacyResp.body) as Map<String, dynamic>;
+    return _decodeFields(legacyData['fields'] as Map<String, dynamic>?);
   }
 
   @override
   Future<void> updateUserSettings({required String uid, required Map<String, dynamic> data}) async {
     final headers = await _authHeader();
-    final existing = await getUserSettings(uid: uid);
     final fields = <String, dynamic>{};
     data.forEach((k, v) => fields[k] = _encodeValue(v));
     fields['updatedAt'] = _encodeValue(DateTime.now().toUtc());
-    if (existing == null) {
-      // Create under meta with documentId=settings
-      final url = '$_base/users/$uid/meta?documentId=settings';
-      final payload = jsonEncode({'fields': fields});
-      final resp = await http.post(Uri.parse(url), headers: headers, body: payload);
-      if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        throw Exception('firestore-create-settings-${resp.statusCode}');
-      }
-    } else {
-      // Patch existing
-      final baseUrl = '$_base/users/$uid/meta/settings';
-      final updateMask = fields.keys.map((k) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(k)}').join('&');
-      final url = '$baseUrl?$updateMask';
-      final payload = jsonEncode({'fields': fields});
-      final resp = await http.patch(Uri.parse(url), headers: headers, body: payload);
-      if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        throw Exception('firestore-update-settings-${resp.statusCode}');
-      }
+    // Non-destructive patch to users/{uid}
+    final updateMask = fields.keys.map((k) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(k)}').join('&');
+    final url = '$_base/users/$uid?$updateMask';
+    final payload = jsonEncode({'fields': fields});
+    final resp = await http.patch(Uri.parse(url), headers: headers, body: payload);
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      throw Exception('firestore-update-user-${resp.statusCode}');
     }
   }
 
