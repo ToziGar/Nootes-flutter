@@ -8,7 +8,6 @@ import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 import '../services/toast_service.dart';
 import '../widgets/edit_event_dialog.dart';
-import 'shared_notes_page.dart'; // Import del archivo correcto
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -31,7 +30,7 @@ class AppShellState extends State<AppShell> with AutomaticKeepAliveClientMixin {
     const KeepAliveWrapper(child: _SearchPage()),
     const KeepAliveWrapper(child: _GraphPage()),
     const KeepAliveWrapper(child: _TasksPage()),
-    const KeepAliveWrapper(child: SharedNotesPage()), // Usando el archivo correcto con todas las mejoras
+    const KeepAliveWrapper(child: _SharedPage()),
     const KeepAliveWrapper(child: _ExportPage()),
   ];
 

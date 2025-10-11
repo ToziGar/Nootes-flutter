@@ -562,52 +562,6 @@ class SharingService {
   final docRef = _firestore.collection('shared_items').doc(shareId);
   await docRef.set(sharedItem.toMap());
 
-    // Crear comparticiones de NOTAS dentro de la carpeta como PENDING (para el mismo recipient)
-    try {
-      final noteIds = List<String>.from((folder['noteIds'] as List?)?.whereType<String>() ?? []);
-      if (noteIds.isNotEmpty) {
-        final batch = _firestore.batch();
-        int created = 0;
-        for (final noteId in noteIds) {
-          final noteShareId = '${recipient['uid']}_${currentUser.uid}_$noteId';
-          final noteRef = _firestore.collection('shared_items').doc(noteShareId);
-          final exists = await noteRef.get();
-          if (exists.exists) continue;
-
-          // Obtener metadata de la nota (opcional)
-          Map<String, dynamic>? note;
-          try {
-            note = await FirestoreService.instance.getNote(uid: currentUser.uid, noteId: noteId);
-          } catch (_) {}
-
-          batch.set(noteRef, {
-            'itemId': noteId,
-            'type': SharedItemType.note.name,
-            'ownerId': currentUser.uid,
-            'ownerEmail': ownerProfile?['email'] ?? currentUser.email ?? '',
-            'recipientId': recipient['uid'],
-            'recipientEmail': recipient['email'],
-            'permission': permission.name,
-            'status': SharingStatus.pending.name, // quedará accepted al aceptar la carpeta
-            'createdAt': fs.FieldValue.serverTimestamp(),
-            'updatedAt': fs.FieldValue.serverTimestamp(),
-            'metadata': {
-              'noteTitle': note?['title'] ?? 'Sin título',
-              'fromFolder': folderId,
-              'folderName': folder['name'] ?? 'Sin nombre',
-            },
-          });
-          created++;
-        }
-        if (created > 0) {
-          await batch.commit();
-          debugPrint('📝 shareFolder: creadas $created comparticiones de notas como pending');
-        }
-      }
-    } catch (e) {
-      debugPrint('⚠️ shareFolder: no se pudieron crear comparticiones de notas: $e');
-    }
-
     // Enviar notificación al destinatario (no bloquear si falla)
     try {
       final notificationService = NotificationService();
@@ -634,13 +588,7 @@ class SharingService {
     int? limit,
   }) async {
     final currentUser = _authService.currentUser;
-    if (currentUser == null) {
-      debugPrint('⚠️ getSharedByMe: No hay usuario autenticado');
-      return [];
-    }
-
-    debugPrint('📤 getSharedByMe: Consultando compartidas enviadas por ${currentUser.uid}');
-    debugPrint('   Filtros: status=$status, type=$type, search=$searchQuery');
+    if (currentUser == null) return [];
 
     Query query = _firestore
         .collection('shared_items')
@@ -661,16 +609,9 @@ class SharingService {
     }
 
     final snapshot = await query.get();
-    debugPrint('   Documentos encontrados en Firestore: ${snapshot.docs.length}');
-    
     var items = snapshot.docs
         .map((doc) => SharedItem.fromMap(doc.id, doc.data() as Map<String, dynamic>))
         .toList();
-
-    debugPrint('   Items parseados: ${items.length}');
-    for (var item in items) {
-      debugPrint('   - ${item.type.name}: ${item.metadata?['noteTitle'] ?? item.metadata?['folderName']} (${item.status.name})');
-    }
 
     // Filtro por búsqueda en cliente (debido a limitaciones de Firestore)
     if (searchQuery != null && searchQuery.isNotEmpty) {
@@ -680,10 +621,8 @@ class SharingService {
         final email = item.recipientEmail.toLowerCase();
         return title.contains(search) || email.contains(search);
       }).toList();
-      debugPrint('   Después de filtro de búsqueda: ${items.length}');
     }
 
-    debugPrint('✅ getSharedByMe: Retornando ${items.length} items');
     return items;
   }
 
@@ -767,10 +706,7 @@ class SharingService {
     
     final shareData = shareDoc.data()!;
     final ownerId = shareData['ownerId'] as String;
-    final itemId = shareData['itemId'] as String;
-    final itemType = shareData['type'] as String;
     final itemTitle = shareData['metadata']?['noteTitle'] ?? shareData['metadata']?['folderName'] ?? 'Sin título';
-    final permission = shareData['permission'] as String;
     
     // Obtener información del receptor (usuario actual)
     final currentUser = _authService.currentUser;
@@ -782,23 +718,6 @@ class SharingService {
       'updatedAt': fs.FieldValue.serverTimestamp(),
     });
     
-    // Si es una carpeta, crear comparticiones para cada nota dentro
-    if (itemType == SharedItemType.folder.name) {
-      try {
-        await _createNoteSharesForFolder(
-          folderId: itemId,
-          ownerId: ownerId,
-          recipientId: currentUser.uid,
-          recipientEmail: currentUser.email ?? '',
-          permission: PermissionLevel.values.firstWhere((p) => p.name == permission),
-        );
-        debugPrint('✅ Comparticiones de notas creadas para carpeta $itemId');
-      } catch (e) {
-        debugPrint('⚠️ Error creando comparticiones de notas: $e');
-        // No bloqueamos si falla, las notas se pueden compartir manualmente
-      }
-    }
-    
     // Enviar notificación al propietario
     final notificationService = NotificationService();
     await notificationService.notifyShareAccepted(
@@ -808,72 +727,6 @@ class SharingService {
       itemTitle: itemTitle,
       shareId: sharingId,
     );
-  }
-  
-  /// Crea comparticiones automáticas para todas las notas dentro de una carpeta
-  Future<void> _createNoteSharesForFolder({
-    required String folderId,
-    required String ownerId,
-    required String recipientId,
-    required String recipientEmail,
-    required PermissionLevel permission,
-  }) async {
-    // Obtener la carpeta para saber qué notas contiene
-    final folder = await FirestoreService.instance.getFolder(
-      uid: ownerId,
-      folderId: folderId,
-    );
-
-    if (folder == null || folder['noteIds'] == null) return;
-
-    final noteIds = List<String>.from(folder['noteIds'] ?? []);
-    debugPrint('📝 Creando comparticiones para ${noteIds.length} notas en carpeta $folderId');
-
-    // Crear comparticiones en batch
-    final batch = _firestore.batch();
-    int created = 0;
-
-    for (final noteId in noteIds) {
-      final shareId = '${recipientId}_${ownerId}_$noteId';
-      final docRef = _firestore.collection('shared_items').doc(shareId);
-      
-      // Verificar si ya existe
-      final exists = await docRef.get();
-      if (exists.exists) {
-        debugPrint('   ⏭️ Compartición ya existe para nota $noteId');
-        continue;
-      }
-
-      // Obtener metadata de la nota
-      final note = await FirestoreService.instance.getNote(
-        uid: ownerId,
-        noteId: noteId,
-      );
-
-      batch.set(docRef, {
-        'itemId': noteId,
-        'type': SharedItemType.note.name,
-        'ownerId': ownerId,
-        'ownerEmail': folder['ownerEmail'] ?? '',
-        'recipientId': recipientId,
-        'recipientEmail': recipientEmail,
-        'permission': permission.name,
-        'status': SharingStatus.accepted.name, // Auto-aceptada porque la carpeta ya fue aceptada
-        'createdAt': fs.FieldValue.serverTimestamp(),
-        'updatedAt': fs.FieldValue.serverTimestamp(),
-        'metadata': {
-          'noteTitle': note?['title'] ?? 'Sin título',
-          'fromFolder': folderId,
-          'folderName': folder['name'] ?? 'Sin nombre',
-        },
-      });
-      created++;
-    }
-
-    if (created > 0) {
-      await batch.commit();
-      debugPrint('✅ Creadas $created comparticiones automáticas de notas');
-    }
   }
 
   /// Rechaza una compartición
@@ -944,49 +797,6 @@ class SharingService {
   }
 
   /// Revoca una compartición (por el propietario)
-  /// Actualiza los permisos de una compartición existente
-  Future<void> updatePermission(String sharingId, PermissionLevel newPermission) async {
-    final currentUser = _authService.currentUser;
-    if (currentUser == null) throw Exception('Usuario no autenticado');
-    
-    // Obtener información de la compartición
-    final shareDoc = await _firestore.collection('shared_items').doc(sharingId).get();
-    if (!shareDoc.exists) throw Exception('Compartición no encontrada');
-    
-    final shareData = shareDoc.data()!;
-    
-    // Verificar que el usuario actual es el propietario
-    if (shareData['ownerId'] != currentUser.uid) {
-      throw Exception('Solo el propietario puede cambiar permisos');
-    }
-    
-    final recipientId = shareData['recipientId'] as String;
-    final itemTitle = shareData['metadata']?['noteTitle'] ?? shareData['metadata']?['folderName'] ?? 'Sin título';
-    
-    // Actualizar el permiso
-    await _firestore.collection('shared_items').doc(sharingId).update({
-      'permission': newPermission.name,
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    });
-    
-    // Enviar notificación al receptor
-    final notificationService = NotificationService();
-    await notificationService.createShareNotification(
-      userId: recipientId,
-      type: NotificationType.newShare,
-      title: 'Permisos actualizados',
-      message: 'Tus permisos para "$itemTitle" han sido actualizados',
-      shareId: sharingId,
-      metadata: {
-        'shareId': sharingId,
-        'newPermission': newPermission.name,
-        'itemTitle': itemTitle,
-      },
-    );
-    
-    debugPrint('✅ Permisos actualizados para compartición $sharingId');
-  }
-
   Future<void> revokeSharing(String sharingId) async {
     // Obtener información de la compartición antes de actualizarla
     final shareDoc = await _firestore.collection('shared_items').doc(sharingId).get();
@@ -1058,183 +868,6 @@ class SharingService {
     }
 
     return notes;
-  }
-
-  /// Obtiene carpetas compartidas conmigo que he aceptado
-  Future<List<Map<String, dynamic>>> getSharedFolders() async {
-    final currentUser = _authService.currentUser;
-    if (currentUser == null) return [];
-
-    final sharedItems = await _firestore
-        .collection('shared_items')
-        .where('recipientId', isEqualTo: currentUser.uid)
-        .where('type', isEqualTo: SharedItemType.folder.name)
-        .where('status', isEqualTo: SharingStatus.accepted.name)
-        .get();
-
-    final List<Map<String, dynamic>> folders = [];
-
-    for (final doc in sharedItems.docs) {
-      final sharing = SharedItem.fromMap(doc.id, doc.data());
-      
-      // Obtener la carpeta desde el propietario
-      final folder = await FirestoreService.instance.getFolder(
-        uid: sharing.ownerId,
-        folderId: sharing.itemId,
-      );
-
-      if (folder != null) {
-        folders.add({
-          ...folder,
-          'isShared': true,
-          'sharingId': sharing.id,
-          'sharedBy': sharing.ownerEmail,
-          'ownerId': sharing.ownerId,
-          'permission': sharing.permission.name,
-          'sharedAt': sharing.createdAt,
-        });
-      }
-    }
-
-    return folders;
-  }
-
-  /// Obtiene las notas dentro de una carpeta compartida
-  Future<List<Map<String, dynamic>>> getNotesInSharedFolder({
-    required String folderId,
-    required String ownerId,
-  }) async {
-    final currentUser = _authService.currentUser;
-    if (currentUser == null) return [];
-
-    try {
-      // Verificar que tengo acceso a la carpeta
-      final folderAccess = await _firestore
-          .collection('shared_items')
-          .where('itemId', isEqualTo: folderId)
-          .where('ownerId', isEqualTo: ownerId)
-          .where('recipientId', isEqualTo: currentUser.uid)
-          .where('type', isEqualTo: SharedItemType.folder.name)
-          .where('status', isEqualTo: SharingStatus.accepted.name)
-          .get();
-
-      if (folderAccess.docs.isEmpty) {
-        debugPrint('⚠️ No access to folder $folderId');
-        return [];
-      }
-
-      final sharing = SharedItem.fromMap(folderAccess.docs.first.id, folderAccess.docs.first.data());
-
-      // Obtener la carpeta para saber qué notas contiene
-      final folder = await FirestoreService.instance.getFolder(
-        uid: ownerId,
-        folderId: folderId,
-      );
-
-      if (folder == null || folder['noteIds'] == null) {
-        debugPrint('⚠️ Folder $folderId has no notes');
-        return [];
-      }
-
-      final noteIds = List<String>.from(folder['noteIds'] ?? []);
-      final List<Map<String, dynamic>> notes = [];
-
-      debugPrint('📂 Cargando ${noteIds.length} notas de carpeta compartida $folderId');
-
-      // Backfill: ensure note-level shares exist (recipient creates allowed by security rules)
-      try {
-        await _backfillNoteSharesForFolder(
-          folderId: folderId,
-          noteIds: noteIds,
-          ownerId: ownerId,
-          recipientId: currentUser.uid,
-          recipientEmail: currentUser.email ?? '',
-          permission: sharing.permission,
-          folderName: folder['name'] ?? 'Sin nombre',
-          ownerEmail: sharing.ownerEmail,
-        );
-      } catch (e) {
-        debugPrint('⚠️ Backfill de comparticiones de notas falló: $e');
-      }
-
-      // Obtener cada nota (ahora deberían tener permisos porque se crearon shared_items automáticamente)
-      for (final noteId in noteIds) {
-        try {
-          final note = await FirestoreService.instance.getNote(
-            uid: ownerId,
-            noteId: noteId,
-          );
-
-          if (note != null) {
-            notes.add({
-              ...note,
-              'isShared': true,
-              'isInSharedFolder': true,
-              'sharedFolderId': folderId,
-              'sharedBy': sharing.ownerEmail,
-              'ownerId': ownerId,
-              'permission': sharing.permission.name,
-              'sharedAt': sharing.createdAt,
-            });
-          } else {
-            debugPrint('   ⚠️ Nota $noteId no encontrada');
-          }
-        } catch (e) {
-          debugPrint('   ❌ Error cargando nota $noteId: $e');
-          // Continuar con las demás notas
-        }
-      }
-
-      debugPrint('✅ Cargadas ${notes.length}/${noteIds.length} notas de carpeta compartida');
-      return notes;
-    } catch (e) {
-      debugPrint('❌ Error en getNotesInSharedFolder: $e');
-      return [];
-    }
-  }
-
-  /// Backfill de comparticiones de notas cuando se accede a una carpeta compartida aceptada
-  Future<void> _backfillNoteSharesForFolder({
-    required String folderId,
-    required List<String> noteIds,
-    required String ownerId,
-    required String ownerEmail,
-    required String recipientId,
-    required String recipientEmail,
-    required PermissionLevel permission,
-    required String folderName,
-  }) async {
-    if (noteIds.isEmpty) return;
-    final batch = _firestore.batch();
-    int toCreate = 0;
-    for (final noteId in noteIds) {
-      final shareId = '${recipientId}_${ownerId}_$noteId';
-      final docRef = _firestore.collection('shared_items').doc(shareId);
-      final snap = await docRef.get();
-      if (snap.exists) continue;
-      // Creamos como receptor (permitido por reglas) con metadata.fromFolder
-      batch.set(docRef, {
-        'itemId': noteId,
-        'type': SharedItemType.note.name,
-        'ownerId': ownerId,
-        'ownerEmail': ownerEmail,
-        'recipientId': recipientId,
-        'recipientEmail': recipientEmail,
-        'permission': permission.name,
-        'status': SharingStatus.accepted.name,
-        'createdAt': fs.FieldValue.serverTimestamp(),
-        'updatedAt': fs.FieldValue.serverTimestamp(),
-        'metadata': {
-          'fromFolder': folderId,
-          'folderName': folderName,
-        },
-      });
-      toCreate++;
-    }
-    if (toCreate > 0) {
-      await batch.commit();
-      debugPrint('✅ Backfill: creadas $toCreate comparticiones de notas para carpeta $folderId');
-    }
   }
 
   /// Verifica si el usuario actual tiene acceso a una nota específica

@@ -570,39 +570,28 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           FilledButton(
             onPressed: () async {
+              // Guardar el contexto antes del await
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              
               try {
-                // Cerrar el diálogo primero
-                Navigator.pop(ctx);
-                
-                // Mostrar loading
-                if (mounted) {
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (context) => const Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-                
-                // Cerrar sesión
                 await _authService.signOut();
-                
-                // Cerrar loading y navegar al login
+                if (!ctx.mounted) return;
+                // Cerrar diálogo
+                Navigator.pop(ctx);
+                // Navegar a login y limpiar toda la pila de navegación
                 if (mounted) {
-                  Navigator.of(context).pop(); // Cerrar loading
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    '/login',
-                    (route) => false, // Eliminar todas las rutas anteriores
-                  );
+                  navigator.pushNamedAndRemoveUntil('/login', (route) => false);
                 }
               } catch (e) {
-                if (mounted) {
-                  Navigator.of(context).pop(); // Cerrar loading si hay error
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error al cerrar sesión: $e')),
-                  );
-                }
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Error al cerrar sesión: $e'),
+                    backgroundColor: AppColors.danger,
+                  ),
+                );
               }
             },
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
