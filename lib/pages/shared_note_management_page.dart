@@ -581,18 +581,21 @@ class _SharedNoteManagementPageState extends State<SharedNoteManagementPage> wit
         child: Column(
           crossAxisAlignment: isMyComment ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            if (!isMyComment)
-              Padding(
-                padding: const EdgeInsets.only(left: 12, bottom: 4),
-                child: Text(
-                  comment['userName'] ?? 'Usuario',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[700],
-                  ),
+            Padding(
+              padding: EdgeInsets.only(
+                left: isMyComment ? 0 : 12,
+                right: isMyComment ? 12 : 0,
+                bottom: 4,
+              ),
+              child: Text(
+                comment['userName'] ?? 'Usuario',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isMyComment ? AppColors.primary : Colors.grey[700],
                 ),
               ),
+            ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(

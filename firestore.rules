@@ -34,26 +34,10 @@ service cloud.firestore {
 
     // Notifications subcollection under users
     // - The user (owner of the user doc) can read/write their own notifications
-    // - Additionally, allow creating a notification for a user if it's tied to a shared_items doc
-    //   where the requester is the owner and the recipient matches {uid}
+    // - Any authenticated user can create notifications for other users (for sharing features)
     match /users/{uid}/notifications/{notificationId} {
       allow read: if isOwner(uid);
-      allow create: if isAuthed() && (
-        isOwner(uid) || (
-          // Sender can create a notification for the counterparty when tied to a valid share
-          request.resource.data.shareId is string &&
-          exists(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)) &&
-          (
-            // Owner notifying recipient
-            (get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.ownerId == request.auth.uid &&
-             get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.recipientId == uid)
-            ||
-            // Recipient notifying owner
-            (get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.recipientId == request.auth.uid &&
-             get(/databases/$(database)/documents/shared_items/$(request.resource.data.shareId)).data.ownerId == uid)
-          )
-        )
-      );
+      allow create: if isAuthed();
       allow update, delete: if isOwner(uid);
     }
 
