@@ -57,7 +57,7 @@ class UserAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: size / 2,
-      backgroundColor: color.withOpacity(0.2),
+      backgroundColor: color.withValues(alpha: 0.2),
       child: Text(
         initials,
         style: TextStyle(
@@ -272,7 +272,7 @@ class _AnimatedBadgeState extends State<AnimatedBadge>
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: widget.color.withOpacity(0.4),
+              color: widget.color.withValues(alpha: 0.4),
               blurRadius: 8,
               spreadRadius: 2,
             ),

@@ -16,8 +16,17 @@ service cloud.firestore {
 
     // Notes: owner or accepted shared recipient can read; only owner edits (simpler)
     match /users/{uid}/notes/{noteId} {
-      allow read: if isOwner(uid) || exists(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + noteId)) &&
-        get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + noteId)).data.status == 'accepted';
+      allow read: if isOwner(uid)
+        || (
+          exists(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + noteId)) &&
+          get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + noteId)).data.status == 'accepted'
+        )
+        || (
+          // Access through accepted shared folder containing this note
+          resource.data.folderId is string &&
+          exists(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + resource.data.folderId)) &&
+          get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + resource.data.folderId)).data.status == 'accepted'
+        );
       allow create, update, delete: if isOwner(uid);
     }
 
@@ -32,7 +41,7 @@ service cloud.firestore {
       allow write: if isAuthed() && request.resource.data.uid == request.auth.uid;
     }
 
-    // Notifications subcollection under users
+  // Notifications subcollection under users
     // - The user (owner of the user doc) can read/write their own notifications
     // - Additionally, allow creating a notification for a user if it's tied to a shared_items doc
     //   where the requester is the owner and the recipient matches {uid}
@@ -57,6 +66,35 @@ service cloud.firestore {
       allow update, delete: if isOwner(uid);
     }
 
+    // Comments on notes (top-level collection)
+    // Only owner or accepted recipient of a note can create/read/update/delete
+    match /comments/{commentId} {
+      allow read: if isAuthed() && (
+        // Owner of the note
+        resource.data.ownerId == request.auth.uid ||
+        // Accepted recipient of the note
+        (
+          exists(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + resource.data.ownerId + '_' + resource.data.noteId)) &&
+          get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + resource.data.ownerId + '_' + resource.data.noteId)).data.status == 'accepted'
+        )
+      );
+      allow create: if isAuthed() && (
+        // Author must be authed
+        request.resource.data.authorId == request.auth.uid &&
+        // And either owner or accepted recipient of target note
+        (request.resource.data.ownerId == request.auth.uid || (
+          exists(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + request.resource.data.ownerId + '_' + request.resource.data.noteId)) &&
+          get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + request.resource.data.ownerId + '_' + request.resource.data.noteId)).data.status == 'accepted'
+        ))
+      );
+      allow update, delete: if isAuthed() && (
+        // Author can edit/delete their own comment
+        resource.data.authorId == request.auth.uid ||
+        // Owner of the note can moderate
+        resource.data.ownerId == request.auth.uid
+      );
+    }
+
     // Shared items with deterministic ID: recipient_owner_item
     match /shared_items/{shareId} {
       allow create: if isAuthed() &&
@@ -78,7 +116,13 @@ service cloud.firestore {
         (resource.data.recipientId == request.auth.uid && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status','updatedAt']))
       );
 
-      allow delete: if isAuthed() && resource.data.ownerId == request.auth.uid;
+      allow delete: if isAuthed() && (
+        resource.data.ownerId == request.auth.uid ||
+        (
+          resource.data.recipientId == request.auth.uid &&
+          (resource.data.status in ['left','revoked','rejected'])
+        )
+      );
     }
 
     // Public links: readable by anyone, writable by owner

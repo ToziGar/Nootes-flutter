@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../widgets/share_dialog.dart';
 import 'shared_note_viewer_page.dart';
+import 'shared_folder_viewer_page.dart';
 
 /// Tipos de actividad en el log
 enum ActivityType {
@@ -153,7 +154,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
   // Estado
   List<SharedItem> _sharedByMe = [];
   List<SharedItem> _sharedWithMe = [];
-  List<Map<String, dynamic>> _notifications = [];
+  final List<Map<String, dynamic>> _notifications = [];
   int _unreadNotifications = 0;
   bool _isLoading = false;
   
@@ -1857,9 +1858,20 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
   Widget _buildActionButtons(SharedItem item, bool isSentByMe) {
     if (isSentByMe) {
       // El propietario puede revocar tanto si está pendiente como aceptada
+      final isFolder = item.type == SharedItemType.folder;
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          if (isFolder)
+            OutlinedButton.icon(
+              onPressed: () => _openSharedItem(item),
+              icon: const Icon(Icons.group_rounded, size: 16),
+              label: const Text('Gestionar'),
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          if (isFolder) const SizedBox(width: 8),
           OutlinedButton.icon(
             onPressed: () => _revokeSharing(item),
             icon: const Icon(Icons.block_rounded, size: 16),
@@ -1872,6 +1884,21 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               ),
             ),
           ),
+          const SizedBox(width: 8),
+          if (item.status == SharingStatus.revoked || item.status == SharingStatus.rejected)
+            OutlinedButton.icon(
+              onPressed: () async {
+                try {
+                  await FirebaseFirestore.instance.collection('shared_items').doc(item.id).delete();
+                  ToastService.success('Eliminado');
+                  _loadData();
+                } catch (e) {
+                  ToastService.error('No se pudo eliminar: $e');
+                }
+              },
+              icon: const Icon(Icons.delete_outline_rounded, size: 16),
+              label: const Text('Eliminar'),
+            ),
         ],
       );
     }
@@ -1933,6 +1960,27 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
+          ),
+        ],
+      );
+    }
+
+    if (item.status == SharingStatus.left || item.status == SharingStatus.revoked || item.status == SharingStatus.rejected) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          OutlinedButton.icon(
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance.collection('shared_items').doc(item.id).delete();
+                ToastService.success('Eliminado');
+                _loadData();
+              } catch (e) {
+                ToastService.error('No se pudo eliminar: $e');
+              }
+            },
+            icon: const Icon(Icons.delete_outline_rounded, size: 16),
+            label: const Text('Eliminar'),
           ),
         ],
       );
@@ -2035,7 +2083,15 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         ToastService.error('❌ Error al abrir la nota: $e');
       }
     } else {
-      ToastService.info('📁 Abriendo carpeta: ${item.metadata?['folderName'] ?? 'Sin nombre'}');
+      try {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => SharedFolderViewerPage(folderShare: item),
+          ),
+        ).then((_) => _loadData());
+      } catch (e) {
+        ToastService.error('❌ Error al abrir la carpeta: $e');
+      }
     }
   }
 

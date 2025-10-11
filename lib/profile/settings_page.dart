@@ -458,9 +458,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _ProfileChip(icon: Icons.badge_rounded, label: 'Perfil'),
-                    _ProfileChip(icon: Icons.translate_rounded, label: _language),
-                    _ProfileChip(icon: Icons.palette_rounded, label: _themeMode),
+                    _profileChip(icon: Icons.badge_rounded, label: 'Perfil'),
+                    _profileChip(icon: Icons.translate_rounded, label: _language),
+                    _profileChip(icon: Icons.palette_rounded, label: _themeMode),
                   ],
                 ),
               ],
@@ -478,7 +478,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // Pequeño chip de información visual
   // ignore: unused_element
-  static Widget _ProfileChip({required IconData icon, required String label}) {
+  static Widget _profileChip({required IconData icon, required String label}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -527,6 +527,8 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
   final formKey = GlobalKey<FormState>();
+
+    if (!mounted) return;
 
     await showModalBottomSheet(
       context: context,
@@ -599,7 +601,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   labelText: 'Idioma',
                   prefixIcon: Icon(Icons.translate_rounded),
                 ),
-                value: selectedLanguage,
+                initialValue: selectedLanguage,
                 items: const [
                   DropdownMenuItem(value: 'Español', child: Text('Español')),
                   DropdownMenuItem(value: 'English', child: Text('English')),
@@ -645,16 +647,18 @@ class _SettingsPageState extends State<SettingsPage> {
                             AppService.changeLocale(locale);
                             await PreferencesService.setLocale(locale);
                           }
+                          // Asegura que ambos contextos sigan montados
                           if (!mounted) return;
+                          if (!ctx.mounted) return;
                           Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(ctx).showSnackBar(
                             const SnackBar(content: Text('Perfil actualizado')),
                           );
                           // Refrescar cabecera de perfil
                           _loadSettings();
                         } catch (e) {
                           if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
                           );
                         }

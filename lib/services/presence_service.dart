@@ -310,7 +310,7 @@ class PresenceIndicator extends StatelessWidget {
                   ),
                   boxShadow: presence.isOnline ? [
                     BoxShadow(
-                      color: presence.indicatorColor.withOpacity(0.4),
+                      color: presence.indicatorColor.withValues(alpha: 0.4),
                       blurRadius: 4,
                       spreadRadius: 1,
                     ),
@@ -341,7 +341,7 @@ class PresenceIndicator extends StatelessWidget {
             ),
             boxShadow: presence.isOnline ? [
               BoxShadow(
-                color: presence.indicatorColor.withOpacity(0.4),
+                color: presence.indicatorColor.withValues(alpha: 0.4),
                 blurRadius: 4,
                 spreadRadius: 1,
               ),

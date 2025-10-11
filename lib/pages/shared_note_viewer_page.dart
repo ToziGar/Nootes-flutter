@@ -113,10 +113,13 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
       }
     } catch (e) {
       debugPrint('❌ Error cargando nota: $e');
-      if (mounted) {
-        ToastService.error('Error cargando la nota: $e');
-        setState(() => _isLoading = false);
-      }
+      if (!mounted) return;
+      // Mensaje amigable si es permisos
+      final msg = e.toString().contains('permission-denied') || e.toString().contains('Missing or insufficient permissions')
+          ? 'No tienes permisos para abrir esta nota. Asegúrate de que la compartición está aceptada.'
+          : 'Error cargando la nota: $e';
+      ToastService.error(msg);
+      setState(() => _isLoading = false);
     }
   }
 
@@ -635,7 +638,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: activity.color.withOpacity(0.1),
+                color: activity.color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: activity.color,
@@ -1001,7 +1004,8 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
       _commentController.clear();
     });
     // Foco en el input
-    Future.delayed(Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (!mounted) return;
       FocusScope.of(context).requestFocus(FocusNode());
     });
   }

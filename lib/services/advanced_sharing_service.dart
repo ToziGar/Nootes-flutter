@@ -617,7 +617,7 @@ class CollaboratorPresence {
       'currentLocation': currentLocation,
       'isTyping': isTyping,
       'typingLocation': typingLocation,
-      'cursorColor': cursorColor?.value,
+  'cursorColor': cursorColor?.toARGB32(),
     };
   }
 }
@@ -937,7 +937,7 @@ class AdvancedSharingService {
         ),
       ];
     } catch (e) {
-      print('Error getting shared notes: $e');
+  debugPrint('Error getting shared notes: $e');
       return [];
     }
   }
@@ -1101,7 +1101,7 @@ class AdvancedSharingService {
         },
       ];
     } catch (e) {
-      print('Error getting shared by me: $e');
+  debugPrint('Error getting shared by me: $e');
       return [];
     }
   }
@@ -1180,7 +1180,7 @@ class AdvancedSharingService {
         ),
       ];
     } catch (e) {
-      print('Error getting pending invites: $e');
+  debugPrint('Error getting pending invites: $e');
       return [];
     }
   }
@@ -1231,7 +1231,7 @@ class AdvancedSharingService {
       ToastService.success('Invitación enviada correctamente');
       return true;
     } catch (e) {
-      print('Error sharing note: $e');
+  debugPrint('Error sharing note: $e');
       ToastService.error('Error al compartir la nota');
       return false;
     }
@@ -1249,7 +1249,7 @@ class AdvancedSharingService {
       ToastService.success('Invitación aceptada');
       return true;
     } catch (e) {
-      print('Error accepting invite: $e');
+  debugPrint('Error accepting invite: $e');
       ToastService.error('Error al aceptar la invitación');
       return false;
     }
@@ -1266,7 +1266,7 @@ class AdvancedSharingService {
       ToastService.info('Invitación rechazada');
       return true;
     } catch (e) {
-      print('Error declining invite: $e');
+  debugPrint('Error declining invite: $e');
       ToastService.error('Error al rechazar la invitación');
       return false;
     }
@@ -1283,7 +1283,7 @@ class AdvancedSharingService {
       ToastService.success('Permisos actualizados');
       return true;
     } catch (e) {
-      print('Error updating permission: $e');
+  debugPrint('Error updating permission: $e');
       ToastService.error('Error al actualizar permisos');
       return false;
     }
@@ -1296,7 +1296,7 @@ class AdvancedSharingService {
       ToastService.success('Colaborador removido');
       return true;
     } catch (e) {
-      print('Error removing collaborator: $e');
+  debugPrint('Error removing collaborator: $e');
       ToastService.error('Error al remover colaborador');
       return false;
     }
@@ -1320,7 +1320,7 @@ class AdvancedSharingService {
       ToastService.success('Se dejó de compartir la nota');
       return true;
     } catch (e) {
-      print('Error stopping share: $e');
+  debugPrint('Error stopping share: $e');
       ToastService.error('Error al dejar de compartir');
       return false;
     }
@@ -1333,7 +1333,7 @@ class AdvancedSharingService {
       await Clipboard.setData(ClipboardData(text: link));
       ToastService.success('Enlace copiado al portapapeles');
     } catch (e) {
-      print('Error copying link: $e');
+  debugPrint('Error copying link: $e');
       ToastService.error('Error al copiar el enlace');
     }
   }
@@ -1356,7 +1356,7 @@ class AdvancedSharingService {
       ToastService.success('Enlace público generado y copiado');
       return link;
     } catch (e) {
-      print('Error generating public link: $e');
+  debugPrint('Error generating public link: $e');
       ToastService.error('Error al generar enlace público');
       return null;
     }
@@ -1391,7 +1391,7 @@ class AdvancedSharingService {
         );
       }).toList();
     } catch (e) {
-      print('Error getting collaborators: $e');
+  debugPrint('Error getting collaborators: $e');
       return [];
     }
   }
@@ -1430,9 +1430,9 @@ class AdvancedSharingService {
           .doc(notification.id)
           .set(notification.toJson());
 
-      print('✅ Notificación creada: $title');
+  debugPrint('✅ Notificación creada: $title');
     } catch (e) {
-      print('❌ Error creando notificación: $e');
+  debugPrint('❌ Error creando notificación: $e');
     }
   }
 
@@ -1545,7 +1545,7 @@ class AdvancedSharingService {
       
       return notifications.take(limit).toList();
     } catch (e) {
-      print('❌ Error obteniendo notificaciones: $e');
+  debugPrint('❌ Error obteniendo notificaciones: $e');
       return [];
     }
   }
@@ -1558,7 +1558,7 @@ class AdvancedSharingService {
           .doc(notificationId)
           .update({'isRead': true});
     } catch (e) {
-      print('❌ Error marcando notificación como leída: $e');
+  debugPrint('❌ Error marcando notificación como leída: $e');
     }
   }
 
@@ -1577,7 +1577,7 @@ class AdvancedSharingService {
       }
       await batch.commit();
     } catch (e) {
-      print('❌ Error marcando todas las notificaciones como leídas: $e');
+  debugPrint('❌ Error marcando todas las notificaciones como leídas: $e');
     }
   }
 
@@ -1684,7 +1684,7 @@ class AdvancedSharingService {
         ),
       ];
     } catch (e) {
-      print('❌ Error obteniendo comentarios recientes: $e');
+  debugPrint('❌ Error obteniendo comentarios recientes: $e');
       return [];
     }
   }
@@ -1715,7 +1715,7 @@ class AdvancedSharingService {
           .doc(activity.id)
           .set(activity.toJson());
     } catch (e) {
-      print('❌ Error registrando actividad: $e');
+  debugPrint('❌ Error registrando actividad: $e');
     }
   }
 
@@ -1736,7 +1736,7 @@ class AdvancedSharingService {
               }))
           .toList();
     } catch (e) {
-      print('❌ Error obteniendo historial de actividad: $e');
+  debugPrint('❌ Error obteniendo historial de actividad: $e');
       return [];
     }
   }
@@ -1766,7 +1766,7 @@ class AdvancedSharingService {
           .doc('${noteId}_$_currentUserId')
           .set(presence.toJson());
     } catch (e) {
-      print('❌ Error actualizando presencia: $e');
+  debugPrint('❌ Error actualizando presencia: $e');
     }
   }
 
@@ -1816,7 +1816,7 @@ class AdvancedSharingService {
       final baseUrl = 'https://nootes.app/public'; // URL base de tu app
       return '$baseUrl/$publicId';
     } catch (e) {
-      print('❌ Error creando enlace público: $e');
+  debugPrint('❌ Error creando enlace público: $e');
       return null;
     }
   }
@@ -1847,7 +1847,7 @@ class AdvancedSharingService {
 
       await batch.commit();
     } catch (e) {
-      print('❌ Error revocando enlace público: $e');
+  debugPrint('❌ Error revocando enlace público: $e');
     }
   }
 
@@ -1914,7 +1914,7 @@ class AdvancedSharingService {
         message: message,
       );
     } catch (e) {
-      print('❌ Error compartiendo con plantilla: $e');
+  debugPrint('❌ Error compartiendo con plantilla: $e');
       return false;
     }
   }
@@ -1953,7 +1953,7 @@ class AdvancedSharingService {
             .length,
       };
     } catch (e) {
-      print('❌ Error obteniendo estadísticas: $e');
+  debugPrint('❌ Error obteniendo estadísticas: $e');
       return {};
     }
   }
@@ -2023,7 +2023,7 @@ class AdvancedSharingService {
 
       return commentId;
     } catch (e) {
-      print('❌ Error añadiendo comentario: $e');
+  debugPrint('❌ Error añadiendo comentario: $e');
       return null;
     }
   }
@@ -2055,7 +2055,7 @@ class AdvancedSharingService {
             'resolvedAt': Timestamp.fromDate(DateTime.now()),
           });
     } catch (e) {
-      print('❌ Error resolviendo comentario: $e');
+  debugPrint('❌ Error resolviendo comentario: $e');
     }
   }
 
@@ -2139,7 +2139,7 @@ class AdvancedSharingService {
 
       return versionId;
     } catch (e) {
-      print('❌ Error creando versión: $e');
+  debugPrint('❌ Error creando versión: $e');
       return null;
     }
   }
@@ -2161,7 +2161,7 @@ class AdvancedSharingService {
               }))
           .toList();
     } catch (e) {
-      print('❌ Error obteniendo historial: $e');
+  debugPrint('❌ Error obteniendo historial: $e');
       return [];
     }
   }
@@ -2203,7 +2203,7 @@ class AdvancedSharingService {
 
       return true;
     } catch (e) {
-      print('❌ Error restaurando versión: $e');
+  debugPrint('❌ Error restaurando versión: $e');
       return false;
     }
   }
@@ -2261,7 +2261,7 @@ class AdvancedSharingService {
 
       return requestId;
     } catch (e) {
-      print('❌ Error creando solicitud de aprobación: $e');
+  debugPrint('❌ Error creando solicitud de aprobación: $e');
       return null;
     }
   }
@@ -2333,7 +2333,7 @@ class AdvancedSharingService {
 
       return true;
     } catch (e) {
-      print('❌ Error respondiendo a aprobación: $e');
+  debugPrint('❌ Error respondiendo a aprobación: $e');
       return false;
     }
   }
@@ -2414,7 +2414,7 @@ class AdvancedSharingService {
         ),
       ];
     } catch (e) {
-      print('❌ Error obteniendo aprobaciones pendientes: $e');
+  debugPrint('❌ Error obteniendo aprobaciones pendientes: $e');
       return [];
     }
   }
@@ -2485,7 +2485,7 @@ class AdvancedSharingService {
 
       return eventId;
     } catch (e) {
-      print('❌ Error creando evento: $e');
+  debugPrint('❌ Error creando evento: $e');
       return null;
     }
   }
@@ -2561,7 +2561,7 @@ class AdvancedSharingService {
         ),
       ];
     } catch (e) {
-      print('❌ Error obteniendo eventos: $e');
+  debugPrint('❌ Error obteniendo eventos: $e');
       return [];
     }
   }
@@ -2615,10 +2615,10 @@ class AdvancedSharingService {
       */
       
       // Simulación de actualización exitosa
-      print('✅ Evento actualizado: $title');
+  debugPrint('✅ Evento actualizado: $title');
       return true;
     } catch (e) {
-      print('❌ Error actualizando evento: $e');
+  debugPrint('❌ Error actualizando evento: $e');
       return false;
     }
   }
@@ -2635,10 +2635,10 @@ class AdvancedSharingService {
       */
       
       // Simulación de eliminación exitosa
-      print('✅ Evento eliminado: $eventId');
+  debugPrint('✅ Evento eliminado: $eventId');
       return true;
     } catch (e) {
-      print('❌ Error eliminando evento: $e');
+  debugPrint('❌ Error eliminando evento: $e');
       return false;
     }
   }
@@ -2662,7 +2662,7 @@ class AdvancedSharingService {
         reminders: ['0'], // Recordatorio en el momento exacto
       );
     } catch (e) {
-      print('❌ Error programando recordatorio: $e');
+  debugPrint('❌ Error programando recordatorio: $e');
     }
   }
 
@@ -2720,7 +2720,7 @@ class AdvancedSharingService {
         'periodEnd': end.toIso8601String(),
       };
     } catch (e) {
-      print('❌ Error obteniendo analytics: $e');
+  debugPrint('❌ Error obteniendo analytics: $e');
       return {};
     }
   }
@@ -2782,7 +2782,7 @@ class AdvancedSharingService {
         }).toList(),
       };
     } catch (e) {
-      print('❌ Error generando reporte: $e');
+  debugPrint('❌ Error generando reporte: $e');
       return {};
     }
   }

@@ -38,23 +38,22 @@ class CommentService {
         .collection('comments')
         .add(commentData);
 
-    // Crear notificación para el propietario de la nota
+    // Crear notificación para el propietario de la nota en users/{uid}/notifications
     if (ownerId != user.uid) {
       try {
         await _firestore
+            .collection('users')
+            .doc(ownerId)
             .collection('notifications')
             .add({
-          'userId': ownerId,
           'type': 'commentAdded',
           'title': 'Nuevo comentario',
           'message': '${user.email} comentó en tu nota',
           'createdAt': FieldValue.serverTimestamp(),
           'isRead': false,
-          'metadata': {
-            'noteId': noteId,
-            'commentId': docRef.id,
-            'authorId': user.uid,
-          },
+          'noteId': noteId,
+          'commentId': docRef.id,
+          'authorId': user.uid,
         });
       } catch (e) {
         debugPrint('❌ Error creando notificación: $e');

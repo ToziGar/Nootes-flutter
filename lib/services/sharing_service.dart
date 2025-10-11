@@ -134,6 +134,9 @@ class SharingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService.instance;
 
+  /// UID del usuario autenticado (o cadena vacía si no hay sesión)
+  String get currentUserId => _authService.currentUser?.uid ?? '';
+
   // === PUBLIC LINK (simple token-based) ===
   /// Genera (o regenera) un enlace público para una nota. Devuelve el token.
   Future<String> generatePublicLink({required String noteId}) async {
@@ -670,6 +673,44 @@ class SharingService {
     }
 
     return items;
+  }
+
+  /// Lista de miembros (comparticiones) para una carpeta (solo propietario)
+  Future<List<SharedItem>> getFolderMembers({required String folderId}) async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) return [];
+
+    final snapshot = await _firestore
+        .collection('shared_items')
+        .where('type', isEqualTo: SharedItemType.folder.name)
+        .where('itemId', isEqualTo: folderId)
+        .where('ownerId', isEqualTo: currentUser.uid)
+        .orderBy('createdAt', descending: false)
+        .get();
+
+  final items = snapshot.docs
+    .map((d) => SharedItem.fromMap(d.id, d.data()))
+        .where((s) => s.status != SharingStatus.revoked && s.status != SharingStatus.left)
+        .toList();
+    return items;
+  }
+
+  /// Cambia el permiso de una compartición (solo propietario)
+  Future<void> updateSharingPermission(String sharingId, PermissionLevel permission) async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) throw Exception('Usuario no autenticado');
+
+    final doc = await _firestore.collection('shared_items').doc(sharingId).get();
+    if (!doc.exists) throw Exception('Compartición no encontrada');
+    final data = doc.data() as Map<String, dynamic>;
+    if (data['ownerId'] != currentUser.uid) {
+      throw Exception('Solo el propietario puede cambiar los permisos');
+    }
+
+    await _firestore.collection('shared_items').doc(sharingId).update({
+      'permission': permission.name,
+      'updatedAt': fs.FieldValue.serverTimestamp(),
+    });
   }
 
   /// Obtiene estadísticas de compartición
