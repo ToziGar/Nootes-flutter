@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
@@ -25,6 +26,9 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _backupEnabled = false;
   String _language = 'Español';
   String _defaultView = 'Workspace';
+  Timer? _saveDebounce;
+  bool _saving = false;
+  DateTime? _lastSaved;
   
   @override
   void initState() {
@@ -191,6 +195,41 @@ class _SettingsPageState extends State<SettingsPage> {
           icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimaryLight),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: AppColors.space16),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+              child: _saving
+                  ? Row(
+                      key: const ValueKey('saving'),
+                      children: const [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 8),
+                        Text('Guardando...', style: TextStyle(color: AppColors.textSecondaryLight)),
+                      ],
+                    )
+                  : (_lastSaved != null)
+                      ? Row(
+                          key: const ValueKey('saved'),
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Guardado',
+                              style: const TextStyle(color: AppColors.textSecondaryLight),
+                            ),
+                          ],
+                        )
+                      : const SizedBox.shrink(key: ValueKey('idle')),
+            ),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppColors.space24),
@@ -208,7 +247,7 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Tema',
             subtitle: _themeMode,
             icon: Icons.palette_rounded,
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
             onTap: () => _showThemeDialog(),
           ),
           const SizedBox(height: AppColors.space12),
@@ -238,7 +277,10 @@ class _SettingsPageState extends State<SettingsPage> {
             icon: Icons.notifications_active_rounded,
             trailing: Switch(
               value: _notifications,
-              onChanged: (value) => setState(() => _notifications = value),
+              onChanged: (value) {
+                setState(() => _notifications = value);
+                _scheduleSave();
+              },
               activeThumbColor: AppColors.primary,
             ),
           ),
@@ -253,7 +295,10 @@ class _SettingsPageState extends State<SettingsPage> {
             icon: Icons.save_rounded,
             trailing: Switch(
               value: _autoSave,
-              onChanged: (value) => setState(() => _autoSave = value),
+              onChanged: (value) {
+                setState(() => _autoSave = value);
+                _scheduleSave();
+              },
               activeThumbColor: AppColors.primary,
             ),
           ),
@@ -268,7 +313,10 @@ class _SettingsPageState extends State<SettingsPage> {
             icon: Icons.backup_rounded,
             trailing: Switch(
               value: _backupEnabled,
-              onChanged: (value) => setState(() => _backupEnabled = value),
+              onChanged: (value) {
+                setState(() => _backupEnabled = value);
+                _scheduleSave();
+              },
               activeThumbColor: AppColors.primary,
             ),
           ),
@@ -300,6 +348,14 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.danger),
             onTap: _confirmLogout,
             textColor: AppColors.danger,
+          ),
+          const SizedBox(height: AppColors.space12),
+          _buildSettingCard(
+            title: 'Restablecer ajustes',
+            subtitle: 'Vuelve a los valores predeterminados',
+            icon: Icons.restore_rounded,
+            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
+            onTap: _confirmResetSettings,
           ),
           const SizedBox(height: AppColors.space48),
           
@@ -402,9 +458,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _ProfileChip(icon: Icons.badge_rounded, label: 'Productividad'),
-                    _ProfileChip(icon: Icons.translate_rounded, label: 'Español'),
-                    _ProfileChip(icon: Icons.palette_rounded, label: 'Tema claro'),
+                    _ProfileChip(icon: Icons.badge_rounded, label: 'Perfil'),
+                    _ProfileChip(icon: Icons.translate_rounded, label: _language),
+                    _ProfileChip(icon: Icons.palette_rounded, label: _themeMode),
                   ],
                 ),
               ],
@@ -454,11 +510,12 @@ class _SettingsPageState extends State<SettingsPage> {
       data = await FirestoreService.instance.getUserProfile(uid: uid);
     } catch (_) {}
 
-    final fullNameCtrl = TextEditingController(text: (data?['fullName'] ?? '').toString());
-    final usernameCtrl = TextEditingController(text: (data?['username'] ?? '').toString());
-    final organizationCtrl = TextEditingController(text: (data?['organization'] ?? '').toString());
-    final roleCtrl = TextEditingController(text: (data?['role'] ?? '').toString());
-    final languageCtrl = TextEditingController(text: (data?['language'] ?? 'Español').toString());
+  final fullNameCtrl = TextEditingController(text: (data?['fullName'] ?? '').toString());
+  final usernameCtrl = TextEditingController(text: (data?['username'] ?? '').toString());
+  final organizationCtrl = TextEditingController(text: (data?['organization'] ?? '').toString());
+  final roleCtrl = TextEditingController(text: (data?['role'] ?? '').toString());
+  String selectedLanguage = (data?['language'] ?? _language);
+  final formKey = GlobalKey<FormState>();
 
     await showModalBottomSheet(
       context: context,
@@ -475,11 +532,13 @@ class _SettingsPageState extends State<SettingsPage> {
             bottom: MediaQuery.of(ctx).viewInsets.bottom + AppColors.space20,
             top: AppColors.space20,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
@@ -499,18 +558,45 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              _InlineField(controller: fullNameCtrl, label: 'Nombre completo', icon: Icons.person_outline_rounded, requiredField: true),
-              const SizedBox(height: 10),
-              _InlineField(controller: usernameCtrl, label: 'Usuario (handle)', icon: Icons.alternate_email_rounded),
-              const SizedBox(height: 10),
-              _InlineField(controller: organizationCtrl, label: 'Organización', icon: Icons.business_outlined),
-              const SizedBox(height: 10),
-              _InlineField(controller: roleCtrl, label: 'Rol', icon: Icons.badge_outlined),
-              const SizedBox(height: 10),
-              _InlineField(controller: languageCtrl, label: 'Idioma', icon: Icons.translate_rounded),
-              const SizedBox(height: 16),
-              Row(
+                const SizedBox(height: 16),
+                _InlineField(
+                controller: fullNameCtrl,
+                label: 'Nombre completo',
+                icon: Icons.person_outline_rounded,
+                requiredField: true,
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+              ),
+                const SizedBox(height: 10),
+                _InlineField(
+                controller: usernameCtrl,
+                label: 'Usuario (handle)',
+                icon: Icons.alternate_email_rounded,
+                validator: (v) {
+                  final value = (v ?? '').trim();
+                  if (value.isEmpty) return null; // opcional
+                  final ok = RegExp(r'^[a-z0-9._]{3,20} ? ? ?$').hasMatch(value) || RegExp(r'^[a-z0-9._]{3,20} ?$').hasMatch(value) || RegExp(r'^[a-z0-9._]{3,20}$').hasMatch(value);
+                  return ok ? null : 'Solo minúsculas, números, . y _ (3-20)';
+                },
+              ),
+                const SizedBox(height: 10),
+                _InlineField(controller: organizationCtrl, label: 'Organización', icon: Icons.business_outlined),
+                const SizedBox(height: 10),
+                _InlineField(controller: roleCtrl, label: 'Rol', icon: Icons.badge_outlined),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Idioma',
+                  prefixIcon: Icon(Icons.translate_rounded),
+                ),
+                value: selectedLanguage,
+                items: const [
+                  DropdownMenuItem(value: 'Español', child: Text('Español')),
+                  DropdownMenuItem(value: 'English', child: Text('English')),
+                ],
+                onChanged: (v) => selectedLanguage = v ?? selectedLanguage,
+              ),
+                const SizedBox(height: 16),
+                Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
@@ -523,17 +609,31 @@ class _SettingsPageState extends State<SettingsPage> {
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: () async {
+                        if (!(formKey.currentState?.validate() ?? false)) return;
                         final fullName = fullNameCtrl.text.trim();
-                        if (fullName.isEmpty) return;
+                        final newUsername = usernameCtrl.text.trim();
                         try {
+                          // Si cambió el handle y no está vacío, intentar reservarlo/cambiarlo
+                          final prevUsername = (data?['username'] ?? '').toString();
+                          if (newUsername.isNotEmpty && newUsername != prevUsername) {
+                            await FirestoreService.instance.changeHandle(uid: uid, newUsername: newUsername);
+                          }
+
                           await FirestoreService.instance.updateUserProfile(uid: uid, data: {
                             'fullName': fullName,
-                            'username': usernameCtrl.text.trim(),
+                            'username': newUsername,
                             'organization': organizationCtrl.text.trim(),
                             'role': roleCtrl.text.trim(),
-                            'language': languageCtrl.text.trim(),
+                            'language': selectedLanguage,
                             'updatedAt': DateTime.now().toIso8601String(),
                           });
+
+                          // Aplicar idioma inmediatamente
+                          if (selectedLanguage != _language) {
+                            final locale = selectedLanguage == 'English' ? const Locale('en', '') : const Locale('es', '');
+                            AppService.changeLocale(locale);
+                            await PreferencesService.setLocale(locale);
+                          }
                           if (!mounted) return;
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -554,7 +654,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ],
               ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -650,6 +751,7 @@ class _SettingsPageState extends State<SettingsPage> {
         
         // Aplicar el cambio de tema inmediatamente
         AppService.changeTheme(mode);
+        _scheduleSave();
       },
     );
   }
@@ -684,6 +786,8 @@ class _SettingsPageState extends State<SettingsPage> {
         // Aplicar el cambio de idioma inmediatamente
         final locale = Locale(code, '');
         AppService.changeLocale(locale);
+        await PreferencesService.setLocale(locale);
+        _scheduleSave();
       },
     );
   }
@@ -716,6 +820,7 @@ class _SettingsPageState extends State<SettingsPage> {
       onTap: () {
         setState(() => _defaultView = name);
         Navigator.pop(context);
+        _scheduleSave();
       },
     );
   }
@@ -772,6 +877,55 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
+
+  void _scheduleSave() {
+    _saveDebounce?.cancel();
+    setState(() {
+      _saving = true;
+    });
+    _saveDebounce = Timer(const Duration(milliseconds: 800), () async {
+      await _saveSettings();
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _lastSaved = DateTime.now();
+      });
+    });
+  }
+
+  Future<void> _confirmResetSettings() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceLight2,
+        title: const Text('Restablecer ajustes', style: TextStyle(color: AppColors.textPrimaryLight)),
+        content: const Text('Esto restaurará los valores predeterminados de apariencia y preferencias.', style: TextStyle(color: AppColors.textSecondaryLight)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Restablecer')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    setState(() {
+      _themeMode = 'Sistema';
+      _language = 'Español';
+      _notifications = true;
+      _autoSave = true;
+      _backupEnabled = false;
+      _defaultView = 'Workspace';
+    });
+
+    // Aplicar inmediatamente
+    AppService.changeTheme(ThemeMode.system);
+    AppService.changeLocale(const Locale('es', ''));
+    await PreferencesService.setThemeMode(ThemeMode.system);
+    await PreferencesService.setLocale(const Locale('es', ''));
+    await _saveSettings();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ajustes restablecidos')));
+  }
 }
 
 // Campo reutilizable para el editor inline del perfil
@@ -780,22 +934,25 @@ class _InlineField extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool requiredField;
+  final String? Function(String?)? validator;
 
   const _InlineField({
     required this.controller,
     required this.label,
     required this.icon,
     this.requiredField = false,
+    this.validator,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       decoration: InputDecoration(
         labelText: requiredField ? '$label *' : label,
         prefixIcon: Icon(icon),
       ),
+      validator: validator,
     );
   }
 }
