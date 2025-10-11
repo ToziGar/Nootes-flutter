@@ -562,6 +562,52 @@ class SharingService {
   final docRef = _firestore.collection('shared_items').doc(shareId);
   await docRef.set(sharedItem.toMap());
 
+    // Crear comparticiones de NOTAS dentro de la carpeta como PENDING (para el mismo recipient)
+    try {
+      final noteIds = List<String>.from((folder['noteIds'] as List?)?.whereType<String>() ?? []);
+      if (noteIds.isNotEmpty) {
+        final batch = _firestore.batch();
+        int created = 0;
+        for (final noteId in noteIds) {
+          final noteShareId = '${recipient['uid']}_${currentUser.uid}_$noteId';
+          final noteRef = _firestore.collection('shared_items').doc(noteShareId);
+          final exists = await noteRef.get();
+          if (exists.exists) continue;
+
+          // Obtener metadata de la nota (opcional)
+          Map<String, dynamic>? note;
+          try {
+            note = await FirestoreService.instance.getNote(uid: currentUser.uid, noteId: noteId);
+          } catch (_) {}
+
+          batch.set(noteRef, {
+            'itemId': noteId,
+            'type': SharedItemType.note.name,
+            'ownerId': currentUser.uid,
+            'ownerEmail': ownerProfile?['email'] ?? currentUser.email ?? '',
+            'recipientId': recipient['uid'],
+            'recipientEmail': recipient['email'],
+            'permission': permission.name,
+            'status': SharingStatus.pending.name, // quedará accepted al aceptar la carpeta
+            'createdAt': fs.FieldValue.serverTimestamp(),
+            'updatedAt': fs.FieldValue.serverTimestamp(),
+            'metadata': {
+              'noteTitle': note?['title'] ?? 'Sin título',
+              'fromFolder': folderId,
+              'folderName': folder['name'] ?? 'Sin nombre',
+            },
+          });
+          created++;
+        }
+        if (created > 0) {
+          await batch.commit();
+          debugPrint('📝 shareFolder: creadas $created comparticiones de notas como pending');
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ shareFolder: no se pudieron crear comparticiones de notas: $e');
+    }
+
     // Enviar notificación al destinatario (no bloquear si falla)
     try {
       final notificationService = NotificationService();
@@ -1095,6 +1141,22 @@ class SharingService {
 
       debugPrint('📂 Cargando ${noteIds.length} notas de carpeta compartida $folderId');
 
+      // Backfill: ensure note-level shares exist (recipient creates allowed by security rules)
+      try {
+        await _backfillNoteSharesForFolder(
+          folderId: folderId,
+          noteIds: noteIds,
+          ownerId: ownerId,
+          recipientId: currentUser.uid,
+          recipientEmail: currentUser.email ?? '',
+          permission: sharing.permission,
+          folderName: folder['name'] ?? 'Sin nombre',
+          ownerEmail: sharing.ownerEmail,
+        );
+      } catch (e) {
+        debugPrint('⚠️ Backfill de comparticiones de notas falló: $e');
+      }
+
       // Obtener cada nota (ahora deberían tener permisos porque se crearon shared_items automáticamente)
       for (final noteId in noteIds) {
         try {
@@ -1128,6 +1190,50 @@ class SharingService {
     } catch (e) {
       debugPrint('❌ Error en getNotesInSharedFolder: $e');
       return [];
+    }
+  }
+
+  /// Backfill de comparticiones de notas cuando se accede a una carpeta compartida aceptada
+  Future<void> _backfillNoteSharesForFolder({
+    required String folderId,
+    required List<String> noteIds,
+    required String ownerId,
+    required String ownerEmail,
+    required String recipientId,
+    required String recipientEmail,
+    required PermissionLevel permission,
+    required String folderName,
+  }) async {
+    if (noteIds.isEmpty) return;
+    final batch = _firestore.batch();
+    int toCreate = 0;
+    for (final noteId in noteIds) {
+      final shareId = '${recipientId}_${ownerId}_$noteId';
+      final docRef = _firestore.collection('shared_items').doc(shareId);
+      final snap = await docRef.get();
+      if (snap.exists) continue;
+      // Creamos como receptor (permitido por reglas) con metadata.fromFolder
+      batch.set(docRef, {
+        'itemId': noteId,
+        'type': SharedItemType.note.name,
+        'ownerId': ownerId,
+        'ownerEmail': ownerEmail,
+        'recipientId': recipientId,
+        'recipientEmail': recipientEmail,
+        'permission': permission.name,
+        'status': SharingStatus.accepted.name,
+        'createdAt': fs.FieldValue.serverTimestamp(),
+        'updatedAt': fs.FieldValue.serverTimestamp(),
+        'metadata': {
+          'fromFolder': folderId,
+          'folderName': folderName,
+        },
+      });
+      toCreate++;
+    }
+    if (toCreate > 0) {
+      await batch.commit();
+      debugPrint('✅ Backfill: creadas $toCreate comparticiones de notas para carpeta $folderId');
     }
   }
 

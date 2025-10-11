@@ -53,9 +53,26 @@ service cloud.firestore {
 
     // Shared items with deterministic ID: recipient_owner_item
     match /shared_items/{shareId} {
-      allow create: if isAuthed() &&
-        request.resource.data.ownerId == request.auth.uid &&
-        shareId == (request.resource.data.recipientId + '_' + request.resource.data.ownerId + '_' + request.resource.data.itemId);
+      // Create rules:
+      // 1) Owner can create any share (notes or folders) for a recipient
+      // 2) Recipient can create NOTE shares if there's an accepted FOLDER share for the same owner
+      allow create: if isAuthed() && (
+        (
+          // Owner-created share
+          request.resource.data.ownerId == request.auth.uid &&
+          shareId == (request.resource.data.recipientId + '_' + request.resource.data.ownerId + '_' + request.resource.data.itemId)
+        ) || (
+          // Recipient-created note share (backfill from accepted folder share)
+          request.resource.data.type == 'note' &&
+          request.resource.data.recipientId == request.auth.uid &&
+          // Ensure the folder share exists and is accepted
+          request.resource.data.metadata.fromFolder is string &&
+          exists(/databases/$(database)/documents/shared_items/$(request.resource.data.recipientId + '_' + request.resource.data.ownerId + '_' + request.resource.data.metadata.fromFolder)) &&
+          get(/databases/$(database)/documents/shared_items/$(request.resource.data.recipientId + '_' + request.resource.data.ownerId + '_' + request.resource.data.metadata.fromFolder)).data.status == 'accepted' &&
+          // Enforce deterministic ID for the note share as well
+          shareId == (request.resource.data.recipientId + '_' + request.resource.data.ownerId + '_' + request.resource.data.itemId)
+        )
+      );
 
       // Allow reads if authenticated and either:
       // - the doc doesn't exist (so clients can check if a share already exists), or
