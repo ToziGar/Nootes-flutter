@@ -515,6 +515,17 @@ class _SettingsPageState extends State<SettingsPage> {
   final organizationCtrl = TextEditingController(text: (data?['organization'] ?? '').toString());
   final roleCtrl = TextEditingController(text: (data?['role'] ?? '').toString());
   String selectedLanguage = (data?['language'] ?? _language);
+  // Normaliza a valores permitidos por el Dropdown
+  if (selectedLanguage != 'Español' && selectedLanguage != 'English') {
+    final lower = selectedLanguage.toString().toLowerCase();
+    if (lower == 'es' || lower.startsWith('es')) {
+      selectedLanguage = 'Español';
+    } else if (lower == 'en' || lower.startsWith('en')) {
+      selectedLanguage = 'English';
+    } else {
+      selectedLanguage = (_language == 'Español' || _language == 'English') ? _language : 'Español';
+    }
+  }
   final formKey = GlobalKey<FormState>();
 
     await showModalBottomSheet(
