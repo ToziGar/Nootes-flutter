@@ -51,7 +51,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     _load();
     _loadEditorConfig();
     _title.addListener(_scheduleAutoSave);
-  _content.addListener(_scheduleAutoSave);
+    _content.addListener(_scheduleAutoSave);
   }
 
   Future<void> _loadEditorConfig() async {
@@ -83,7 +83,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     final svc = FirestoreService.instance;
     final uid = _uid;
     final n = await svc.getNote(uid: uid, noteId: widget.noteId);
-    
+
     // Check permissions for this note
     String? noteOwnerId;
     if (n != null) {
@@ -94,26 +94,37 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       // For now, we'll handle this case later - assume owned if found
       noteOwnerId = uid;
     }
-    
-  await SharingService().checkNoteAccess(widget.noteId, noteOwnerId);
-    
+
+    await SharingService().checkNoteAccess(widget.noteId, noteOwnerId);
+
     final cols = await svc.listCollections(uid: uid);
     final allNotes = await svc.listNotes(uid: uid);
-    final outgoing = await svc.listOutgoingLinks(uid: uid, noteId: widget.noteId);
-    final incoming = await svc.listIncomingLinks(uid: uid, noteId: widget.noteId);
+    final outgoing = await svc.listOutgoingLinks(
+      uid: uid,
+      noteId: widget.noteId,
+    );
+    final incoming = await svc.listIncomingLinks(
+      uid: uid,
+      noteId: widget.noteId,
+    );
     setState(() {
       _title.text = (n?['title']?.toString() ?? '');
       _content.text = (n?['content']?.toString() ?? '');
-      _tags = List<String>.from((n?['tags'] as List?)?.whereType<String>() ?? const []);
+      _tags = List<String>.from(
+        (n?['tags'] as List?)?.whereType<String>() ?? const [],
+      );
       _collectionId = n?['collectionId']?.toString();
       _collections = cols;
       _outgoing = outgoing;
       _incoming = incoming;
-      _otherNotes = allNotes.where((x) => x['id'].toString() != widget.noteId).toList();
+      _otherNotes = allNotes
+          .where((x) => x['id'].toString() != widget.noteId)
+          .toList();
       // Index for wikilinks removed in Quill path
       // Map for labels: keep the raw title (may be empty) so we can render "Title (ID)" cleanly
       _idToTitle = {
-        for (final m in allNotes) m['id'].toString(): (m['title']?.toString() ?? ''),
+        for (final m in allNotes)
+          m['id'].toString(): (m['title']?.toString() ?? ''),
       };
       _loading = false;
     });
@@ -135,15 +146,18 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   Future<void> _save({bool autosave = false}) async {
     setState(() => _saving = true);
     try {
-      final data = {
-        'title': _title.text,
-        'content': _content.text,
-      };
+      final data = {'title': _title.text, 'content': _content.text};
       if (_richJson.isNotEmpty) data['rich'] = _richJson;
-      await FirestoreService.instance.updateNote(uid: _uid, noteId: widget.noteId, data: data);
+      await FirestoreService.instance.updateNote(
+        uid: _uid,
+        noteId: widget.noteId,
+        data: data,
+      );
       if (widget.onChanged != null) await widget.onChanged!();
       if (mounted && !autosave) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Guardado')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -155,7 +169,11 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   Future<void> _setCollection(String? v) async {
     setState(() => _saving = true);
     try {
-      await FirestoreService.instance.moveNoteToCollection(uid: _uid, noteId: widget.noteId, collectionId: (v ?? '').isEmpty ? null : v);
+      await FirestoreService.instance.moveNoteToCollection(
+        uid: _uid,
+        noteId: widget.noteId,
+        collectionId: (v ?? '').isEmpty ? null : v,
+      );
       setState(() => _collectionId = v);
       if (widget.onChanged != null) await widget.onChanged!();
     } finally {
@@ -164,25 +182,41 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   }
 
   Future<void> _addTag(String tag) async {
-    await FirestoreService.instance.addTagToNote(uid: _uid, noteId: widget.noteId, tag: tag);
+    await FirestoreService.instance.addTagToNote(
+      uid: _uid,
+      noteId: widget.noteId,
+      tag: tag,
+    );
     await _load();
     if (widget.onChanged != null) await widget.onChanged!();
   }
 
   Future<void> _removeTag(String tag) async {
-    await FirestoreService.instance.removeTagFromNote(uid: _uid, noteId: widget.noteId, tag: tag);
+    await FirestoreService.instance.removeTagFromNote(
+      uid: _uid,
+      noteId: widget.noteId,
+      tag: tag,
+    );
     await _load();
     if (widget.onChanged != null) await widget.onChanged!();
   }
 
   Future<void> _addLink(String toId) async {
-    await FirestoreService.instance.addLink(uid: _uid, fromNoteId: widget.noteId, toNoteId: toId);
+    await FirestoreService.instance.addLink(
+      uid: _uid,
+      fromNoteId: widget.noteId,
+      toNoteId: toId,
+    );
     await _load();
     if (widget.onChanged != null) await widget.onChanged!();
   }
 
   Future<void> _removeLink(String toId) async {
-    await FirestoreService.instance.removeLink(uid: _uid, fromNoteId: widget.noteId, toNoteId: toId);
+    await FirestoreService.instance.removeLink(
+      uid: _uid,
+      fromNoteId: widget.noteId,
+      toNoteId: toId,
+    );
     await _load();
     if (widget.onChanged != null) await widget.onChanged!();
   }
@@ -215,7 +249,13 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
           ),
           IconButton(
             onPressed: _saving ? null : () => _save(),
-            icon: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save_rounded),
+            icon: _saving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save_rounded),
             tooltip: 'Guardar',
           ),
         ],
@@ -245,12 +285,22 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                           prefixIcon: Icon(Icons.folder_outlined),
                         ),
                         items: [
-                          DropdownMenuItem<String?>(value: null, child: Text('Sin colección')),
-                          DropdownMenuItem<String?>(value: '', child: Text('Sin colección')),
-                          ..._collections.map((c) => DropdownMenuItem<String?>(
-                                value: c['id'].toString(),
-                                child: Text(c['name']?.toString() ?? c['id'].toString()),
-                              )),
+                          DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('Sin colección'),
+                          ),
+                          DropdownMenuItem<String?>(
+                            value: '',
+                            child: Text('Sin colección'),
+                          ),
+                          ..._collections.map(
+                            (c) => DropdownMenuItem<String?>(
+                              value: c['id'].toString(),
+                              child: Text(
+                                c['name']?.toString() ?? c['id'].toString(),
+                              ),
+                            ),
+                          ),
                         ],
                         onChanged: (v) => _setCollection(v),
                       ),
@@ -266,7 +316,8 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         ),
                         child: QuillEditorWidget(
                           uid: _uid,
-                          initialDeltaJson: null, // Could load from note['rich'] if present
+                          initialDeltaJson:
+                              null, // Could load from note['rich'] if present
                           onChanged: (deltaJson) async {
                             // Keep latest rich in memory; actual save occurs via autosave/_save
                             _content.removeListener(_scheduleAutoSave);
@@ -289,7 +340,10 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text('Etiquetas', style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Etiquetas',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       const SizedBox(height: 6),
                       TagInput(
                         initialTags: _tags,
@@ -297,11 +351,20 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         onRemove: (t) => _removeTag(t),
                       ),
                       const SizedBox(height: 12),
-                      Text('Enlaces (grafo)', style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Enlaces (grafo)',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       if (_autoSaving)
                         const Padding(
                           padding: EdgeInsets.only(top: 4, bottom: 4),
-                          child: Text('Guardando...', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                          child: Text(
+                            'Guardando...',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white70,
+                            ),
+                          ),
                         ),
                       const SizedBox(height: 6),
                       Row(
@@ -312,15 +375,13 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                                 labelText: 'Añadir enlace a…',
                                 prefixIcon: Icon(Icons.link_rounded),
                               ),
-                              items: _otherNotes
-                                  .map((n) {
-                                    final id = n['id'].toString();
-                                    return DropdownMenuItem<String?>(
-                                      value: id,
-                                      child: Text(_labelFor(id)),
-                                    );
-                                  })
-                                  .toList(),
+                              items: _otherNotes.map((n) {
+                                final id = n['id'].toString();
+                                return DropdownMenuItem<String?>(
+                                  value: id,
+                                  child: Text(_labelFor(id)),
+                                );
+                              }).toList(),
                               onChanged: (v) async {
                                 if (v == null || v.isEmpty) return;
                                 await _addLink(v);
@@ -338,63 +399,118 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                                       final selected = await showDialog<String?>(
                                         context: context,
                                         builder: (context) {
-                                          List<Map<String, dynamic>> results = List.from(_otherNotes);
-                                          return StatefulBuilder(builder: (context, setState) {
-                                            void doFilter(String q) {
-                                              final qq = q.trim().toLowerCase();
-                                              setState(() {
-                                                results = _otherNotes
-                                                    .where((n) {
-                                                      final title = (n['title']?.toString() ?? '').toLowerCase();
-                                                      final id = n['id'].toString().toLowerCase();
-                                                      return title.contains(qq) || id.contains(qq);
-                                                    })
-                                                    .toList();
-                                              });
-                                            }
+                                          List<Map<String, dynamic>> results =
+                                              List.from(_otherNotes);
+                                          return StatefulBuilder(
+                                            builder: (context, setState) {
+                                              void doFilter(String q) {
+                                                final qq = q
+                                                    .trim()
+                                                    .toLowerCase();
+                                                setState(() {
+                                                  results = _otherNotes.where((
+                                                    n,
+                                                  ) {
+                                                    final title =
+                                                        (n['title']?.toString() ??
+                                                                '')
+                                                            .toLowerCase();
+                                                    final id = n['id']
+                                                        .toString()
+                                                        .toLowerCase();
+                                                    return title.contains(qq) ||
+                                                        id.contains(qq);
+                                                  }).toList();
+                                                });
+                                              }
 
-                                            return AlertDialog(
-                                              title: const Text('Crear enlace a...'),
-                                              content: SizedBox(
-                                                width: 480,
-                                                height: 380,
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                                  children: [
-                                                    TextField(
-                                                      decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Buscar nota por título o id'),
-                                                      onChanged: doFilter,
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    Expanded(
-                                                      child: results.isEmpty
-                                                          ? const Center(child: Text('No hay notas que coincidan'))
-                                                          : ListView.separated(
-                                                              itemCount: results.length,
-                                                              separatorBuilder: (_, __) => const Divider(height: 1),
-                                                              itemBuilder: (context, i) {
-                                                                final n = results[i];
-                                                                final id = n['id'].toString();
-                                                                final title = (n['title']?.toString() ?? 'Sin título');
-                                                                return ListTile(
-                                                                  title: Text(title),
-                                                                  subtitle: Text(_shortId(id)),
-                                                                  onTap: () => Navigator.pop(context, id),
-                                                                );
-                                                              },
-                                                            ),
-                                                    ),
-                                                  ],
+                                              return AlertDialog(
+                                                title: const Text(
+                                                  'Crear enlace a...',
                                                 ),
-                                              ),
-                                              actions: [
-                                                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-                                              ],
-                                            );
-                                          });
+                                                content: SizedBox(
+                                                  width: 480,
+                                                  height: 380,
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .stretch,
+                                                    children: [
+                                                      TextField(
+                                                        decoration:
+                                                            const InputDecoration(
+                                                              prefixIcon: Icon(
+                                                                Icons.search,
+                                                              ),
+                                                              hintText:
+                                                                  'Buscar nota por título o id',
+                                                            ),
+                                                        onChanged: doFilter,
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      Expanded(
+                                                        child: results.isEmpty
+                                                            ? const Center(
+                                                                child: Text(
+                                                                  'No hay notas que coincidan',
+                                                                ),
+                                                              )
+                                                            : ListView.separated(
+                                                                itemCount:
+                                                                    results
+                                                                        .length,
+                                                                separatorBuilder:
+                                                                    (_, __) =>
+                                                                        const Divider(
+                                                                          height:
+                                                                              1,
+                                                                        ),
+                                                                itemBuilder: (context, i) {
+                                                                  final n =
+                                                                      results[i];
+                                                                  final id = n['id']
+                                                                      .toString();
+                                                                  final title =
+                                                                      (n['title']
+                                                                          ?.toString() ??
+                                                                      'Sin título');
+                                                                  return ListTile(
+                                                                    title: Text(
+                                                                      title,
+                                                                    ),
+                                                                    subtitle: Text(
+                                                                      _shortId(
+                                                                        id,
+                                                                      ),
+                                                                    ),
+                                                                    onTap: () =>
+                                                                        Navigator.pop(
+                                                                          context,
+                                                                          id,
+                                                                        ),
+                                                                  );
+                                                                },
+                                                              ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(context),
+                                                    child: const Text(
+                                                      'Cancelar',
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
                                         },
                                       );
-                                      if (selected != null && selected.isNotEmpty) {
+                                      if (selected != null &&
+                                          selected.isNotEmpty) {
                                         await _addLink(selected);
                                       }
                                     },
@@ -405,46 +521,66 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text('Enlaces salientes', style: Theme.of(context).textTheme.titleSmall),
+                      Text(
+                        'Enlaces salientes',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
                       const SizedBox(height: 4),
                       _outgoing.isEmpty
                           ? const Text('Sin enlaces')
                           : Wrap(
-                            spacing: 6,
-                            runSpacing: -6,
-                            children: _outgoing
-                                .map((to) => InputChip(
+                              spacing: 6,
+                              runSpacing: -6,
+                              children: _outgoing
+                                  .map(
+                                    (to) => InputChip(
                                       label: Text(_labelFor(to)),
                                       onDeleted: () => _removeLink(to),
                                       onPressed: () async {
                                         await Navigator.of(context).push(
-                                          MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: to, onChanged: widget.onChanged)),
+                                          MaterialPageRoute(
+                                            builder: (_) => NoteEditorPage(
+                                              noteId: to,
+                                              onChanged: widget.onChanged,
+                                            ),
+                                          ),
                                         );
-                                          await _load();
-                                        },
-                                      ))
+                                        await _load();
+                                      },
+                                    ),
+                                  )
                                   .toList(),
                             ),
                       const SizedBox(height: 12),
-                      Text('Enlaces entrantes', style: Theme.of(context).textTheme.titleSmall),
+                      Text(
+                        'Enlaces entrantes',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
                       const SizedBox(height: 4),
                       _incoming.isEmpty
                           ? const Text('Sin enlaces hacia esta nota')
                           : Wrap(
-                            spacing: 6,
-                            runSpacing: -6,
-                            children: _incoming
-                                .map((from) => ActionChip(
+                              spacing: 6,
+                              runSpacing: -6,
+                              children: _incoming
+                                  .map(
+                                    (from) => ActionChip(
                                       label: Text(_labelFor(from)),
                                       onPressed: () async {
                                         await Navigator.of(context).push(
-                                          MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: from, onChanged: widget.onChanged)),
+                                          MaterialPageRoute(
+                                            builder: (_) => NoteEditorPage(
+                                              noteId: from,
+                                              onChanged: widget.onChanged,
+                                            ),
+                                          ),
                                         );
                                         await _load();
                                       },
-                                    ))
-                                .toList(),
-                          ),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
                     ],
                   ),
                 ),
@@ -453,7 +589,3 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     );
   }
 }
-
-
-
-

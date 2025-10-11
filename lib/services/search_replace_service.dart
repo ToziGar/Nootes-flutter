@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 /// Servicio para búsqueda y reemplazo en el editor
 class SearchReplaceService {
-  static final SearchReplaceService _instance = SearchReplaceService._internal();
+  static final SearchReplaceService _instance =
+      SearchReplaceService._internal();
   factory SearchReplaceService() => _instance;
   SearchReplaceService._internal();
 
@@ -37,7 +38,8 @@ class SearchReplaceService {
   }
 
   /// Busca texto en el documento
-  List<SearchMatch> search(String searchTerm, {
+  List<SearchMatch> search(
+    String searchTerm, {
     bool caseSensitive = false,
     bool wholeWord = false,
     bool useRegex = false,
@@ -52,7 +54,7 @@ class SearchReplaceService {
     _caseSensitive = caseSensitive;
     _wholeWord = wholeWord;
     _useRegex = useRegex;
-    
+
     final text = _controller!.text;
     _matches.clear();
     _currentMatchIndex = -1;
@@ -76,35 +78,43 @@ class SearchReplaceService {
   }
 
   /// Busca texto plano
-  void _searchPlainText(String text, String searchTerm, bool caseSensitive, bool wholeWord) {
+  void _searchPlainText(
+    String text,
+    String searchTerm,
+    bool caseSensitive,
+    bool wholeWord,
+  ) {
     String searchText = caseSensitive ? text : text.toLowerCase();
     String term = caseSensitive ? searchTerm : searchTerm.toLowerCase();
-    
+
     int index = 0;
     while (index < searchText.length) {
       index = searchText.indexOf(term, index);
       if (index == -1) break;
-      
+
       // Verificar si es palabra completa
       if (wholeWord) {
         final isWordStart = index == 0 || !_isWordCharacter(text[index - 1]);
-        final isWordEnd = (index + term.length >= text.length) || 
-                         !_isWordCharacter(text[index + term.length]);
-        
+        final isWordEnd =
+            (index + term.length >= text.length) ||
+            !_isWordCharacter(text[index + term.length]);
+
         if (!isWordStart || !isWordEnd) {
           index++;
           continue;
         }
       }
-      
-      _matches.add(SearchMatch(
-        start: index,
-        end: index + searchTerm.length,
-        text: text.substring(index, index + searchTerm.length),
-        lineNumber: _getLineNumber(text, index),
-        columnNumber: _getColumnNumber(text, index),
-      ));
-      
+
+      _matches.add(
+        SearchMatch(
+          start: index,
+          end: index + searchTerm.length,
+          text: text.substring(index, index + searchTerm.length),
+          lineNumber: _getLineNumber(text, index),
+          columnNumber: _getColumnNumber(text, index),
+        ),
+      );
+
       index += searchTerm.length;
     }
   }
@@ -112,24 +122,26 @@ class SearchReplaceService {
   /// Busca con expresiones regulares
   void _searchWithRegex(String text, String pattern, bool caseSensitive) {
     final regex = RegExp(pattern, caseSensitive: caseSensitive);
-    
+
     final regexMatches = regex.allMatches(text);
     for (final match in regexMatches) {
-      _matches.add(SearchMatch(
-        start: match.start,
-        end: match.end,
-        text: match.group(0) ?? '',
-        lineNumber: _getLineNumber(text, match.start),
-        columnNumber: _getColumnNumber(text, match.start),
-        groups: match.groups(List.generate(match.groupCount + 1, (i) => i)),
-      ));
+      _matches.add(
+        SearchMatch(
+          start: match.start,
+          end: match.end,
+          text: match.group(0) ?? '',
+          lineNumber: _getLineNumber(text, match.start),
+          columnNumber: _getColumnNumber(text, match.start),
+          groups: match.groups(List.generate(match.groupCount + 1, (i) => i)),
+        ),
+      );
     }
   }
 
   /// Navega a la siguiente coincidencia
   bool goToNext() {
     if (_matches.isEmpty) return false;
-    
+
     _currentMatchIndex = (_currentMatchIndex + 1) % _matches.length;
     _scrollToCurrentMatch();
     return true;
@@ -138,8 +150,9 @@ class SearchReplaceService {
   /// Navega a la coincidencia anterior
   bool goToPrevious() {
     if (_matches.isEmpty) return false;
-    
-    _currentMatchIndex = (_currentMatchIndex - 1 + _matches.length) % _matches.length;
+
+    _currentMatchIndex =
+        (_currentMatchIndex - 1 + _matches.length) % _matches.length;
     _scrollToCurrentMatch();
     return true;
   }
@@ -147,7 +160,7 @@ class SearchReplaceService {
   /// Navega a una coincidencia específica
   bool goToMatch(int index) {
     if (index < 0 || index >= _matches.length) return false;
-    
+
     _currentMatchIndex = index;
     _scrollToCurrentMatch();
     return true;
@@ -156,21 +169,22 @@ class SearchReplaceService {
   /// Reemplaza la coincidencia actual
   bool replaceCurrent(String replacement) {
     if (_controller == null || currentMatch == null) return false;
-    
+
     final match = currentMatch!;
     final text = _controller!.text;
-    
+
     // Aplicar reemplazo
-    final newText = text.substring(0, match.start) + 
-                   replacement + 
-                   text.substring(match.end);
-    
+    final newText =
+        text.substring(0, match.start) +
+        replacement +
+        text.substring(match.end);
+
     _controller!.text = newText;
-    
+
     // Actualizar posiciones de las coincidencias restantes
     final lengthDiff = replacement.length - (match.end - match.start);
     _matches.removeAt(_currentMatchIndex);
-    
+
     for (int i = _currentMatchIndex; i < _matches.length; i++) {
       final m = _matches[i];
       _matches[i] = SearchMatch(
@@ -182,51 +196,56 @@ class SearchReplaceService {
         groups: m.groups,
       );
     }
-    
+
     // Ajustar índice actual
     if (_currentMatchIndex >= _matches.length && _matches.isNotEmpty) {
       _currentMatchIndex = _matches.length - 1;
     } else if (_matches.isEmpty) {
       _currentMatchIndex = -1;
     }
-    
+
     return true;
   }
 
   /// Reemplaza todas las coincidencias
   int replaceAll(String replacement) {
     if (_controller == null || _matches.isEmpty) return 0;
-    
+
     final text = _controller!.text;
     String newText = text;
     int replacements = 0;
-    
+
     // Reemplazar de atrás hacia adelante para no afectar las posiciones
     for (int i = _matches.length - 1; i >= 0; i--) {
       final match = _matches[i];
-      newText = newText.substring(0, match.start) + 
-               replacement + 
-               newText.substring(match.end);
+      newText =
+          newText.substring(0, match.start) +
+          replacement +
+          newText.substring(match.end);
       replacements++;
     }
-    
+
     _controller!.text = newText;
     _matches.clear();
     _currentMatchIndex = -1;
-    
+
     return replacements;
   }
 
   /// Busca y reemplaza en una sola operación
-  int findAndReplaceAll(String searchTerm, String replacement, {
+  int findAndReplaceAll(
+    String searchTerm,
+    String replacement, {
     bool caseSensitive = false,
     bool wholeWord = false,
     bool useRegex = false,
   }) {
-    search(searchTerm, 
-           caseSensitive: caseSensitive,
-           wholeWord: wholeWord,
-           useRegex: useRegex);
+    search(
+      searchTerm,
+      caseSensitive: caseSensitive,
+      wholeWord: wholeWord,
+      useRegex: useRegex,
+    );
     return replaceAll(replacement);
   }
 
@@ -250,45 +269,50 @@ class SearchReplaceService {
   }
 
   /// Resalta las coincidencias en el texto
-  TextSpan highlightMatches(String text, TextStyle defaultStyle, TextStyle highlightStyle) {
+  TextSpan highlightMatches(
+    String text,
+    TextStyle defaultStyle,
+    TextStyle highlightStyle,
+  ) {
     if (_matches.isEmpty) {
       return TextSpan(text: text, style: defaultStyle);
     }
-    
+
     final spans = <TextSpan>[];
     int lastEnd = 0;
-    
+
     for (int i = 0; i < _matches.length; i++) {
       final match = _matches[i];
-      
+
       // Agregar texto antes de la coincidencia
       if (match.start > lastEnd) {
-        spans.add(TextSpan(
-          text: text.substring(lastEnd, match.start),
-          style: defaultStyle,
-        ));
+        spans.add(
+          TextSpan(
+            text: text.substring(lastEnd, match.start),
+            style: defaultStyle,
+          ),
+        );
       }
-      
+
       // Agregar coincidencia resaltada
       final isCurrentMatch = i == _currentMatchIndex;
-      spans.add(TextSpan(
-        text: text.substring(match.start, match.end),
-        style: isCurrentMatch 
-            ? highlightStyle.copyWith(backgroundColor: Colors.orange)
-            : highlightStyle,
-      ));
-      
+      spans.add(
+        TextSpan(
+          text: text.substring(match.start, match.end),
+          style: isCurrentMatch
+              ? highlightStyle.copyWith(backgroundColor: Colors.orange)
+              : highlightStyle,
+        ),
+      );
+
       lastEnd = match.end;
     }
-    
+
     // Agregar texto restante
     if (lastEnd < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(lastEnd),
-        style: defaultStyle,
-      ));
+      spans.add(TextSpan(text: text.substring(lastEnd), style: defaultStyle));
     }
-    
+
     return TextSpan(children: spans);
   }
 
@@ -312,7 +336,7 @@ class SearchReplaceService {
   /// Hace scroll hacia la coincidencia actual
   void _scrollToCurrentMatch() {
     if (_controller == null || currentMatch == null) return;
-    
+
     final match = currentMatch!;
     _controller!.selection = TextSelection(
       baseOffset: match.start,
@@ -419,7 +443,7 @@ class _SearchReplacePanelState extends State<SearchReplacePanel> {
   @override
   Widget build(BuildContext context) {
     final stats = widget.service.getSearchStats();
-    
+
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -450,25 +474,32 @@ class _SearchReplacePanelState extends State<SearchReplacePanel> {
                       ],
                     ),
                     border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                   onChanged: (_) => _performSearch(),
                   onSubmitted: (_) => widget.service.goToNext(),
                 ),
               ),
               IconButton(
-                onPressed: widget.service.hasMatches ? () {
-                  widget.service.goToPrevious();
-                  setState(() {});
-                } : null,
+                onPressed: widget.service.hasMatches
+                    ? () {
+                        widget.service.goToPrevious();
+                        setState(() {});
+                      }
+                    : null,
                 icon: const Icon(Icons.keyboard_arrow_up),
                 tooltip: 'Anterior',
               ),
               IconButton(
-                onPressed: widget.service.hasMatches ? () {
-                  widget.service.goToNext();
-                  setState(() {});
-                } : null,
+                onPressed: widget.service.hasMatches
+                    ? () {
+                        widget.service.goToNext();
+                        setState(() {});
+                      }
+                    : null,
                 icon: const Icon(Icons.keyboard_arrow_down),
                 tooltip: 'Siguiente',
               ),
@@ -478,7 +509,9 @@ class _SearchReplacePanelState extends State<SearchReplacePanel> {
                     _showReplace = !_showReplace;
                   });
                 },
-                icon: Icon(_showReplace ? Icons.find_replace : Icons.find_in_page),
+                icon: Icon(
+                  _showReplace ? Icons.find_replace : Icons.find_in_page,
+                ),
                 tooltip: _showReplace ? 'Solo buscar' : 'Buscar y reemplazar',
               ),
               IconButton(
@@ -488,7 +521,7 @@ class _SearchReplacePanelState extends State<SearchReplacePanel> {
               ),
             ],
           ),
-          
+
           // Opciones de búsqueda
           Row(
             children: [
@@ -526,7 +559,7 @@ class _SearchReplacePanelState extends State<SearchReplacePanel> {
               const Text('.*'),
             ],
           ),
-          
+
           // Barra de reemplazo
           if (_showReplace) ...[
             const SizedBox(height: 8),
@@ -539,28 +572,41 @@ class _SearchReplacePanelState extends State<SearchReplacePanel> {
                       hintText: 'Reemplazar con...',
                       prefixIcon: Icon(Icons.find_replace),
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                   ),
                 ),
                 IconButton(
-                  onPressed: widget.service.hasMatches ? () {
-                    widget.service.replaceCurrent(_replaceController.text);
-                    widget.onReplace(_replaceController.text);
-                    setState(() {});
-                  } : null,
+                  onPressed: widget.service.hasMatches
+                      ? () {
+                          widget.service.replaceCurrent(
+                            _replaceController.text,
+                          );
+                          widget.onReplace(_replaceController.text);
+                          setState(() {});
+                        }
+                      : null,
                   icon: const Icon(Icons.find_replace),
                   tooltip: 'Reemplazar',
                 ),
                 IconButton(
-                  onPressed: widget.service.hasMatches ? () {
-                    final count = widget.service.replaceAll(_replaceController.text);
-                    widget.onReplace(_replaceController.text);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('$count reemplazos realizados')),
-                    );
-                    setState(() {});
-                  } : null,
+                  onPressed: widget.service.hasMatches
+                      ? () {
+                          final count = widget.service.replaceAll(
+                            _replaceController.text,
+                          );
+                          widget.onReplace(_replaceController.text);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('$count reemplazos realizados'),
+                            ),
+                          );
+                          setState(() {});
+                        }
+                      : null,
                   icon: const Icon(Icons.select_all),
                   tooltip: 'Reemplazar todo',
                 ),

@@ -33,13 +33,13 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
   bool _showActivity = false;
   Map<String, dynamic>? _noteData;
   List<String> _collaboratorIds = [];
-  
+
   // Estado de comentarios
   final TextEditingController _commentController = TextEditingController();
   bool _isSendingComment = false;
   String? _editingCommentId;
   String? _replyingToCommentId;
-  
+
   @override
   void initState() {
     super.initState();
@@ -57,8 +57,22 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
 
   Future<void> _loadNote() async {
     setState(() => _isLoading = true);
-    
+
     try {
+      // Bloquear acceso si aún no está aceptado y no eres el propietario
+      final currentUid = AuthService.instance.currentUser?.uid;
+      final isOwner =
+          currentUid != null && currentUid == widget.sharingInfo.ownerId;
+      if (widget.sharingInfo.status != SharingStatus.accepted && !isOwner) {
+        if (mounted) {
+          ToastService.info(
+            'Debes aceptar la invitación para abrir esta nota.',
+          );
+          Navigator.pop(context);
+        }
+        return;
+      }
+
       final doc = await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.sharingInfo.ownerId)
@@ -76,7 +90,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
 
       final data = doc.data()!;
       final content = data['content'] as String? ?? '';
-      
+
       quill.Document document;
       if (content.isEmpty) {
         document = quill.Document()..insert(0, '');
@@ -115,7 +129,9 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
       debugPrint('❌ Error cargando nota: $e');
       if (!mounted) return;
       // Mensaje amigable si es permisos
-      final msg = e.toString().contains('permission-denied') || e.toString().contains('Missing or insufficient permissions')
+      final msg =
+          e.toString().contains('permission-denied') ||
+              e.toString().contains('Missing or insufficient permissions')
           ? 'No tienes permisos para abrir esta nota. Asegúrate de que la compartición está aceptada.'
           : 'Error cargando la nota: $e';
       ToastService.error(msg);
@@ -127,14 +143,19 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
     try {
       final sharingService = SharingService();
       final shares = await sharingService.getSharedByMe();
-      
-      final noteShares = shares.where((share) => 
-        share.itemId == widget.noteId &&
-        share.status == SharingStatus.accepted
-      ).toList();
 
-      final collaboratorIds = noteShares.map((share) => share.recipientId).toList();
-      
+      final noteShares = shares
+          .where(
+            (share) =>
+                share.itemId == widget.noteId &&
+                share.status == SharingStatus.accepted,
+          )
+          .toList();
+
+      final collaboratorIds = noteShares
+          .map((share) => share.recipientId)
+          .toList();
+
       // Añadir al propietario
       if (!collaboratorIds.contains(widget.sharingInfo.ownerId)) {
         collaboratorIds.insert(0, widget.sharingInfo.ownerId);
@@ -153,17 +174,14 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
 
     try {
       final json = jsonEncode(_controller!.document.toDelta().toJson());
-      
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.sharingInfo.ownerId)
           .collection('notes')
           .doc(widget.noteId)
-          .update({
-        'content': json,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      
+          .update({'content': json, 'updatedAt': FieldValue.serverTimestamp()});
+
       // Registrar actividad: nota editada
       await ActivityLogService().logActivity(
         noteId: widget.noteId,
@@ -182,7 +200,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
 
   bool get _hasCommentPermission {
     return widget.sharingInfo.permission == PermissionLevel.comment ||
-           widget.sharingInfo.permission == PermissionLevel.edit;
+        widget.sharingInfo.permission == PermissionLevel.edit;
   }
 
   @override
@@ -196,7 +214,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
           icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: _noteData == null 
+        title: _noteData == null
             ? Text('Cargando...')
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,7 +243,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
               padding: const EdgeInsets.only(right: 8),
               child: _buildCollaboratorsWidget(),
             ),
-          
+
           // Botón de comentarios
           if (_hasCommentPermission)
             IconButton(
@@ -233,7 +251,9 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                 children: [
                   Icon(
                     Icons.comment_rounded,
-                    color: _showComments ? AppColors.primary : AppColors.textSecondary,
+                    color: _showComments
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
                   ),
                   // Badge de comentarios sin leer (TODO: implementar)
                 ],
@@ -246,12 +266,14 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
               },
               tooltip: 'Comentarios',
             ),
-          
+
           // Botón de actividad
           IconButton(
             icon: Icon(
               Icons.history_rounded,
-              color: _showActivity ? AppColors.primary : AppColors.textSecondary,
+              color: _showActivity
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
             ),
             onPressed: () {
               setState(() {
@@ -261,7 +283,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
             },
             tooltip: 'Historial de actividad',
           ),
-          
+
           const SizedBox(width: 8),
         ],
       ),
@@ -274,7 +296,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                   flex: _showComments || _showActivity ? 2 : 3,
                   child: _buildEditor(),
                 ),
-                
+
                 // Panel lateral de comentarios
                 if (_showComments)
                   Container(
@@ -287,7 +309,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                     ),
                     child: _buildCommentsPanel(),
                   ),
-                
+
                 // Panel lateral de actividad
                 if (_showActivity)
                   Container(
@@ -302,7 +324,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                   ),
               ],
             ),
-      
+
       // FAB para comentarios en móvil
       floatingActionButton: _hasCommentPermission && !_showComments
           ? FloatingActionButton(
@@ -328,7 +350,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
       color: AppColors.bg,
       child: Column(
         children: [
-          // Toolbar si tiene permisos de edición  
+          // Toolbar si tiene permisos de edición
           if (_hasEditPermission)
             Container(
               decoration: BoxDecoration(
@@ -376,15 +398,13 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                 ),
               ),
             ),
-          
+
           // Editor
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(16),
               color: AppColors.bg,
-              child: quill.QuillEditor.basic(
-                controller: _controller!,
-              ),
+              child: quill.QuillEditor.basic(controller: _controller!),
             ),
           ),
         ],
@@ -411,11 +431,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
   }
 
   Widget _buildCollaboratorAvatar(String userId) {
-    return UserAvatar(
-      userId: userId,
-      size: 32,
-      showPresence: true,
-    );
+    return UserAvatar(userId: userId, size: 32, showPresence: true);
   }
 
   Widget _buildCommentsPanel() {
@@ -425,9 +441,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: AppColors.borderColor),
-            ),
+            border: Border(bottom: BorderSide(color: AppColors.borderColor)),
           ),
           child: Row(
             children: [
@@ -451,7 +465,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
             ],
           ),
         ),
-        
+
         // Lista de comentarios
         Expanded(
           child: StreamBuilder<List<Comment>>(
@@ -489,20 +503,14 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                       const SizedBox(height: 16),
                       Text(
                         'Sin comentarios',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         _hasCommentPermission
                             ? 'Sé el primero en comentar'
                             : 'Los comentarios aparecerán aquí',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[400],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[400]),
                       ),
                     ],
                   ),
@@ -519,10 +527,9 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
             },
           ),
         ),
-        
+
         // Input de comentario (solo si tiene permisos)
-        if (_hasCommentPermission)
-          _buildCommentInput(),
+        if (_hasCommentPermission) _buildCommentInput(),
       ],
     );
   }
@@ -534,9 +541,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: AppColors.borderColor),
-            ),
+            border: Border(bottom: BorderSide(color: AppColors.borderColor)),
           ),
           child: Row(
             children: [
@@ -560,7 +565,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
             ],
           ),
         ),
-        
+
         // Timeline de actividad
         Expanded(
           child: StreamBuilder<List<ActivityLog>>(
@@ -615,7 +620,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                 itemBuilder: (context, index) {
                   final activity = activities[index];
                   final isLast = index == activities.length - 1;
-                  
+
                   return _buildActivityItem(activity, isLast);
                 },
               );
@@ -640,24 +645,13 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
               decoration: BoxDecoration(
                 color: activity.color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: activity.color,
-                  width: 2,
-                ),
+                border: Border.all(color: activity.color, width: 2),
               ),
-              child: Icon(
-                activity.icon,
-                size: 20,
-                color: activity.color,
-              ),
+              child: Icon(activity.icon, size: 20, color: activity.color),
             ),
             // Vertical line
             if (!isLast)
-              Container(
-                width: 2,
-                height: 60,
-                color: Colors.grey[300],
-              ),
+              Container(width: 2, height: 60, color: Colors.grey[300]),
           ],
         ),
         const SizedBox(width: 16),
@@ -736,7 +730,9 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: comment.isDeleted ? Colors.red.shade200 : AppColors.borderColor,
+          color: comment.isDeleted
+              ? Colors.red.shade200
+              : AppColors.borderColor,
         ),
       ),
       child: Column(
@@ -766,10 +762,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                     ),
                     Text(
                       comment.timeAgo,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
-                      ),
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -809,9 +802,9 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                 ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Content (editable o no)
           if (isEditing)
             Column(
@@ -840,7 +833,9 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: _isSendingComment ? null : () => _updateComment(comment.id),
+                      onPressed: _isSendingComment
+                          ? null
+                          : () => _updateComment(comment.id),
                       child: _isSendingComment
                           ? SizedBox(
                               width: 16,
@@ -859,10 +854,12 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
               style: TextStyle(
                 fontSize: 14,
                 color: comment.isDeleted ? Colors.grey : AppColors.textPrimary,
-                fontStyle: comment.isDeleted ? FontStyle.italic : FontStyle.normal,
+                fontStyle: comment.isDeleted
+                    ? FontStyle.italic
+                    : FontStyle.normal,
               ),
             ),
-          
+
           // Actions (solo si no está eliminado)
           if (!comment.isDeleted && !isEditing)
             Padding(
@@ -882,14 +879,18 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                 ],
               ),
             ),
-          
+
           // Indicador de respuesta
           if (comment.parentCommentId != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Row(
                 children: [
-                  Icon(Icons.subdirectory_arrow_right, size: 16, color: Colors.grey),
+                  Icon(
+                    Icons.subdirectory_arrow_right,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     'En respuesta a un comentario',
@@ -907,9 +908,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: AppColors.borderColor),
-        ),
+        border: Border(top: BorderSide(color: AppColors.borderColor)),
         color: AppColors.bg,
       ),
       child: Column(
@@ -945,7 +944,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
                 ],
               ),
             ),
-          
+
           // Input field
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -1031,7 +1030,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
       setState(() {
         _replyingToCommentId = null;
       });
-      
+
       ToastService.success('Comentario publicado');
     } catch (e) {
       ToastService.error('Error al publicar: $e');
@@ -1051,12 +1050,12 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
 
     try {
       await CommentService().updateComment(commentId, content);
-      
+
       _commentController.clear();
       setState(() {
         _editingCommentId = null;
       });
-      
+
       ToastService.success('Comentario actualizado');
     } catch (e) {
       ToastService.error('Error al actualizar: $e');
@@ -1078,9 +1077,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: Text('Eliminar'),
           ),
         ],

@@ -42,12 +42,12 @@ class ActivityLogService {
           .doc(noteId)
           .collection('activity')
           .add({
-        'userId': user.uid,
-        'userEmail': user.email ?? 'Desconocido',
-        'type': type.name,
-        'timestamp': FieldValue.serverTimestamp(),
-        'metadata': metadata ?? {},
-      });
+            'userId': user.uid,
+            'userEmail': user.email ?? 'Desconocido',
+            'type': type.name,
+            'timestamp': FieldValue.serverTimestamp(),
+            'metadata': metadata ?? {},
+          });
 
       debugPrint('✅ Actividad registrada: ${type.name}');
     } catch (e) {
@@ -67,14 +67,18 @@ class ActivityLogService {
         .limit(100)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return ActivityLog.fromMap(doc.id, doc.data());
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            return ActivityLog.fromMap(doc.id, doc.data());
+          }).toList();
+        });
   }
 
   /// Obtiene el historial de actividad (snapshot único)
-  Future<List<ActivityLog>> getActivityHistory(String noteId, String ownerId, {int limit = 50}) async {
+  Future<List<ActivityLog>> getActivityHistory(
+    String noteId,
+    String ownerId, {
+    int limit = 50,
+  }) async {
     try {
       final snapshot = await _firestore
           .collection('users')
@@ -99,7 +103,7 @@ class ActivityLogService {
   Future<void> cleanOldActivity(String noteId, String ownerId) async {
     try {
       final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
-      
+
       final snapshot = await _firestore
           .collection('users')
           .doc(ownerId)
@@ -113,9 +117,11 @@ class ActivityLogService {
       for (final doc in snapshot.docs) {
         batch.delete(doc.reference);
       }
-      
+
       await batch.commit();
-      debugPrint('✅ Limpiado historial antiguo: ${snapshot.docs.length} entradas');
+      debugPrint(
+        '✅ Limpiado historial antiguo: ${snapshot.docs.length} entradas',
+      );
     } catch (e) {
       debugPrint('❌ Error limpiando historial: $e');
     }
@@ -232,7 +238,7 @@ class ActivityLog {
   /// Obtiene la descripción de la actividad
   String get description {
     final email = userEmail;
-    
+
     switch (type) {
       case ActivityType.noteCreated:
         return '$email creó esta nota';

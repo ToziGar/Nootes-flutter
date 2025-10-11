@@ -37,189 +37,203 @@ class FoldersPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(AppColors.space8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppColors.primary.withValues(alpha: 0.1), AppColors.primaryLight.withValues(alpha: 0.05)],
-                      ),
-                      borderRadius: BorderRadius.circular(AppColors.radiusSm),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                    ),
-                    child: const Icon(Icons.folder_rounded, color: AppColors.primary, size: 20),
-                  ),
-                  const SizedBox(width: AppColors.space12),
-                  const Expanded(
-                    child: Text(
-                      'Carpetas',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppColors.space12),
-              // Botón de crear carpeta más visible
-              FilledButton.icon(
-                onPressed: () => _showFolderDialog(context),
-                icon: const Icon(Icons.create_new_folder_rounded, size: 18),
-                label: const Text('Nueva carpeta'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppColors.space12,
-                    vertical: AppColors.space8,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppColors.radiusMd),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppColors.space8),
-              
-              // Menú de acciones rápidas
-              Wrap(
-                spacing: AppColors.space4,
-                runSpacing: AppColors.space4,
-                children: [
-                  _buildQuickActionButton(
-                    context: context,
-                    icon: Icons.add_rounded,
-                    label: 'Nota',
-                    color: AppColors.secondary,
-                    onPressed: () => _showCreateNoteMenu(context),
-                  ),
-                  _buildQuickActionButton(
-                    context: context,
-                    icon: Icons.search_rounded,
-                    label: 'Buscar',
-                    color: AppColors.accent,
-                    onPressed: () => _showSearchMenu(context),
-                  ),
-                  _buildQuickActionButton(
-                    context: context,
-                    icon: Icons.download_rounded,
-                    label: 'Exportar',
-                    color: AppColors.info,
-                    onPressed: () => _showExportMenu(context),
-                  ),
-                  _buildQuickActionButton(
-                    context: context,
-                    icon: Icons.delete_rounded,
-                    label: 'Papelera',
-                    color: Colors.orange,
-                    onPressed: () => _showTrashMenu(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppColors.space4),
-              // Hint de drag & drop
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppColors.space8,
-                  vertical: AppColors.space4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppColors.radiusSm),
-                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
-                ),
-                child: Row(
+                Row(
                   children: [
-                    const Icon(Icons.touch_app_rounded, size: 12, color: AppColors.accent),
-                    const SizedBox(width: AppColors.space4),
+                    Container(
+                      padding: const EdgeInsets.all(AppColors.space8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary.withValues(alpha: 0.1),
+                            AppColors.primaryLight.withValues(alpha: 0.05),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.folder_rounded,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: AppColors.space12),
                     const Expanded(
                       child: Text(
-                        'Mantén presionada una nota para arrastrarla',
+                        'Carpetas',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                           color: Colors.black87,
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-        ),
-        
-        // All notes option
-        _buildFolderTile(
-          context: context,
-          folder: null,
-          isSelected: selectedFolderId == null,
-          onTap: () => onFolderSelected(null),
-        ),
-
-        // Shared unified entry: Navigates to dedicated shared workspace
-        const SizedBox(height: AppColors.space8),
-        _buildVirtualTile(
-          context: context,
-          id: '__SHARED_CENTER__',
-          name: 'Compartidas',
-          icon: Icons.group_rounded,
-          color: AppColors.info,
-          isSelected: selectedFolderId == '__SHARED_CENTER__',
-          onTap: () {
-            Navigator.of(context).pushNamed('/shared-notes');
-          },
-        ),
-        
-        const Divider(color: AppColors.borderColor, height: 1),
-        
-        // Folders list
-        if (folders.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(AppColors.space24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.folder_open_rounded,
-                  size: 48,
-                  color: AppColors.textMuted,
-                ),
                 const SizedBox(height: AppColors.space12),
-                Text(
-                  'No hay carpetas',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                // Botón de crear carpeta más visible
+                FilledButton.icon(
+                  onPressed: () => _showFolderDialog(context),
+                  icon: const Icon(Icons.create_new_folder_rounded, size: 18),
+                  label: const Text('Nueva carpeta'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppColors.space12,
+                      vertical: AppColors.space8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppColors.space8),
-                Text(
-                  'Crea una carpeta para organizar tus notas',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 14,
+
+                // Menú de acciones rápidas
+                Wrap(
+                  spacing: AppColors.space4,
+                  runSpacing: AppColors.space4,
+                  children: [
+                    _buildQuickActionButton(
+                      context: context,
+                      icon: Icons.add_rounded,
+                      label: 'Nota',
+                      color: AppColors.secondary,
+                      onPressed: () => _showCreateNoteMenu(context),
+                    ),
+                    _buildQuickActionButton(
+                      context: context,
+                      icon: Icons.search_rounded,
+                      label: 'Buscar',
+                      color: AppColors.accent,
+                      onPressed: () => _showSearchMenu(context),
+                    ),
+                    _buildQuickActionButton(
+                      context: context,
+                      icon: Icons.download_rounded,
+                      label: 'Exportar',
+                      color: AppColors.info,
+                      onPressed: () => _showExportMenu(context),
+                    ),
+                    _buildQuickActionButton(
+                      context: context,
+                      icon: Icons.delete_rounded,
+                      label: 'Papelera',
+                      color: Colors.orange,
+                      onPressed: () => _showTrashMenu(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppColors.space4),
+                // Hint de drag & drop
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppColors.space8,
+                    vertical: AppColors.space4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                    border: Border.all(
+                      color: AppColors.accent.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.touch_app_rounded,
+                        size: 12,
+                        color: AppColors.accent,
+                      ),
+                      const SizedBox(width: AppColors.space4),
+                      const Expanded(
+                        child: Text(
+                          'Mantén presionada una nota para arrastrarla',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          )
-        else
-          ...folders.map((folder) => _buildFolderTile(
-            key: ValueKey(folder.id),
+          ),
+
+          // All notes option
+          _buildFolderTile(
             context: context,
-            folder: folder,
-            isSelected: folder.id == selectedFolderId,
-            onTap: () => onFolderSelected(folder.id),
-            onEdit: () => _showFolderDialog(context, folder: folder),
-            onDelete: () => _confirmDelete(context, folder),
-          )),
-        const SizedBox(height: AppColors.space16),
-      ],
+            folder: null,
+            isSelected: selectedFolderId == null,
+            onTap: () => onFolderSelected(null),
+          ),
+
+          // Shared unified entry: Navigates to dedicated shared workspace
+          const SizedBox(height: AppColors.space8),
+          _buildVirtualTile(
+            context: context,
+            id: '__SHARED_CENTER__',
+            name: 'Compartidas',
+            icon: Icons.group_rounded,
+            color: AppColors.info,
+            isSelected: selectedFolderId == '__SHARED_CENTER__',
+            onTap: () {
+              Navigator.of(context).pushNamed('/shared-notes');
+            },
+          ),
+
+          const Divider(color: AppColors.borderColor, height: 1),
+
+          // Folders list
+          if (folders.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(AppColors.space24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.folder_open_rounded,
+                    size: 48,
+                    color: AppColors.textMuted,
+                  ),
+                  const SizedBox(height: AppColors.space12),
+                  Text(
+                    'No hay carpetas',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: AppColors.space8),
+                  Text(
+                    'Crea una carpeta para organizar tus notas',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.primary, fontSize: 14),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...folders.map(
+              (folder) => _buildFolderTile(
+                key: ValueKey(folder.id),
+                context: context,
+                folder: folder,
+                isSelected: folder.id == selectedFolderId,
+                onTap: () => onFolderSelected(folder.id),
+                onEdit: () => _showFolderDialog(context, folder: folder),
+                onDelete: () => _confirmDelete(context, folder),
+              ),
+            ),
+          const SizedBox(height: AppColors.space16),
+        ],
       ),
     );
   }
@@ -241,21 +255,31 @@ class FoldersPanel extends StatelessWidget {
         vertical: AppColors.space4,
       ),
       decoration: BoxDecoration(
-        gradient: isSelected 
-          ? LinearGradient(
-              colors: [AppColors.primary.withValues(alpha: 0.15), AppColors.primaryLight.withValues(alpha: 0.1)],
-            )
-          : null,
+        gradient: isSelected
+            ? LinearGradient(
+                colors: [
+                  AppColors.primary.withValues(alpha: 0.15),
+                  AppColors.primaryLight.withValues(alpha: 0.1),
+                ],
+              )
+            : null,
         color: !isSelected ? Colors.white : null,
         borderRadius: BorderRadius.circular(AppColors.radiusMd),
-        border: isSelected ? Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 2) : null,
-        boxShadow: isSelected ? [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ] : null,
+        border: isSelected
+            ? Border.all(
+                color: AppColors.primary.withValues(alpha: 0.4),
+                width: 2,
+              )
+            : null,
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -312,7 +336,8 @@ class FoldersPanel extends StatelessWidget {
 
     return DragTarget<String>(
       key: key,
-      onWillAcceptWithDetails: (details) => true, // ✅ Aceptar siempre (incluido "Todas las notas")
+      onWillAcceptWithDetails: (details) =>
+          true, // ✅ Aceptar siempre (incluido "Todas las notas")
       onAcceptWithDetails: (details) {
         if (folder != null) {
           onNoteDropped(details.data, folder.id);
@@ -333,13 +358,19 @@ class FoldersPanel extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: isSelected
                 ? LinearGradient(
-                    colors: [AppColors.primary.withValues(alpha: 0.15), AppColors.primaryLight.withValues(alpha: 0.1)],
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.15),
+                      AppColors.primaryLight.withValues(alpha: 0.1),
+                    ],
                   )
                 : isHovering
-                    ? LinearGradient(
-                        colors: [AppColors.success.withValues(alpha: 0.15), AppColors.success.withValues(alpha: 0.1)],
-                      )
-                    : null,
+                ? LinearGradient(
+                    colors: [
+                      AppColors.success.withValues(alpha: 0.15),
+                      AppColors.success.withValues(alpha: 0.1),
+                    ],
+                  )
+                : null,
             color: !isSelected && !isHovering ? Colors.white : null,
             borderRadius: BorderRadius.circular(AppColors.radiusMd),
             border: isHovering
@@ -349,22 +380,27 @@ class FoldersPanel extends StatelessWidget {
                     strokeAlign: BorderSide.strokeAlignInside,
                   )
                 : isSelected
-                    ? Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 2)
-                    : Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                ? Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                    width: 2,
+                  )
+                : Border.all(color: Colors.grey.withValues(alpha: 0.2)),
             boxShadow: isHovering || isSelected
                 ? [
                     BoxShadow(
-                      color: (isHovering ? AppColors.success : AppColors.primary).withValues(alpha: 0.2),
+                      color:
+                          (isHovering ? AppColors.success : AppColors.primary)
+                              .withValues(alpha: 0.2),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
-                    )
+                    ),
                   ]
                 : [
                     BoxShadow(
                       color: Colors.grey.withValues(alpha: 0.1),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
-                    )
+                    ),
                   ],
           ),
           child: Material(
@@ -397,11 +433,11 @@ class FoldersPanel extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: isHovering 
+                              color: isHovering
                                   ? AppColors.success
-                                  : isSelected 
-                                      ? AppColors.primary 
-                                      : Colors.black87,
+                                  : isSelected
+                                  ? AppColors.primary
+                                  : Colors.black87,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -409,16 +445,16 @@ class FoldersPanel extends StatelessWidget {
                           if (folder != null) ...[
                             const SizedBox(height: AppColors.space4),
                             Text(
-                              isHovering 
-                                  ? '¡Suelta aquí!' 
+                              isHovering
+                                  ? '¡Suelta aquí!'
                                   : '$count nota${count != 1 ? "s" : ""}',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: isHovering 
-                                    ? AppColors.success 
+                                color: isHovering
+                                    ? AppColors.success
                                     : Colors.black87,
-                                fontWeight: isHovering 
-                                    ? FontWeight.w700 
+                                fontWeight: isHovering
+                                    ? FontWeight.w700
                                     : FontWeight.w500,
                               ),
                             ),
@@ -432,30 +468,47 @@ class FoldersPanel extends StatelessWidget {
                         padding: const EdgeInsets.all(AppColors.space8),
                         decoration: BoxDecoration(
                           color: AppColors.success.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                          borderRadius: BorderRadius.circular(
+                            AppColors.radiusSm,
+                          ),
                         ),
                         child: const Icon(
-                          Icons.add_circle_rounded, 
-                          size: 20, 
+                          Icons.add_circle_rounded,
+                          size: 20,
                           color: AppColors.success,
                         ),
                       ),
                     if (folder != null && !isHovering)
                       PopupMenuButton(
-                        icon: Icon(Icons.more_vert_rounded, size: 20, color: Colors.black87),
+                        icon: Icon(
+                          Icons.more_vert_rounded,
+                          size: 20,
+                          color: Colors.black87,
+                        ),
                         color: Colors.white,
                         elevation: 8,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                          borderRadius: BorderRadius.circular(
+                            AppColors.radiusMd,
+                          ),
                         ),
                         itemBuilder: (context) => [
                           PopupMenuItem(
                             onTap: onEdit,
                             child: const Row(
                               children: [
-                                Icon(Icons.edit_rounded, size: 18, color: AppColors.textPrimary),
+                                Icon(
+                                  Icons.edit_rounded,
+                                  size: 18,
+                                  color: AppColors.textPrimary,
+                                ),
                                 SizedBox(width: AppColors.space12),
-                                Text('Renombrar', style: TextStyle(color: AppColors.textPrimary)),
+                                Text(
+                                  'Renombrar',
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -463,9 +516,16 @@ class FoldersPanel extends StatelessWidget {
                             onTap: onDelete,
                             child: const Row(
                               children: [
-                                Icon(Icons.delete_rounded, size: 18, color: AppColors.danger),
+                                Icon(
+                                  Icons.delete_rounded,
+                                  size: 18,
+                                  color: AppColors.danger,
+                                ),
                                 SizedBox(width: AppColors.space12),
-                                Text('Eliminar', style: TextStyle(color: AppColors.danger)),
+                                Text(
+                                  'Eliminar',
+                                  style: TextStyle(color: AppColors.danger),
+                                ),
                               ],
                             ),
                           ),
@@ -501,7 +561,10 @@ class FoldersPanel extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Eliminar carpeta', style: TextStyle(color: AppColors.textPrimary)),
+        title: const Text(
+          'Eliminar carpeta',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
         content: Text(
           '¿Estás seguro que deseas eliminar "${folder.name}"?\n\nLas notas no se eliminarán, solo se quitarán de la carpeta.',
           style: const TextStyle(color: AppColors.textSecondary),
@@ -570,13 +633,17 @@ class FoldersPanel extends StatelessWidget {
 
   void _showCreateNoteMenu(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Crear nueva nota - funcionalidad pendiente')),
+      const SnackBar(
+        content: Text('Crear nueva nota - funcionalidad pendiente'),
+      ),
     );
   }
 
   void _showSearchMenu(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Búsqueda avanzada - funcionalidad pendiente')),
+      const SnackBar(
+        content: Text('Búsqueda avanzada - funcionalidad pendiente'),
+      ),
     );
   }
 

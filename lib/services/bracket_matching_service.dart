@@ -3,7 +3,8 @@ import '../theme/color_utils.dart';
 
 /// Servicio para matching de brackets y paréntesis
 class BracketMatchingService {
-  static final BracketMatchingService _instance = BracketMatchingService._internal();
+  static final BracketMatchingService _instance =
+      BracketMatchingService._internal();
   factory BracketMatchingService() => _instance;
   BracketMatchingService._internal();
 
@@ -32,11 +33,16 @@ class BracketMatchingService {
     if (position < 0 || position >= text.length) return null;
 
     final char = text[position];
-    
+
     // Verificar si es un bracket de apertura
     if (_openingBrackets.containsKey(char)) {
       final closingChar = _openingBrackets[char]!;
-      final matchPosition = _findClosingBracket(text, position, char, closingChar);
+      final matchPosition = _findClosingBracket(
+        text,
+        position,
+        char,
+        closingChar,
+      );
       if (matchPosition != -1) {
         return BracketMatch(
           openPosition: position,
@@ -47,11 +53,16 @@ class BracketMatchingService {
         );
       }
     }
-    
+
     // Verificar si es un bracket de cierre
     if (_closingBrackets.containsKey(char)) {
       final openingChar = _closingBrackets[char]!;
-      final matchPosition = _findOpeningBracket(text, position, openingChar, char);
+      final matchPosition = _findOpeningBracket(
+        text,
+        position,
+        openingChar,
+        char,
+      );
       if (matchPosition != -1) {
         return BracketMatch(
           openPosition: matchPosition,
@@ -70,27 +81,31 @@ class BracketMatchingService {
   List<BracketError> findUnbalancedBrackets(String text) {
     final errors = <BracketError>[];
     final stack = <BracketInfo>[];
-    
+
     for (int i = 0; i < text.length; i++) {
       final char = text[i];
-      
+
       if (_openingBrackets.containsKey(char)) {
         // Bracket de apertura
-        stack.add(BracketInfo(
-          position: i,
-          char: char,
-          expectedClosing: _openingBrackets[char]!,
-        ));
+        stack.add(
+          BracketInfo(
+            position: i,
+            char: char,
+            expectedClosing: _openingBrackets[char]!,
+          ),
+        );
       } else if (_closingBrackets.containsKey(char)) {
         // Bracket de cierre
         if (stack.isEmpty) {
           // Bracket de cierre sin apertura
-          errors.add(BracketError(
-            position: i,
-            char: char,
-            type: BracketErrorType.unmatchedClosing,
-            message: 'Bracket de cierre "$char" sin apertura correspondiente',
-          ));
+          errors.add(
+            BracketError(
+              position: i,
+              char: char,
+              type: BracketErrorType.unmatchedClosing,
+              message: 'Bracket de cierre "$char" sin apertura correspondiente',
+            ),
+          );
         } else {
           final lastOpening = stack.last;
           if (lastOpening.expectedClosing == char) {
@@ -98,36 +113,42 @@ class BracketMatchingService {
             stack.removeLast();
           } else {
             // Mismatch
-            errors.add(BracketError(
-              position: i,
-              char: char,
-              type: BracketErrorType.mismatch,
-              message: 'Se esperaba "${lastOpening.expectedClosing}" pero se encontró "$char"',
-              relatedPosition: lastOpening.position,
-            ));
+            errors.add(
+              BracketError(
+                position: i,
+                char: char,
+                type: BracketErrorType.mismatch,
+                message:
+                    'Se esperaba "${lastOpening.expectedClosing}" pero se encontró "$char"',
+                relatedPosition: lastOpening.position,
+              ),
+            );
             stack.removeLast();
           }
         }
       }
     }
-    
+
     // Brackets de apertura sin cierre
     for (final unclosed in stack) {
-      errors.add(BracketError(
-        position: unclosed.position,
-        char: unclosed.char,
-        type: BracketErrorType.unmatchedOpening,
-        message: 'Bracket de apertura "${unclosed.char}" sin cierre correspondiente',
-      ));
+      errors.add(
+        BracketError(
+          position: unclosed.position,
+          char: unclosed.char,
+          type: BracketErrorType.unmatchedOpening,
+          message:
+              'Bracket de apertura "${unclosed.char}" sin cierre correspondiente',
+        ),
+      );
     }
-    
+
     return errors;
   }
 
   /// Encuentra brackets que rodean la posición del cursor
   List<BracketMatch> findSurroundingBrackets(String text, int cursorPosition) {
     final matches = <BracketMatch>[];
-    
+
     // Buscar hacia atrás para encontrar brackets de apertura
     for (int i = cursorPosition - 1; i >= 0; i--) {
       final char = text[i];
@@ -138,7 +159,7 @@ class BracketMatchingService {
         }
       }
     }
-    
+
     return matches;
   }
 
@@ -146,18 +167,18 @@ class BracketMatchingService {
   String autoCloseBrackets(String text, int position, String insertedChar) {
     if (_openingBrackets.containsKey(insertedChar)) {
       final closingChar = _openingBrackets[insertedChar]!;
-      
+
       // Verificar si ya hay un bracket de cierre
       if (position < text.length && text[position] == closingChar) {
         return text; // Ya existe, no insertar
       }
-      
+
       // Insertar bracket de cierre
-      return text.substring(0, position) + 
-             closingChar + 
-             text.substring(position);
+      return text.substring(0, position) +
+          closingChar +
+          text.substring(position);
     }
-    
+
     return text;
   }
 
@@ -166,21 +187,21 @@ class BracketMatchingService {
     if (position > 0 && position < text.length) {
       final prevChar = text[position - 1];
       final nextChar = text[position];
-      
-      if (_openingBrackets.containsKey(prevChar) && 
+
+      if (_openingBrackets.containsKey(prevChar) &&
           _openingBrackets[prevChar] == nextChar) {
         // Eliminar ambos brackets
         return text.substring(0, position - 1) + text.substring(position + 1);
       }
     }
-    
+
     return text;
   }
 
   /// Selecciona el contenido dentro de brackets
   TextSelection? selectInsideBrackets(String text, int cursorPosition) {
     final surrounding = findSurroundingBrackets(text, cursorPosition);
-    
+
     if (surrounding.isNotEmpty) {
       final innermost = surrounding.last; // El más interno
       return TextSelection(
@@ -188,7 +209,7 @@ class BracketMatchingService {
         extentOffset: innermost.closePosition,
       );
     }
-    
+
     return null;
   }
 
@@ -198,26 +219,32 @@ class BracketMatchingService {
   void initialize([TextEditingController? controller]) {}
 
   /// Encuentra el bracket de cierre correspondiente
-  int _findClosingBracket(String text, int startPos, String openChar, String closeChar) {
+  int _findClosingBracket(
+    String text,
+    int startPos,
+    String openChar,
+    String closeChar,
+  ) {
     int count = 1;
     bool inString = false;
     String stringChar = '';
-    
+
     for (int i = startPos + 1; i < text.length; i++) {
       final char = text[i];
-      
+
       // Manejar strings para evitar brackets dentro de strings
       if ((char == '"' || char == "'" || char == '`') && !inString) {
         inString = true;
         stringChar = char;
         continue;
-      } else if (char == stringChar && inString && 
-                 (i == 0 || text[i - 1] != '\\')) {
+      } else if (char == stringChar &&
+          inString &&
+          (i == 0 || text[i - 1] != '\\')) {
         inString = false;
         stringChar = '';
         continue;
       }
-      
+
       if (!inString) {
         if (char == openChar) {
           count++;
@@ -229,19 +256,24 @@ class BracketMatchingService {
         }
       }
     }
-    
+
     return -1; // No se encontró
   }
 
   /// Encuentra el bracket de apertura correspondiente
-  int _findOpeningBracket(String text, int startPos, String openChar, String closeChar) {
+  int _findOpeningBracket(
+    String text,
+    int startPos,
+    String openChar,
+    String closeChar,
+  ) {
     int count = 1;
     bool inString = false;
     String stringChar = '';
-    
+
     for (int i = startPos - 1; i >= 0; i--) {
       final char = text[i];
-      
+
       // Manejar strings
       if ((char == '"' || char == "'" || char == '`') && !inString) {
         // Verificar si no está escapado
@@ -255,7 +287,7 @@ class BracketMatchingService {
         stringChar = '';
         continue;
       }
-      
+
       if (!inString) {
         if (char == closeChar) {
           count++;
@@ -267,7 +299,7 @@ class BracketMatchingService {
         }
       }
     }
-    
+
     return -1; // No se encontró
   }
 
@@ -276,12 +308,13 @@ class BracketMatchingService {
     if (isError) {
       return Theme.of(context).colorScheme.error;
     }
-  return Theme.of(context).primaryColor.withOpacityCompat(0.3);
+    return Theme.of(context).primaryColor.withOpacityCompat(0.3);
   }
 
   /// Verifica si un carácter es un bracket
   bool isBracket(String char) {
-    return _openingBrackets.containsKey(char) || _closingBrackets.containsKey(char);
+    return _openingBrackets.containsKey(char) ||
+        _closingBrackets.containsKey(char);
   }
 }
 
@@ -343,11 +376,7 @@ class BracketError {
 }
 
 /// Tipos de errores de brackets
-enum BracketErrorType {
-  unmatchedOpening,
-  unmatchedClosing,
-  mismatch,
-}
+enum BracketErrorType { unmatchedOpening, unmatchedClosing, mismatch }
 
 /// Widget para mostrar highlights de brackets
 class BracketHighlightOverlay extends StatelessWidget {
@@ -371,14 +400,18 @@ class BracketHighlightOverlay extends StatelessWidget {
     return Stack(
       children: [
         // Highlights para matches válidos
-        ...matches.map((match) => Stack(
-          children: [
-            _buildHighlight(context, match.openPosition, false),
-            _buildHighlight(context, match.closePosition, false),
-          ],
-        )),
+        ...matches.map(
+          (match) => Stack(
+            children: [
+              _buildHighlight(context, match.openPosition, false),
+              _buildHighlight(context, match.closePosition, false),
+            ],
+          ),
+        ),
         // Highlights para errores
-        ...errors.map((error) => _buildHighlight(context, error.position, true)),
+        ...errors.map(
+          (error) => _buildHighlight(context, error.position, true),
+        ),
       ],
     );
   }
@@ -391,7 +424,7 @@ class BracketHighlightOverlay extends StatelessWidget {
         width: (textStyle.fontSize ?? 16) * 0.6,
         height: lineHeight,
         decoration: BoxDecoration(
-          color: isError 
+          color: isError
               ? Theme.of(context).colorScheme.error.withOpacityCompat(0.3)
               : Theme.of(context).primaryColor.withOpacityCompat(0.3),
           borderRadius: BorderRadius.circular(2),

@@ -93,25 +93,21 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.link_off_rounded,
-              size: 48,
-              color: AppColors.textMuted,
-            ),
+            Icon(Icons.link_off_rounded, size: 48, color: AppColors.textMuted),
             const SizedBox(height: AppColors.space12),
             Text(
               'Sin backlinks',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             const SizedBox(height: AppColors.space4),
             Text(
               'Ninguna nota enlaza aquí',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
             ),
           ],
         ),
@@ -125,18 +121,14 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
           padding: const EdgeInsets.all(AppColors.space12),
           child: Row(
             children: [
-              Icon(
-                Icons.link_rounded,
-                size: 18,
-                color: AppColors.primary,
-              ),
+              Icon(Icons.link_rounded, size: 18, color: AppColors.primary),
               const SizedBox(width: AppColors.space8),
               Text(
                 'Backlinks (${_backlinks.length})',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ],
           ),
@@ -158,11 +150,15 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
   Widget _buildBacklinkItem(Map<String, dynamic> note) {
     final title = (note['title'] as String?) ?? 'Sin título';
     final noteId = note['id'] as String;
-    final tags = List<String>.from((note['tags'] as List?)?.whereType<String>() ?? []);
+    final tags = List<String>.from(
+      (note['tags'] as List?)?.whereType<String>() ?? [],
+    );
     final content = (note['content'] as String?) ?? '';
-    
+
     // Extraer un pequeño preview del contenido
-    final preview = content.length > 100 ? '${content.substring(0, 100)}...' : content;
+    final preview = content.length > 100
+        ? '${content.substring(0, 100)}...'
+        : content;
 
     return InkWell(
       onTap: () => widget.onNoteOpen(noteId),
@@ -180,19 +176,15 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.note_outlined,
-                  size: 16,
-                  color: AppColors.textMuted,
-                ),
+                Icon(Icons.note_outlined, size: 16, color: AppColors.textMuted),
                 const SizedBox(width: AppColors.space8),
                 Expanded(
                   child: Text(
                     title,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary,
-                        ),
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -209,9 +201,9 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
               Text(
                 preview,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                      height: 1.4,
-                    ),
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -237,10 +229,10 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
                     child: Text(
                       tag,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        color: AppColors.primary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   );
                 }).toList(),

@@ -5,7 +5,8 @@ import '../services/export_import_service.dart';
 // Conditional imports para soporte multiplataforma
 import '../services/export_import_service_stub.dart'
     if (dart.library.html) '../services/export_import_service_web.dart'
-    if (dart.library.io) '../services/export_import_service_io.dart' as platform;
+    if (dart.library.io) '../services/export_import_service_io.dart'
+    as platform;
 
 /// Diálogo para exportar e importar notas
 class ExportImportDialog extends StatefulWidget {
@@ -94,15 +95,16 @@ class _ExportImportDialogState extends State<ExportImportDialog> {
         });
         return;
       }
-        
+
       final importedNotes = await ExportImportService.importFromJson(content);
-      
+
       if (mounted) {
         setState(() {
-          _statusMessage = '✓ ${importedNotes.length} notas importadas correctamente';
+          _statusMessage =
+              '✓ ${importedNotes.length} notas importadas correctamente';
           _isProcessing = false;
         });
-        
+
         widget.onImport(importedNotes);
       }
     } catch (e) {
@@ -158,7 +160,11 @@ class _ExportImportDialogState extends State<ExportImportDialog> {
                     gradient: AppTheme.gradientPrimary,
                     borderRadius: BorderRadius.circular(AppColors.radiusMd),
                   ),
-                  child: const Icon(Icons.import_export_rounded, color: Colors.white, size: 24),
+                  child: const Icon(
+                    Icons.import_export_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: AppColors.space16),
                 const Expanded(
@@ -173,7 +179,10 @@ class _ExportImportDialogState extends State<ExportImportDialog> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -190,7 +199,9 @@ class _ExportImportDialogState extends State<ExportImportDialog> {
                   ],
                 ),
                 borderRadius: BorderRadius.circular(AppColors.radiusMd),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                ),
               ),
               child: Column(
                 children: [
@@ -276,8 +287,12 @@ class _ExportImportDialogState extends State<ExportImportDialog> {
                 child: Row(
                   children: [
                     Icon(
-                      _statusMessage!.startsWith('✓') ? Icons.check_circle_rounded : Icons.error_rounded,
-                      color: _statusMessage!.startsWith('✓') ? AppColors.success : AppColors.danger,
+                      _statusMessage!.startsWith('✓')
+                          ? Icons.check_circle_rounded
+                          : Icons.error_rounded,
+                      color: _statusMessage!.startsWith('✓')
+                          ? AppColors.success
+                          : AppColors.danger,
                       size: 20,
                     ),
                     const SizedBox(width: AppColors.space12),
@@ -285,7 +300,9 @@ class _ExportImportDialogState extends State<ExportImportDialog> {
                       child: Text(
                         _statusMessage!,
                         style: TextStyle(
-                          color: _statusMessage!.startsWith('✓') ? AppColors.success : AppColors.danger,
+                          color: _statusMessage!.startsWith('✓')
+                              ? AppColors.success
+                              : AppColors.danger,
                           fontSize: 13,
                         ),
                       ),
@@ -298,9 +315,7 @@ class _ExportImportDialogState extends State<ExportImportDialog> {
             // Processing indicator
             if (_isProcessing) ...[
               const SizedBox(height: AppColors.space16),
-              const Center(
-                child: CircularProgressIndicator(),
-              ),
+              const Center(child: CircularProgressIndicator()),
             ],
           ],
         ),
@@ -398,10 +413,7 @@ class _ExportImportDialogState extends State<ExportImportDialog> {
         ),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
       ],
     );

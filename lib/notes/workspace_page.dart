@@ -41,7 +41,8 @@ class NotesWorkspacePage extends StatefulWidget {
   State<NotesWorkspacePage> createState() => _NotesWorkspacePageState();
 }
 
-class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProviderStateMixin {
+class _NotesWorkspacePageState extends State<NotesWorkspacePage>
+    with TickerProviderStateMixin {
   final _search = TextEditingController();
   final _title = TextEditingController();
   final _content = TextEditingController();
@@ -81,11 +82,23 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   @override
   void initState() {
     super.initState();
-    _editorCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+    _editorCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    );
     _editorFade = CurvedAnimation(parent: _editorCtrl, curve: Curves.easeInOut);
-    _editorOffset = Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero).animate(_editorCtrl);
-    _savePulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
-    _saveScale = Tween<double>(begin: 1.0, end: 1.1).animate(CurvedAnimation(parent: _savePulseCtrl, curve: Curves.easeOut));
+    _editorOffset = Tween<Offset>(
+      begin: const Offset(0, 0.03),
+      end: Offset.zero,
+    ).animate(_editorCtrl);
+    _savePulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _saveScale = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).animate(CurvedAnimation(parent: _savePulseCtrl, curve: Curves.easeOut));
     // Load preferences and initial data
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadPreferences();
@@ -94,26 +107,27 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       await _loadLastAndNotes();
     });
   }
+
   // Debounce for search/save
   Timer? _debounce;
   // Expanded folders tracking
   final Set<String> _expandedFolders = {};
   // Current user id helper
   String get _uid => AuthService.instance.currentUser!.uid;
-  
+
   Future<void> _loadPreferences() async {
     final compactMode = await PreferencesService.getCompactMode();
     final selectedFolder = await PreferencesService.getSelectedFolder();
     final filterTags = await PreferencesService.getFilterTags();
     final dateRange = await PreferencesService.getDateRange();
     final sortOption = await PreferencesService.getSortOption();
-    
+
     if (!mounted) return;
     setState(() {
       _compactMode = compactMode;
       _selectedFolderId = selectedFolder;
       _filterTags = filterTags;
-      
+
       if (dateRange != null) {
         try {
           _filterDateRange = DateTimeRange(
@@ -124,7 +138,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           _filterDateRange = null;
         }
       }
-      
+
       if (sortOption != null) {
         try {
           _sortOption = SortOption.values.firstWhere(
@@ -148,17 +162,19 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       if (present) _select(last);
     }
   }
-  
+
   Future<void> _loadFolders() async {
     try {
-      final foldersData = await FirestoreService.instance.listFolders(uid: _uid);
+      final foldersData = await FirestoreService.instance.listFolders(
+        uid: _uid,
+      );
       debugPrint('📁 Carpetas cargadas: ${foldersData.length}');
       if (!mounted) return;
-      
+
       // Eliminar duplicados por ID lógico de carpeta
       final seen = <String>{};
       final uniqueFolders = <Folder>[];
-      
+
       for (var data in foldersData) {
         // Usar folderId si existe, sino usar id
         final logicalId = data['folderId']?.toString() ?? data['id'].toString();
@@ -171,10 +187,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           final folder = Folder.fromJson(Map<String, dynamic>.from(data));
           uniqueFolders.add(folder);
         } else {
-          debugPrint('⚠️ Carpeta duplicada ignorada: ${data['name']} ($logicalId)');
+          debugPrint(
+            '⚠️ Carpeta duplicada ignorada: ${data['name']} ($logicalId)',
+          );
         }
       }
-      
+
       if (mounted) {
         setState(() {
           _folders = uniqueFolders;
@@ -184,53 +202,63 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           }
         });
       }
-      
+
       // 🧹 LIMPIEZA AUTOMÁTICA: Verificar y limpiar referencias a notas inexistentes
       await _cleanOrphanedNoteReferences();
-      
-  // 🧹 LIMPIEZA ADICIONAL: (Desactivado) Eliminación de duplicados en Firestore
-  // Temporalmente desactivado para evitar borrar carpetas principales por colisiones
-  // await _cleanDuplicateFoldersInFirestore();
+
+      // 🧹 LIMPIEZA ADICIONAL: (Desactivado) Eliminación de duplicados en Firestore
+      // Temporalmente desactivado para evitar borrar carpetas principales por colisiones
+      // await _cleanDuplicateFoldersInFirestore();
     } catch (e) {
       debugPrint('❌ Error loading folders: $e');
       if (!mounted) return;
-  if (mounted) setState(() => _folders = []);
+      if (mounted) setState(() => _folders = []);
     }
   }
-  
+
   /// Limpia referencias a notas que ya no existen en las carpetas
   Future<void> _cleanOrphanedNoteReferences() async {
     try {
       // Obtener todos los IDs de notas que existen realmente
-      final allNotes = await FirestoreService.instance.listNotesSummary(uid: _uid);
+      final allNotes = await FirestoreService.instance.listNotesSummary(
+        uid: _uid,
+      );
       final existingNoteIds = allNotes.map((n) => n['id'].toString()).toSet();
-      
+
       // Revisar cada carpeta
       for (var folder in _folders) {
         // Encontrar notas "fantasma" (que están en noteIds pero no existen)
-        final orphanedNotes = folder.noteIds.where((noteId) => !existingNoteIds.contains(noteId)).toList();
-        
+        final orphanedNotes = folder.noteIds
+            .where((noteId) => !existingNoteIds.contains(noteId))
+            .toList();
+
         if (orphanedNotes.isNotEmpty) {
-          debugPrint('🧹 Limpiando ${orphanedNotes.length} referencias huérfanas en carpeta "${folder.name}"');
-          
+          debugPrint(
+            '🧹 Limpiando ${orphanedNotes.length} referencias huérfanas en carpeta "${folder.name}"',
+          );
+
           // Crear lista limpia sin las notas huérfanas
-          final cleanedNoteIds = folder.noteIds.where((noteId) => existingNoteIds.contains(noteId)).toList();
-          
+          final cleanedNoteIds = folder.noteIds
+              .where((noteId) => existingNoteIds.contains(noteId))
+              .toList();
+
           // Actualizar la carpeta en Firestore
           await FirestoreService.instance.updateFolder(
             uid: _uid,
             folderId: folder.id,
             data: {'noteIds': cleanedNoteIds},
           );
-          
+
           // Actualizar el objeto local
           folder.noteIds.clear();
           folder.noteIds.addAll(cleanedNoteIds);
-          
-          debugPrint('✅ Carpeta "${folder.name}" limpiada: ${cleanedNoteIds.length} notas válidas');
+
+          debugPrint(
+            '✅ Carpeta "${folder.name}" limpiada: ${cleanedNoteIds.length} notas válidas',
+          );
         }
       }
-      
+
       // Actualizar UI si se hicieron cambios
       if (mounted) {
         setState(() {
@@ -249,30 +277,40 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   Future<void> _verifyFolderIntegrity(String deletedFolderId) async {
     try {
       debugPrint('🔍 Verificando integridad de carpetas...');
-      
+
       // Obtener carpetas desde Firestore para comparar (comparar docId)
-      final remoteFolders = await FirestoreService.instance.listFolders(uid: _uid);
-      final remoteDocIds = remoteFolders.map((f) => (f['docId'] ?? f['id']).toString()).toSet();
+      final remoteFolders = await FirestoreService.instance.listFolders(
+        uid: _uid,
+      );
+      final remoteDocIds = remoteFolders
+          .map((f) => (f['docId'] ?? f['id']).toString())
+          .toSet();
 
       // Verificar que la carpeta eliminada NO está en Firestore (por docId)
       if (remoteDocIds.contains(deletedFolderId)) {
-        debugPrint('❌ ERROR: La carpeta (docId) $deletedFolderId todavía existe en Firestore');
+        debugPrint(
+          '❌ ERROR: La carpeta (docId) $deletedFolderId todavía existe en Firestore',
+        );
         throw Exception('La carpeta no se eliminó correctamente de Firestore');
       }
 
       // Verificar que el estado local coincide con Firestore (mapear local a docId)
-      final localDocIds = _folders.map((f) => f.docId.isNotEmpty ? f.docId : f.id).toSet();
+      final localDocIds = _folders
+          .map((f) => f.docId.isNotEmpty ? f.docId : f.id)
+          .toSet();
       final phantomFolders = localDocIds.difference(remoteDocIds);
-      
+
       if (phantomFolders.isNotEmpty) {
-        debugPrint('👻 Carpetas fantasma detectadas en estado local: $phantomFolders');
+        debugPrint(
+          '👻 Carpetas fantasma detectadas en estado local: $phantomFolders',
+        );
         // Limpiar carpetas fantasma del estado local
         setState(() {
           _folders.removeWhere((f) => phantomFolders.contains(f.id));
         });
         debugPrint('✅ Carpetas fantasma eliminadas del estado local');
       }
-      
+
       debugPrint('✅ Verificación de integridad completada');
     } catch (e) {
       debugPrint('⚠️ Error en verificación de integridad: $e');
@@ -280,7 +318,6 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       await _loadFolders();
     }
   }
-
 
   @override
   void dispose() {
@@ -295,7 +332,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
 
   Future<void> _loadNotes() async {
     final svc = FirestoreService.instance;
-    
+
     try {
       // Modo especial: secciones "Compartidas"
       if (_selectedFolderId == '__SHARED_WITH_ME__') {
@@ -315,8 +352,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         );
         final sharedIds = sharedByMe.map((s) => s.itemId).toSet();
         // Cargar mis notas y filtrar por las compartidas
-        List<Map<String, dynamic>> myNotes = await svc.listNotesSummary(uid: _uid);
-        final filtered = myNotes.where((n) => sharedIds.contains(n['id'].toString())).toList();
+        List<Map<String, dynamic>> myNotes = await svc.listNotesSummary(
+          uid: _uid,
+        );
+        final filtered = myNotes
+            .where((n) => sharedIds.contains(n['id'].toString()))
+            .toList();
         if (!mounted) return;
         setState(() {
           _allNotes = filtered;
@@ -327,15 +368,17 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       }
 
       // Cargar notas propias (caché deshabilitado temporalmente por problema de serialización)
-      List<Map<String, dynamic>> allNotes = await svc.listNotesSummary(uid: _uid);
-      
+      List<Map<String, dynamic>> allNotes = await svc.listNotesSummary(
+        uid: _uid,
+      );
+
       if (!mounted) return;
-      
+
       debugPrint('📝 Notas cargadas: ${allNotes.length}');
-      
+
       // Aplicar filtros
       var filteredNotes = List<Map<String, dynamic>>.from(allNotes);
-      
+
       // Filtro por carpeta (excluye virtuales)
       if (_selectedFolderId != null &&
           _selectedFolderId != '__SHARED_WITH_ME__' &&
@@ -351,7 +394,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           _selectedFolderId = null;
         }
       }
-      
+
       // Filtro por búsqueda de texto
       final q = _search.text.trim();
       if (q.isNotEmpty) {
@@ -362,21 +405,23 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           return title.contains(searchLower) || content.contains(searchLower);
         }).toList();
       }
-      
+
       // Filtro por tags
       if (_filterTags.isNotEmpty) {
         filteredNotes = filteredNotes.where((note) {
-          final noteTags = List<String>.from((note['tags'] as List?)?.whereType<String>() ?? []);
+          final noteTags = List<String>.from(
+            (note['tags'] as List?)?.whereType<String>() ?? [],
+          );
           return _filterTags.every((tag) => noteTags.contains(tag));
         }).toList();
       }
-      
+
       // Filtro por rango de fechas
       if (_filterDateRange != null) {
         filteredNotes = filteredNotes.where((note) {
           final createdAt = note['createdAt'];
           if (createdAt == null) return false;
-          
+
           DateTime noteDate;
           if (createdAt is DateTime) {
             noteDate = createdAt;
@@ -385,23 +430,25 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           } else {
             return false;
           }
-          
+
           return !noteDate.isBefore(_filterDateRange!.start) &&
-                 !noteDate.isAfter(_filterDateRange!.end.add(const Duration(days: 1)));
+              !noteDate.isAfter(
+                _filterDateRange!.end.add(const Duration(days: 1)),
+              );
         }).toList();
       }
-      
+
       // Aplicar ordenamiento
       _sortNotes(filteredNotes);
-      
+
       debugPrint('✅ Notas filtradas: ${filteredNotes.length}');
-      
+
       setState(() {
         _allNotes = allNotes;
         _notes = filteredNotes;
         _loading = false;
       });
-      
+
       if (_selectedId == null && filteredNotes.isNotEmpty) {
         await _select(filteredNotes.first['id'].toString());
       }
@@ -415,7 +462,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       });
     }
   }
-  
+
   void _sortNotes(List<Map<String, dynamic>> notes) {
     switch (_sortOption) {
       case SortOption.dateDesc:
@@ -455,17 +502,19 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         break;
     }
   }
-  
+
   DateTime _getDateTime(dynamic value) {
     if (value is DateTime) return value;
     if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
     return DateTime.now();
   }
-  
+
   List<String> _getAllAvailableTags() {
     final tags = <String>{};
     for (final note in _allNotes) {
-      final noteTags = List<String>.from((note['tags'] as List?)?.whereType<String>() ?? []);
+      final noteTags = List<String>.from(
+        (note['tags'] as List?)?.whereType<String>() ?? [],
+      );
       tags.addAll(noteTags);
     }
     return tags.toList()..sort();
@@ -480,18 +529,26 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     // Si la nota es compartida conmigo, obtenerla desde el propietario
     String ownerUid = _uid;
     try {
-      final Map<String, dynamic> maybe = _notes.firstWhere((n) => (n['id']?.toString() ?? '') == id, orElse: () => <String, dynamic>{});
+      final Map<String, dynamic> maybe = _notes.firstWhere(
+        (n) => (n['id']?.toString() ?? '') == id,
+        orElse: () => <String, dynamic>{},
+      );
       final owner = (maybe['ownerId'] as String?) ?? '';
       if (maybe['isShared'] == true && owner.isNotEmpty) {
         ownerUid = owner;
       }
     } catch (_) {}
-    final n = await FirestoreService.instance.getNote(uid: ownerUid, noteId: id);
+    final n = await FirestoreService.instance.getNote(
+      uid: ownerUid,
+      noteId: id,
+    );
     if (!mounted) return;
     setState(() {
       _title.text = (n?['title']?.toString() ?? '');
       _content.text = (n?['content']?.toString() ?? '');
-      _tags = List<String>.from((n?['tags'] as List?)?.whereType<String>() ?? const []);
+      _tags = List<String>.from(
+        (n?['tags'] as List?)?.whereType<String>() ?? const [],
+      );
       _richJson = (n?['rich']?.toString() ?? '');
       _saving = false;
     });
@@ -516,7 +573,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       );
     }
   }
-  
+
   Future<void> _openAdvancedSearch() async {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -528,22 +585,22 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         initialSortOption: _sortOption,
       ),
     );
-    
+
     if (result != null) {
       final query = result['query'] ?? '';
-      
+
       // Guardar búsqueda en el historial
       if (query.isNotEmpty) {
         await PreferencesService.addRecentSearch(query);
       }
-      
+
       setState(() {
         _search.text = query;
         _filterTags = List<String>.from(result['tags'] ?? []);
         _filterDateRange = result['dateRange'];
         _sortOption = result['sortOption'] ?? SortOption.dateDesc;
       });
-      
+
       // Guardar filtros en preferencias
       await PreferencesService.setFilterTags(_filterTags);
       await PreferencesService.setDateRange(
@@ -551,34 +608,34 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         _filterDateRange?.end,
       );
       await PreferencesService.setSortOption(_sortOption.name);
-      
+
       await _loadNotes();
     }
   }
-  
+
   void _toggleCompactMode() {
     setState(() => _compactMode = !_compactMode);
     PreferencesService.setCompactMode(_compactMode);
   }
-  
+
   void _toggleSidebar() {
     setState(() => _showSidebar = !_showSidebar);
   }
-  
+
   void _toggleStats() {
     setState(() {
       _showStats = !_showStats;
       if (_showStats) _showRecentSearches = false;
     });
   }
-  
+
   void _toggleRecentSearches() {
     setState(() {
       _showRecentSearches = !_showRecentSearches;
       if (_showRecentSearches) _showStats = false;
     });
   }
-  
+
   void _focusSearchField() {
     // Focus en el campo de búsqueda (Ctrl+F)
     FocusScope.of(context).requestFocus(FocusNode());
@@ -590,7 +647,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       );
     });
   }
-  
+
   void _clearAllFilters() {
     setState(() {
       _search.clear();
@@ -599,12 +656,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       _sortOption = SortOption.dateDesc;
       _selectedFolderId = null;
     });
-    
+
     PreferencesService.setFilterTags([]);
     PreferencesService.setDateRange(null, null);
     PreferencesService.setSortOption(SortOption.dateDesc.name);
     PreferencesService.setSelectedFolder(null);
-    
+
     _loadNotes();
   }
 
@@ -623,9 +680,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         vertical: AppColors.space4,
       ),
       decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+        color: isSelected
+            ? AppColors.primary.withValues(alpha: 0.15)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(AppColors.radiusMd),
-        border: isSelected ? Border.all(color: AppColors.primary.withValues(alpha: 0.3)) : null,
+        border: isSelected
+            ? Border.all(color: AppColors.primary.withValues(alpha: 0.3))
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -669,13 +730,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       ),
     );
   }
-  
+
   Future<void> _onNoteDroppedInFolder(String noteId, String folderId) async {
     try {
       // Caso especial: soltar en "Todas las notas" = remover de todas las carpetas
       if (folderId == '__REMOVE_FROM_ALL__') {
         debugPrint('📤 Sacando nota $noteId de todas las carpetas');
-        
+
         // Buscar todas las carpetas que contienen esta nota y removerla
         for (final folder in _folders) {
           if (folder.noteIds.contains(noteId)) {
@@ -686,13 +747,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             );
           }
         }
-        
+
         debugPrint('✅ Nota removida de todas las carpetas');
-        
+
         // Recargar carpetas Y notas para actualizar la UI
         await _loadFolders();
         await _loadNotes();
-        
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -704,20 +765,20 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         );
         return;
       }
-      
+
       debugPrint('📁 Agregando nota $noteId a carpeta $folderId');
       await FirestoreService.instance.addNoteToFolder(
         uid: _uid,
         noteId: noteId,
         folderId: folderId,
       );
-      
+
       debugPrint('✅ Nota agregada correctamente a Firestore');
-      
+
       // Recargar carpetas Y notas para actualizar la UI
       await _loadFolders();
       await _loadNotes();
-      
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -760,7 +821,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         noteId: _selectedId!,
         data: data,
       );
-      
+
       // 🔥 ACTUALIZACIÓN INSTANTÁNEA: Actualizar la nota en la lista local sin recargar desde Firestore
       final noteIndex = _allNotes.indexWhere((n) => n['id'] == _selectedId);
       if (noteIndex >= 0) {
@@ -770,14 +831,16 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           'tags': _tags,
           'updatedAt': DateTime.now(),
         };
-        
+
         // Reaplicar filtros para actualizar _notes
         var filteredNotes = List<Map<String, dynamic>>.from(_allNotes);
-        
+
         // Filtro por carpeta
         if (_selectedFolderId != null) {
           try {
-            final folder = _folders.firstWhere((f) => f.id == _selectedFolderId);
+            final folder = _folders.firstWhere(
+              (f) => f.id == _selectedFolderId,
+            );
             filteredNotes = filteredNotes.where((note) {
               final noteId = note['id'].toString();
               return folder.noteIds.contains(noteId);
@@ -786,7 +849,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             _selectedFolderId = null;
           }
         }
-        
+
         // Filtro por búsqueda
         final q = _search.text.trim();
         if (q.isNotEmpty) {
@@ -797,21 +860,23 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             return title.contains(searchLower) || content.contains(searchLower);
           }).toList();
         }
-        
+
         // Filtro por tags
         if (_filterTags.isNotEmpty) {
           filteredNotes = filteredNotes.where((note) {
-            final noteTags = List<String>.from((note['tags'] as List?)?.whereType<String>() ?? []);
+            final noteTags = List<String>.from(
+              (note['tags'] as List?)?.whereType<String>() ?? [],
+            );
             return _filterTags.every((tag) => noteTags.contains(tag));
           }).toList();
         }
-        
+
         // Filtro por rango de fechas
         if (_filterDateRange != null) {
           filteredNotes = filteredNotes.where((note) {
             final createdAt = note['createdAt'];
             if (createdAt == null) return false;
-            
+
             DateTime noteDate;
             if (createdAt is DateTime) {
               noteDate = createdAt;
@@ -820,14 +885,16 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             } else {
               return false;
             }
-            
+
             return !noteDate.isBefore(_filterDateRange!.start) &&
-                   !noteDate.isAfter(_filterDateRange!.end.add(const Duration(days: 1)));
+                !noteDate.isAfter(
+                  _filterDateRange!.end.add(const Duration(days: 1)),
+                );
           }).toList();
         }
-        
+
         _sortNotes(filteredNotes);
-        
+
         setState(() {
           _notes = filteredNotes;
         });
@@ -842,13 +909,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     final tempFilterTags = _filterTags;
     final tempFilterDateRange = _filterDateRange;
     final tempSelectedFolder = _selectedFolderId;
-    
+
     setState(() {
       _filterTags = [];
       _filterDateRange = null;
       _selectedFolderId = null;
     });
-    
+
     // Pedir título obligatorio antes de crear
     final title = await showDialog<String?>(
       context: context,
@@ -867,8 +934,14 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: const Text('Crear')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, c.text.trim()),
+              child: const Text('Crear'),
+            ),
           ],
         );
       },
@@ -890,18 +963,23 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       return;
     }
 
-    final id = await FirestoreService.instance.createNote(uid: _uid, data: {
-      'title': title,
-      'content': '',
-      'tags': <String>[],
-      'links': <String>[],
-      'icon': '📝',
-      'iconColor': const Color(0xFF6B7280).toARGB32(), // Color gris independiente
-    });
-    
+    final id = await FirestoreService.instance.createNote(
+      uid: _uid,
+      data: {
+        'title': title,
+        'content': '',
+        'tags': <String>[],
+        'links': <String>[],
+        'icon': '📝',
+        'iconColor': const Color(
+          0xFF6B7280,
+        ).toARGB32(), // Color gris independiente
+      },
+    );
+
     await _loadNotes();
     await _select(id);
-    
+
     // Restaurar filtros después de un breve delay
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
@@ -919,37 +997,42 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       context: context,
       builder: (context) => const TemplatePickerDialog(),
     );
-    
+
     if (result != null) {
       // Limpiar filtros temporalmente para asegurar que se vea la nota nueva
       final tempFilterTags = _filterTags;
       final tempFilterDateRange = _filterDateRange;
       final tempSelectedFolder = _selectedFolderId;
-      
+
       setState(() {
         _filterTags = [];
         _filterDateRange = null;
         _selectedFolderId = null;
       });
-      
-      final id = await FirestoreService.instance.createNote(uid: _uid, data: {
-        'title': result['title'] ?? '',
-        'content': result['content'] ?? '',
-        'tags': result['tags'] ?? <String>[],
-        'links': <String>[],
-        'icon': '📝',
-        'iconColor': const Color(0xFF6B7280).toARGB32(), // Color gris independiente
-      });
-      
+
+      final id = await FirestoreService.instance.createNote(
+        uid: _uid,
+        data: {
+          'title': result['title'] ?? '',
+          'content': result['content'] ?? '',
+          'tags': result['tags'] ?? <String>[],
+          'links': <String>[],
+          'icon': '📝',
+          'iconColor': const Color(
+            0xFF6B7280,
+          ).toARGB32(), // Color gris independiente
+        },
+      );
+
       await _loadNotes();
       await _select(id);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('✅ Nota creada desde plantilla')),
         );
       }
-      
+
       // Restaurar filtros después de un breve delay
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
@@ -964,9 +1047,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   }
 
   void _openDashboard() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ProductivityDashboard()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ProductivityDashboard()));
   }
 
   Future<void> _insertImage() async {
@@ -978,7 +1061,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     final after = _content.text.substring(i);
     final insertion = '![]($url)';
     _content.text = '$before$insertion$after';
-    _content.selection = TextSelection.collapsed(offset: before.length + insertion.length);
+    _content.selection = TextSelection.collapsed(
+      offset: before.length + insertion.length,
+    );
     await _save();
   }
 
@@ -993,7 +1078,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         final after = _content.text.substring(i);
         final insertion = '[audio]($url)';
         _content.text = '$before$insertion$after';
-        _content.selection = TextSelection.collapsed(offset: before.length + insertion.length);
+        _content.selection = TextSelection.collapsed(
+          offset: before.length + insertion.length,
+        );
         await _save();
       }
     } else {
@@ -1026,15 +1113,18 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   // Construir carpeta desplegable estilo árbol
   Widget _buildFolderCard(Folder folder, int noteCount) {
     final isExpanded = _expandedFolders.contains(folder.id);
-    final notesInFolder = _notes.where((n) => folder.noteIds.contains(n['id'].toString())).toList();
-    
+    final notesInFolder = _notes
+        .where((n) => folder.noteIds.contains(n['id'].toString()))
+        .toList();
+
     return DragTarget<String>(
       key: ValueKey('folder_${folder.id}'), // Key única para evitar duplicados
       onWillAcceptWithDetails: (details) => true,
-      onAcceptWithDetails: (details) => _onNoteDroppedInFolder(details.data, folder.id),
+      onAcceptWithDetails: (details) =>
+          _onNoteDroppedInFolder(details.data, folder.id),
       builder: (context, candidateData, rejectedData) {
         final isHovering = candidateData.isNotEmpty;
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1042,11 +1132,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             Container(
               margin: const EdgeInsets.only(bottom: 2),
               decoration: BoxDecoration(
-                color: isHovering 
-                    ? AppColors.success.withValues(alpha: 0.1) 
+                color: isHovering
+                    ? AppColors.success.withValues(alpha: 0.1)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppColors.radiusSm),
-                border: isHovering 
+                border: isHovering
                     ? Border.all(color: AppColors.success, width: 2)
                     : null,
               ),
@@ -1056,11 +1146,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                   actions: (context) => EnhancedContextMenuBuilder.folderMenu(
                     noteCount: folder.noteIds.length,
                   ),
-                  onActionSelected: (action) => _handleEnhancedContextMenuAction(
-                    action.value, 
-                    context: context, 
-                    folderId: folder.id,
-                  ),
+                  onActionSelected: (action) =>
+                      _handleEnhancedContextMenuAction(
+                        action.value,
+                        context: context,
+                        folderId: folder.id,
+                      ),
                   child: InkWell(
                     onTap: () {
                       setState(() {
@@ -1074,95 +1165,105 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                     onLongPress: () => _confirmDeleteFolder(folder),
                     borderRadius: BorderRadius.circular(AppColors.radiusSm),
                     child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppColors.space8,
-                      vertical: AppColors.space8,
-                    ),
-                    child: Row(
-                      children: [
-                        // Flecha expandir/colapsar
-                        Icon(
-                          isExpanded ? Icons.arrow_drop_down : Icons.arrow_right,
-                          size: 24,
-                          color: AppColors.textSecondary,
-                        ),
-                        const SizedBox(width: 4),
-                        
-                        // Icono de carpeta o emoji
-                        if (folder.emoji != null)
-                          Container(
-                            width: 24,
-                            height: 24,
-                            alignment: Alignment.center,
-                            child: Text(
-                              folder.emoji!,
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                          )
-                        else
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppColors.space8,
+                        vertical: AppColors.space8,
+                      ),
+                      child: Row(
+                        children: [
+                          // Flecha expandir/colapsar
                           Icon(
-                            isExpanded ? Icons.folder_open_rounded : Icons.folder_rounded,
-                            color: folder.color,
-                            size: 18,
+                            isExpanded
+                                ? Icons.arrow_drop_down
+                                : Icons.arrow_right,
+                            size: 24,
+                            color: AppColors.textSecondary,
                           ),
-                        const SizedBox(width: AppColors.space8),
-                        
-                        // Nombre y contador
-                        Expanded(
-                          child: Text(
-                            folder.name,
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
+                          const SizedBox(width: 4),
+
+                          // Icono de carpeta o emoji
+                          if (folder.emoji != null)
+                            Container(
+                              width: 24,
+                              height: 24,
+                              alignment: Alignment.center,
+                              child: Text(
+                                folder.emoji!,
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            )
+                          else
+                            Icon(
+                              isExpanded
+                                  ? Icons.folder_open_rounded
+                                  : Icons.folder_rounded,
+                              color: folder.color,
+                              size: 18,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        
-                        // Contador de notas
-                        if (noteCount > 0)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: folder.color.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                          const SizedBox(width: AppColors.space8),
+
+                          // Nombre y contador
+                          Expanded(
                             child: Text(
-                              '$noteCount',
+                              folder.name,
                               style: TextStyle(
-                                color: folder.color,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+
+                          // Contador de notas
+                          if (noteCount > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: folder.color.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '$noteCount',
+                                style: TextStyle(
+                                  color: folder.color,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
+
+                          // Botón editar
+                          IconButton(
+                            icon: Icon(
+                              Icons.brush_rounded,
+                              size: 16,
+                              color: AppColors.textMuted,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints(),
+                            onPressed: () => _showFolderIconPicker(folder.id),
                           ),
-                        
-                        // Botón editar
-                        IconButton(
-                          icon: Icon(Icons.brush_rounded, size: 16, color: AppColors.textMuted),
-                          padding: EdgeInsets.zero,
-                          constraints: BoxConstraints(),
-                          onPressed: () => _showFolderIconPicker(folder.id),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-            
+
             // Notas dentro de la carpeta (cuando está expandida)
             if (isExpanded && notesInFolder.isNotEmpty)
               ...notesInFolder.map((note) {
                 final id = note['id'].toString();
                 return EnhancedContextMenuRegion(
-                  key: ValueKey('folder_note_${folder.id}_$id'), // Key única para notas en carpetas
+                  key: ValueKey(
+                    'folder_note_${folder.id}_$id',
+                  ), // Key única para notas en carpetas
                   actions: (context) => EnhancedContextMenuBuilder.noteMenu(
                     isInFolder: true,
                     isPinned: note['pinned'] == true,
@@ -1170,12 +1271,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                     isArchived: note['archived'] == true,
                     hasIcon: note['icon'] != null,
                   ),
-                  onActionSelected: (action) => _handleEnhancedContextMenuAction(
-                    action.value, 
-                    context: context, 
-                    noteId: id, 
-                    folderId: folder.id,
-                  ),
+                  onActionSelected: (action) =>
+                      _handleEnhancedContextMenuAction(
+                        action.value,
+                        context: context,
+                        noteId: id,
+                        folderId: folder.id,
+                      ),
                   child: Padding(
                     padding: const EdgeInsets.only(left: 32, bottom: 2),
                     child: NotesSidebarCard(
@@ -1189,18 +1291,27 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                           pinned: !(note['pinned'] == true),
                         );
                         // ✅ CORRECCIÓN: Actualizar localmente en lugar de recargar todo
-                        _updateNoteInList(id, {'pinned': !(note['pinned'] == true)});
+                        _updateNoteInList(id, {
+                          'pinned': !(note['pinned'] == true),
+                        });
                       },
                       onDelete: () => _delete(id),
-                      onSetIcon: () => _showNoteIconPicker(noteId: id, initialIcon: note['icon']?.toString(), initialColor: note['iconColor'] is int ? Color(note['iconColor']) : null),
+                      onSetIcon: () => _showNoteIconPicker(
+                        noteId: id,
+                        initialIcon: note['icon']?.toString(),
+                        initialColor: note['iconColor'] is int
+                            ? Color(note['iconColor'])
+                            : null,
+                      ),
                       onClearIcon: () async => _clearNoteIcon(id),
-                      enableDrag: true, // ✅ HABILITAR drag para poder mover notas entre carpetas o sacarlas
+                      enableDrag:
+                          true, // ✅ HABILITAR drag para poder mover notas entre carpetas o sacarlas
                       compact: true,
                     ),
                   ),
                 );
               }),
-            
+
             // Mensaje si la carpeta está vacía y expandida
             if (isExpanded && notesInFolder.isEmpty)
               Padding(
@@ -1341,12 +1452,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           await _loadFolders();
           await _loadNotes();
           if (!mounted) return;
-            messenger.showSnackBar(
-              const SnackBar(
-                content: Text('Nota quitada de la carpeta'),
-                backgroundColor: AppColors.success,
-              ),
-            );
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Nota quitada de la carpeta'),
+              backgroundColor: AppColors.success,
+            ),
+          );
         }
         break;
       case ContextMenuActionType.moveToFolder:
@@ -1470,12 +1581,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             await _loadFolders();
             await _loadNotes();
             if (!mounted) return;
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text('Nota quitada de la carpeta'),
-                  backgroundColor: AppColors.success,
-                ),
-              );
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text('Nota quitada de la carpeta'),
+                backgroundColor: AppColors.success,
+              ),
+            );
           }
           break;
         case 'export':
@@ -1514,32 +1625,46 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           break;
         case 'togglePin':
           if (noteId != null) {
-            final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId, orElse: () => {});
+            final note = _allNotes.firstWhere(
+              (n) => n['id'].toString() == noteId,
+              orElse: () => {},
+            );
             final current = note['pinned'] == true;
             await _togglePinNote(noteId, !current);
           }
           break;
         case 'toggleFavorite':
           if (noteId != null) {
-            final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId, orElse: () => {});
+            final note = _allNotes.firstWhere(
+              (n) => n['id'].toString() == noteId,
+              orElse: () => {},
+            );
             final current = note['favorite'] == true;
             await _toggleFavoriteNote(noteId, !current);
           }
           break;
         case 'toggleArchive':
           if (noteId != null) {
-            final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId, orElse: () => {});
+            final note = _allNotes.firstWhere(
+              (n) => n['id'].toString() == noteId,
+              orElse: () => {},
+            );
             final current = note['archived'] == true;
             await _toggleArchiveNote(noteId, !current);
           }
           break;
         case 'changeNoteIcon':
           if (noteId != null) {
-            final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId, orElse: () => {});
+            final note = _allNotes.firstWhere(
+              (n) => n['id'].toString() == noteId,
+              orElse: () => {},
+            );
             await _showNoteIconPicker(
               noteId: noteId,
               initialIcon: note['icon']?.toString(),
-              initialColor: note['iconColor'] is int ? Color(note['iconColor']) : null,
+              initialColor: note['iconColor'] is int
+                  ? Color(note['iconColor'])
+                  : null,
             );
           }
           break;
@@ -1586,10 +1711,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: AppColors.danger,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
       );
     }
   }
@@ -1598,8 +1720,10 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   Future<void> _duplicateNote(String noteId) async {
     try {
       final notes = await FirestoreService.instance.listNotes(uid: _uid);
-      final originalNote = notes.firstWhere((n) => n['id'].toString() == noteId);
-      
+      final originalNote = notes.firstWhere(
+        (n) => n['id'].toString() == noteId,
+      );
+
       await FirestoreService.instance.createNote(
         uid: _uid,
         data: {
@@ -1609,15 +1733,19 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           'tags': originalNote['tags'] ?? [],
           'pinned': false,
           'icon': originalNote['icon'] ?? '📝',
-          'iconColor': originalNote['iconColor'] ?? const Color(0xFF6B7280).toARGB32(),
+          'iconColor':
+              originalNote['iconColor'] ?? const Color(0xFF6B7280).toARGB32(),
         },
       );
-      
+
       await _loadNotes();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Nota duplicada'), backgroundColor: AppColors.success),
+          const SnackBar(
+            content: Text('✅ Nota duplicada'),
+            backgroundColor: AppColors.success,
+          ),
         );
       }
     } catch (e) {
@@ -1630,32 +1758,37 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       ToastService.info('No hay carpetas. Crea una primero.');
       return;
     }
-    final selected = await showDialog<String?> (
+    final selected = await showDialog<String?>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
           title: const Text('Mover a carpeta'),
-            content: SizedBox(
-              width: 320,
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  ..._folders.map((f) => ListTile(
-                        leading: Icon(Icons.folder, color: f.color),
-                        title: Text(f.name),
-                        onTap: () => Navigator.pop(ctx, f.id),
-                      )),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.clear),
-                    title: const Text('Quitar de todas las carpetas'),
-                    onTap: () => Navigator.pop(ctx, '__REMOVE_FROM_ALL__'),
+          content: SizedBox(
+            width: 320,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                ..._folders.map(
+                  (f) => ListTile(
+                    leading: Icon(Icons.folder, color: f.color),
+                    title: Text(f.name),
+                    onTap: () => Navigator.pop(ctx, f.id),
                   ),
-                ],
-              ),
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.clear),
+                  title: const Text('Quitar de todas las carpetas'),
+                  onTap: () => Navigator.pop(ctx, '__REMOVE_FROM_ALL__'),
+                ),
+              ],
             ),
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancelar'),
+            ),
           ],
         );
       },
@@ -1666,7 +1799,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       return;
     }
     try {
-      await FirestoreService.instance.addNoteToFolder(uid: _uid, noteId: noteId, folderId: selected);
+      await FirestoreService.instance.addNoteToFolder(
+        uid: _uid,
+        noteId: noteId,
+        folderId: selected,
+      );
       await _loadFolders();
       await _loadNotes();
       ToastService.success('Nota movida');
@@ -1721,10 +1858,10 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
 
       // Exportar notas secuencialmente
       final notes = await FirestoreService.instance.listNotes(uid: _uid);
-      final byId = { for (final n in notes) n['id'].toString() : n };
+      final byId = {for (final n in notes) n['id'].toString(): n};
       int exported = 0;
       int failed = 0;
-      
+
       for (final id in folder.noteIds) {
         try {
           final note = byId[id];
@@ -1767,7 +1904,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                 ),
               ],
             ),
-            backgroundColor: failed == 0 ? AppColors.success : AppColors.warning,
+            backgroundColor: failed == 0
+                ? AppColors.success
+                : AppColors.warning,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -1777,7 +1916,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
       }
-      
+
       debugPrint('⚠️ Error exportando carpeta: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1799,14 +1938,16 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
 
   void _showFolderProperties(String folderId) {
     final folder = _folders.firstWhere((f) => f.id == folderId);
-    final notes = _allNotes.where((n) => folder.noteIds.contains(n['id'].toString())).toList();
-    
+    final notes = _allNotes
+        .where((n) => folder.noteIds.contains(n['id'].toString()))
+        .toList();
+
     // Calcular estadísticas
     final totalNotes = folder.noteIds.length;
     final pinnedNotes = notes.where((n) => n['pinned'] == true).length;
     final archivedNotes = notes.where((n) => n['archived'] == true).length;
     final favoriteNotes = notes.where((n) => n['favorite'] == true).length;
-    
+
     // Calcular tamaño total aproximado
     int totalSize = 0;
     for (final note in notes) {
@@ -1814,13 +1955,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       final title = note['title']?.toString() ?? '';
       totalSize += (content.length + title.length);
     }
-    
-    final sizeText = totalSize < 1024 
+
+    final sizeText = totalSize < 1024
         ? '$totalSize bytes'
         : totalSize < 1024 * 1024
-            ? '${(totalSize / 1024).toStringAsFixed(1)} KB'
-            : '${(totalSize / (1024 * 1024)).toStringAsFixed(1)} MB';
-    
+        ? '${(totalSize / 1024).toStringAsFixed(1)} KB'
+        : '${(totalSize / (1024 * 1024)).toStringAsFixed(1)} MB';
+
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1859,9 +2000,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
               _buildPropertyRow('DocID', folder.docId),
               const Divider(color: AppColors.borderColor),
               _buildPropertyRow('Total de notas', totalNotes.toString()),
-              if (pinnedNotes > 0) _buildPropertyRow('Notas fijadas', pinnedNotes.toString()),
-              if (favoriteNotes > 0) _buildPropertyRow('Notas favoritas', favoriteNotes.toString()),
-              if (archivedNotes > 0) _buildPropertyRow('Notas archivadas', archivedNotes.toString()),
+              if (pinnedNotes > 0)
+                _buildPropertyRow('Notas fijadas', pinnedNotes.toString()),
+              if (favoriteNotes > 0)
+                _buildPropertyRow('Notas favoritas', favoriteNotes.toString()),
+              if (archivedNotes > 0)
+                _buildPropertyRow('Notas archivadas', archivedNotes.toString()),
               const Divider(color: AppColors.borderColor),
               _buildPropertyRow('Tamaño total', sizeText),
               _buildPropertyRow('Orden', folder.order.toString()),
@@ -1872,7 +2016,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
               // Color preview
               Row(
                 children: [
-                  const Text('Color: ', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                  const Text(
+                    'Color: ',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
                   Container(
                     width: 24,
                     height: 24,
@@ -1886,7 +2036,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                   Flexible(
                     child: Text(
                       '#${folder.color.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontFamily: 'monospace'),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -1922,13 +2076,19 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             width: 100,
             child: Text(
               '$label:',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
             ),
           ),
           Expanded(
             child: SelectableText(
               value,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+              ),
             ),
           ),
         ],
@@ -1939,13 +2099,21 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays == 0) {
       return 'Hoy ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } else if (difference.inDays == 1) {
       return 'Ayer ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } else if (difference.inDays < 7) {
-      const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+      const days = [
+        'Lunes',
+        'Martes',
+        'Miércoles',
+        'Jueves',
+        'Viernes',
+        'Sábado',
+        'Domingo',
+      ];
       return '${days[date.weekday - 1]} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } else {
       return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
@@ -1981,7 +2149,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
 
   Future<void> _toggleFavoriteNote(String noteId, bool fav) async {
     try {
-      await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'favorite': fav});
+      await FirestoreService.instance.updateNote(
+        uid: _uid,
+        noteId: noteId,
+        data: {'favorite': fav},
+      );
       if (mounted) {
         setState(() {
           final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
@@ -1994,7 +2166,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           }
         });
       }
-      ToastService.success(fav ? 'Añadido a favoritos' : 'Eliminado de favoritos');
+      ToastService.success(
+        fav ? 'Añadido a favoritos' : 'Eliminado de favoritos',
+      );
     } catch (e) {
       debugPrint('⚠️ Error toggling favorite: $e');
     }
@@ -2002,7 +2176,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
 
   Future<void> _toggleArchiveNote(String noteId, bool archive) async {
     try {
-      await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'archived': archive});
+      await FirestoreService.instance.updateNote(
+        uid: _uid,
+        noteId: noteId,
+        data: {'archived': archive},
+      );
       if (mounted) {
         setState(() {
           final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
@@ -2034,18 +2212,34 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           decoration: const InputDecoration(hintText: 'etiqueta1, etiqueta2'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Guardar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Guardar'),
+          ),
         ],
       ),
     );
     if (confirmed == true) {
-      final tags = controller.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      final tags = controller.text
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
       try {
-        await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'tags': tags});
+        await FirestoreService.instance.updateNote(
+          uid: _uid,
+          noteId: noteId,
+          data: {'tags': tags},
+        );
         if (mounted) {
           setState(() {
-            final idx = _allNotes.indexWhere((n) => n['id'].toString() == noteId);
+            final idx = _allNotes.indexWhere(
+              (n) => n['id'].toString() == noteId,
+            );
             if (idx >= 0) {
               _allNotes[idx]['tags'] = tags;
             }
@@ -2079,9 +2273,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       final sharingService = SharingService();
       final token = await sharingService.generatePublicLink(noteId: noteId);
       final publicUrl = '${Uri.base.toString()}public/$token';
-      
+
       await Clipboard.setData(ClipboardData(text: publicUrl));
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2134,29 +2328,56 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       builder: (ctx) => AlertDialog(
         title: const Text('Historial de la nota'),
         content: const Text('Historial no disponible en esta versión.'),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+        ],
       ),
     );
   }
 
   Future<void> _showFolderColorPicker(String folderId) async {
-    final colors = [Colors.blue, Colors.green, Colors.amber, Colors.pink, Colors.purple, Colors.grey];
+    final colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.amber,
+      Colors.pink,
+      Colors.purple,
+      Colors.grey,
+    ];
     final chosen = await showDialog<Color?>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Color de carpeta'),
         content: Wrap(
           spacing: 8,
-          children: colors.map((c) => GestureDetector(
-            onTap: () => Navigator.pop(ctx, c),
-            child: Container(width: 36, height: 36, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(6))),
-          )).toList(),
+          children: colors
+              .map(
+                (c) => GestureDetector(
+                  onTap: () => Navigator.pop(ctx, c),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: c,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
         ),
       ),
     );
-        if (chosen != null) {
+    if (chosen != null) {
       try {
-  await FirestoreService.instance.updateFolder(uid: _uid, folderId: folderId, data: {'color': chosen.toARGB32()});
+        await FirestoreService.instance.updateFolder(
+          uid: _uid,
+          folderId: folderId,
+          data: {'color': chosen.toARGB32()},
+        );
         if (mounted) {
           setState(() {
             final idx = _folders.indexWhere((f) => f.id == folderId);
@@ -2188,7 +2409,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             Text('Creado: ${note['createdAt'] ?? '—'}'),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+        ],
       ),
     );
   }
@@ -2196,14 +2422,17 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   // Minimal insert helpers for editor
   void _insertMarkdownTable() {
     final before = _content.text;
-    _content.text = '$before\n| Col1 | Col2 | Col3 |\n|---|---:|:---:|\n|   |   |   |\n';
+    _content.text =
+        '$before\n| Col1 | Col2 | Col3 |\n|---|---:|:---:|\n|   |   |   |\n';
     _content.selection = TextSelection.collapsed(offset: _content.text.length);
   }
 
   void _insertCodeBlock() {
     final before = _content.text;
     _content.text = '$before\n```\n// lenguaje\n```\n';
-    _content.selection = TextSelection.collapsed(offset: _content.text.length - 7);
+    _content.selection = TextSelection.collapsed(
+      offset: _content.text.length - 7,
+    );
   }
 
   // Exportar una sola nota
@@ -2211,9 +2440,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     try {
       final notes = await FirestoreService.instance.listNotes(uid: _uid);
       final note = notes.firstWhere((n) => n['id'].toString() == noteId);
-      
+
       await ExportImportService.exportSingleNoteToMarkdown(note);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -2232,7 +2461,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     try {
       final notes = await FirestoreService.instance.listNotes(uid: _uid);
       final note = notes.firstWhere((n) => n['id'].toString() == noteId);
-      
+
       if (mounted) {
         await showDialog(
           context: context,
@@ -2260,7 +2489,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   Future<void> _shareFolder(String folderId) async {
     try {
       final folder = _folders.firstWhere((f) => f.id == folderId);
-      
+
       if (mounted) {
         await showDialog(
           context: context,
@@ -2288,12 +2517,15 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   Future<void> _confirmDeleteFolder(Folder folder) async {
     final hasNotes = folder.noteIds.isNotEmpty;
     final noteCountText = hasNotes ? ' (${folder.noteIds.length} notas)' : '';
-    
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Eliminar carpeta', style: TextStyle(color: AppColors.textPrimary)),
+        title: const Text(
+          'Eliminar carpeta',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2309,16 +2541,25 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                 decoration: BoxDecoration(
                   color: AppColors.warning.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppColors.warning.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: AppColors.warning, size: 20),
+                    Icon(
+                      Icons.info_outline,
+                      color: AppColors.warning,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Las ${folder.noteIds.length} notas se moverán fuera de la carpeta y quedarán sin organizar.',
-                        style: TextStyle(color: AppColors.warning.withValues(alpha: 0.9), fontSize: 13),
+                        style: TextStyle(
+                          color: AppColors.warning.withValues(alpha: 0.9),
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -2330,16 +2571,25 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                 decoration: BoxDecoration(
                   color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppColors.success.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle_outline, color: AppColors.success, size: 20),
+                    Icon(
+                      Icons.check_circle_outline,
+                      color: AppColors.success,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
                         'La carpeta está vacía y se puede eliminar de forma segura.',
-                        style: TextStyle(color: AppColors.success, fontSize: 13),
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -2368,7 +2618,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
 
         // 1. Si tiene notas, moverlas fuera de la carpeta primero
         if (hasNotes) {
-          debugPrint('📦 Moviendo ${folder.noteIds.length} notas fuera de la carpeta...');
+          debugPrint(
+            '📦 Moviendo ${folder.noteIds.length} notas fuera de la carpeta...',
+          );
           for (final noteId in folder.noteIds) {
             try {
               await FirestoreService.instance.removeNoteFromFolder(
@@ -2385,7 +2637,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         }
 
         // 2. Eliminar de Firestore
-        debugPrint('🔥 Intentando eliminar carpeta de Firestore (uid: $_uid, folderId: ${folder.docId})');
+        debugPrint(
+          '🔥 Intentando eliminar carpeta de Firestore (uid: $_uid, folderId: ${folder.docId})',
+        );
         await FirestoreService.instance.deleteFolder(
           uid: _uid,
           folderId: folder.docId,
@@ -2400,10 +2654,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         );
 
         if (deletedFolder != null) {
-          throw Exception('La carpeta no se eliminó correctamente de Firestore');
+          throw Exception(
+            'La carpeta no se eliminó correctamente de Firestore',
+          );
         }
         debugPrint('✅ Verificación: Carpeta realmente eliminada de Firestore');
-        
+
         // 4. Actualizar estado local inmediatamente
         setState(() {
           _folders.removeWhere((f) => f.id == folder.id);
@@ -2413,16 +2669,16 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           }
         });
         debugPrint('✅ Carpeta eliminada del estado local');
-        
+
         // 5. Verificar integridad y hacer limpieza final
         await _verifyFolderIntegrity(folder.docId);
-        
+
         // 6. Recargar carpetas Y notas para sincronizar con Firestore
         await _loadFolders();
         await _loadNotes();
-        
+
         debugPrint('✅ Eliminación y verificación completa');
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -2432,9 +2688,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      hasNotes 
+                      hasNotes
                           ? 'Carpeta "${folder.name}" eliminada y ${folder.noteIds.length} notas movidas'
-                          : 'Carpeta "${folder.name}" eliminada'
+                          : 'Carpeta "${folder.name}" eliminada',
                     ),
                   ),
                 ],
@@ -2448,7 +2704,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         debugPrint('❌ Error eliminando carpeta: $e');
         // Si falla, recargar carpetas para restaurar estado consistente
         await _loadFolders();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -2505,17 +2761,16 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             },
           ),
         },
-        child: LayoutBuilder(builder: (context, constraints) {
-          final narrow = constraints.maxWidth < 800;
-          
-          if (_selectedId == null && _notes.isEmpty && !_loading) {
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 800;
+
+            if (_selectedId == null && _notes.isEmpty && !_loading) {
+              return Scaffold(body: EmptyNotesState(onCreate: _create));
+            }
+
             return Scaffold(
-              body: EmptyNotesState(onCreate: _create),
-            );
-          }
-          
-          return Scaffold(
-        appBar: PreferredSize(
+              appBar: PreferredSize(
                 preferredSize: const Size.fromHeight(64),
                 child: WorkspaceHeader(
                   saving: _saving,
@@ -2527,318 +2782,462 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                   saveScale: _saveScale,
                 ),
               ),
-        drawer: narrow
-            ? Drawer(
-                backgroundColor: AppColors.surfaceLight2,
-                child: SafeArea(child: _buildNotesList(width: constraints.maxWidth)),
-              )
-            : null,
-        body: Row(
-            children: [
-              if (!narrow)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 260, maxWidth: 360),
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      border: Border(right: BorderSide(color: AppColors.borderColorLight)),
-                    ),
-                    child: SafeArea(child: _buildNotesList(width: constraints.maxWidth)),
-                  ),
-                ),
-              Expanded(
-                child: Container(
-                  color: AppColors.bgLight,
-                  padding: EdgeInsets.all(narrow ? AppColors.space16 : AppColors.space24),
-                  child: _selectedId == null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(AppColors.space24),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceLight2,
-                                  borderRadius: BorderRadius.circular(AppColors.radiusXl),
-                                  border: Border.all(color: AppColors.borderColorLight),
-                                ),
-                                child: Icon(
-                                  Icons.edit_note_rounded,
-                                  size: 64,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              const SizedBox(height: AppColors.space24),
-                              Text(
-                                'Selecciona una nota',
-                                style: Theme.of(context).textTheme.headlineMedium,
-                              ),
-                              const SizedBox(height: AppColors.space8),
-                              Text(
-                                'o crea una nueva para comenzar',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.textSecondaryLight,
-                                ),
-                              ),
-                            ],
+              drawer: narrow
+                  ? Drawer(
+                      backgroundColor: AppColors.surfaceLight2,
+                      child: SafeArea(
+                        child: _buildNotesList(width: constraints.maxWidth),
+                      ),
+                    )
+                  : null,
+              body: Row(
+                children: [
+                  if (!narrow)
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minWidth: 260,
+                        maxWidth: 360,
+                      ),
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            right: BorderSide(
+                              color: AppColors.borderColorLight,
+                            ),
                           ),
-                        )
-                      : FadeTransition(
-                          opacity: _editorFade,
-                          child: SlideTransition(
-                            position: _editorOffset,
-                            child: Stack(
-                              children: [
-                                // EDITOR PROFESIONAL A TIEMPO REAL
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    // Título minimalista sin bordes
-                                    TextField(
-                                      controller: _title,
-                                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                      decoration: const InputDecoration(
-                                        hintText: 'Sin título',
-                                        border: InputBorder.none,
-                                        enabledBorder: InputBorder.none,
-                                        focusedBorder: InputBorder.none,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: AppColors.space16,
-                                          vertical: AppColors.space12,
-                                        ),
-                                      ),
-                                      onChanged: (_) {
-                                        setState(() {}); // live update preview title
-                                        _debouncedSave();
-                                      },
+                        ),
+                        child: SafeArea(
+                          child: _buildNotesList(width: constraints.maxWidth),
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: Container(
+                      color: AppColors.bgLight,
+                      padding: EdgeInsets.all(
+                        narrow ? AppColors.space16 : AppColors.space24,
+                      ),
+                      child: _selectedId == null
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(
+                                      AppColors.space24,
                                     ),
-                                    Divider(height: 1, thickness: 1, color: AppColors.borderColor),
-                                    
-                                    // Editor expandido al máximo
-                                    Expanded(
-                                      child: QuillEditorWidget(
-                                        uid: _uid,
-                                        initialDeltaJson: _richJson.isEmpty ? null : _richJson,
-                                        onChanged: (deltaJson) {
-                                          _richJson = deltaJson;
-                                          _debouncedSave();
-                                        },
-                                        onPlainTextChanged: (plain) {
-                                          // Keep plain-text mirror for previews/search/export
-                                          if (_content.text != plain) {
-                                            _content.text = plain;
-                                          }
-                                        },
-                                        onSave: (deltaJson) async {
-                                          _richJson = deltaJson;
-                                          await _save();
-                                        },
-                                                fetchNoteSuggestions: (query) async {
-                                                  final q = query.trim().toLowerCase();
-                                                  if (q.isEmpty) {
-                                                    return _allNotes
-                                                        .take(20)
-                                                        .map((n) => NoteSuggestion(
-                                                              id: n['id'].toString(),
-                                                              title: (n['title']?.toString() ?? ''),
-                                                              tags: List<String>.from((n['tags'] as List?)?.whereType<String>() ?? const []),
-                                                            ))
-                                                        .toList();
-                                                  }
-                                                  final filtered = _allNotes.where((n) {
-                                                    final title = (n['title']?.toString() ?? '').toLowerCase();
-                                                    final id = n['id'].toString().toLowerCase();
-                                                    return title.contains(q) || id.contains(q);
-                                                  }).take(20);
-                                                  return filtered
-                                                      .map((n) => NoteSuggestion(
-                                                            id: n['id'].toString(),
-                                                            title: (n['title']?.toString() ?? ''),
-                                                            tags: List<String>.from((n['tags'] as List?)?.whereType<String>() ?? const []),
-                                                          ))
-                                                      .toList();
-                                                },
-                                                onLinksChanged: (linkedIds) async {
-                                                  if (_selectedId == null) return;
-                                                  try {
-                                                    await FirestoreService.instance.updateNoteLinks(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceLight2,
+                                      borderRadius: BorderRadius.circular(
+                                        AppColors.radiusXl,
+                                      ),
+                                      border: Border.all(
+                                        color: AppColors.borderColorLight,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.edit_note_rounded,
+                                      size: 64,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: AppColors.space24),
+                                  Text(
+                                    'Selecciona una nota',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.headlineMedium,
+                                  ),
+                                  const SizedBox(height: AppColors.space8),
+                                  Text(
+                                    'o crea una nueva para comenzar',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: AppColors.textSecondaryLight,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : FadeTransition(
+                              opacity: _editorFade,
+                              child: SlideTransition(
+                                position: _editorOffset,
+                                child: Stack(
+                                  children: [
+                                    // EDITOR PROFESIONAL A TIEMPO REAL
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        // Título minimalista sin bordes
+                                        TextField(
+                                          controller: _title,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .headlineMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                          decoration: const InputDecoration(
+                                            hintText: 'Sin título',
+                                            border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                  horizontal: AppColors.space16,
+                                                  vertical: AppColors.space12,
+                                                ),
+                                          ),
+                                          onChanged: (_) {
+                                            setState(
+                                              () {},
+                                            ); // live update preview title
+                                            _debouncedSave();
+                                          },
+                                        ),
+                                        Divider(
+                                          height: 1,
+                                          thickness: 1,
+                                          color: AppColors.borderColor,
+                                        ),
+
+                                        // Editor expandido al máximo
+                                        Expanded(
+                                          child: QuillEditorWidget(
+                                            uid: _uid,
+                                            initialDeltaJson: _richJson.isEmpty
+                                                ? null
+                                                : _richJson,
+                                            onChanged: (deltaJson) {
+                                              _richJson = deltaJson;
+                                              _debouncedSave();
+                                            },
+                                            onPlainTextChanged: (plain) {
+                                              // Keep plain-text mirror for previews/search/export
+                                              if (_content.text != plain) {
+                                                _content.text = plain;
+                                              }
+                                            },
+                                            onSave: (deltaJson) async {
+                                              _richJson = deltaJson;
+                                              await _save();
+                                            },
+                                            fetchNoteSuggestions: (query) async {
+                                              final q = query
+                                                  .trim()
+                                                  .toLowerCase();
+                                              if (q.isEmpty) {
+                                                return _allNotes
+                                                    .take(20)
+                                                    .map(
+                                                      (n) => NoteSuggestion(
+                                                        id: n['id'].toString(),
+                                                        title:
+                                                            (n['title']
+                                                                ?.toString() ??
+                                                            ''),
+                                                        tags: List<String>.from(
+                                                          (n['tags'] as List?)
+                                                                  ?.whereType<
+                                                                    String
+                                                                  >() ??
+                                                              const [],
+                                                        ),
+                                                      ),
+                                                    )
+                                                    .toList();
+                                              }
+                                              final filtered = _allNotes
+                                                  .where((n) {
+                                                    final title =
+                                                        (n['title']?.toString() ??
+                                                                '')
+                                                            .toLowerCase();
+                                                    final id = n['id']
+                                                        .toString()
+                                                        .toLowerCase();
+                                                    return title.contains(q) ||
+                                                        id.contains(q);
+                                                  })
+                                                  .take(20);
+                                              return filtered
+                                                  .map(
+                                                    (n) => NoteSuggestion(
+                                                      id: n['id'].toString(),
+                                                      title:
+                                                          (n['title']
+                                                              ?.toString() ??
+                                                          ''),
+                                                      tags: List<String>.from(
+                                                        (n['tags'] as List?)
+                                                                ?.whereType<
+                                                                  String
+                                                                >() ??
+                                                            const [],
+                                                      ),
+                                                    ),
+                                                  )
+                                                  .toList();
+                                            },
+                                            onLinksChanged: (linkedIds) async {
+                                              if (_selectedId == null) return;
+                                              try {
+                                                await FirestoreService.instance
+                                                    .updateNoteLinks(
                                                       uid: _uid,
                                                       noteId: _selectedId!,
                                                       linkedNoteIds: linkedIds,
                                                     );
-                                                  } catch (e) {
-                                                    debugPrint('Error updating links: $e');
-                                                  }
-                                                },
-                                                onNoteOpen: (labelOrId) async {
-                                                  // Try resolve by exact ID first, then by title match
-                                                  String? id = _allNotes.firstWhere(
-                                                        (n) => n['id'].toString() == labelOrId,
-                                                        orElse: () => <String, dynamic>{},
-                                                      )['id']?.toString();
-                                                  id ??= _allNotes.firstWhere(
-                                                        (n) => (n['title']?.toString() ?? '') == labelOrId,
-                                                        orElse: () => <String, dynamic>{},
-                                                      )['id']?.toString();
-                                                  if (id != null && id.isNotEmpty) {
-                                                    await _select(id);
-                                                  }
-                                                },
-                                      ),
-                                    ),
-                                    
-                                    // Tags compactos en la parte inferior
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: AppColors.surface,
-                                        border: Border(top: BorderSide(color: AppColors.borderColor, width: 1)),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: AppColors.space16,
-                                        vertical: AppColors.space8,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.label_outline_rounded,
-                                            size: 16,
-                                            color: AppColors.textMuted,
+                                              } catch (e) {
+                                                debugPrint(
+                                                  'Error updating links: $e',
+                                                );
+                                              }
+                                            },
+                                            onNoteOpen: (labelOrId) async {
+                                              // Try resolve by exact ID first, then by title match
+                                              String? id = _allNotes
+                                                  .firstWhere(
+                                                    (n) =>
+                                                        n['id'].toString() ==
+                                                        labelOrId,
+                                                    orElse: () =>
+                                                        <String, dynamic>{},
+                                                  )['id']
+                                                  ?.toString();
+                                              id ??= _allNotes
+                                                  .firstWhere(
+                                                    (n) =>
+                                                        (n['title']
+                                                                ?.toString() ??
+                                                            '') ==
+                                                        labelOrId,
+                                                    orElse: () =>
+                                                        <String, dynamic>{},
+                                                  )['id']
+                                                  ?.toString();
+                                              if (id != null && id.isNotEmpty) {
+                                                await _select(id);
+                                              }
+                                            },
                                           ),
-                                          const SizedBox(width: AppColors.space8),
-                                          Expanded(
-                                            child: TagInput(
-                                              initialTags: _tags,
-                                              onAdd: (t) async {
-                                                setState(() => _tags = [..._tags, t]);
-                                                await _save();
-                                              },
-                                              onRemove: (t) async {
-                                                setState(() => _tags = _tags.where((e) => e != t).toList());
-                                                await _save();
-                                              },
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    
-                                    // Panel de backlinks colapsable
-                                    if (_selectedId != null)
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surface,
-                                          border: Border(top: BorderSide(color: AppColors.borderColor, width: 1)),
                                         ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            InkWell(
-                                              onTap: () => setState(() => _showBacklinks = !_showBacklinks),
-                                              child: Padding(
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: AppColors.space16,
-                                                  vertical: AppColors.space8,
-                                                ),
-                                                child: Row(
-                                                  children: [
-                                                    Icon(
-                                                      Icons.link_rounded,
-                                                      size: 16,
-                                                      color: AppColors.textMuted,
-                                                    ),
-                                                    const SizedBox(width: AppColors.space8),
-                                                    Text(
-                                                      'Backlinks',
-                                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                            fontWeight: FontWeight.w600,
-                                                            color: AppColors.textSecondary,
-                                                          ),
-                                                    ),
-                                                    const Spacer(),
-                                                    Icon(
-                                                      _showBacklinks 
-                                                          ? Icons.keyboard_arrow_up_rounded 
-                                                          : Icons.keyboard_arrow_down_rounded,
-                                                      size: 20,
-                                                      color: AppColors.textMuted,
-                                                    ),
-                                                  ],
-                                                ),
+
+                                        // Tags compactos en la parte inferior
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surface,
+                                            border: Border(
+                                              top: BorderSide(
+                                                color: AppColors.borderColor,
+                                                width: 1,
                                               ),
                                             ),
-                                            if (_showBacklinks)
-                                              Container(
-                                                height: 200,
-                                                decoration: BoxDecoration(
-                                                  border: Border(top: BorderSide(color: AppColors.borderColor)),
-                                                ),
-                                                child: BacklinksPanel(
-                                                  uid: _uid,
-                                                  noteId: _selectedId!,
-                                                  onNoteOpen: (noteId) async {
-                                                    await _select(noteId);
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: AppColors.space16,
+                                            vertical: AppColors.space8,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.label_outline_rounded,
+                                                size: 16,
+                                                color: AppColors.textMuted,
+                                              ),
+                                              const SizedBox(
+                                                width: AppColors.space8,
+                                              ),
+                                              Expanded(
+                                                child: TagInput(
+                                                  initialTags: _tags,
+                                                  onAdd: (t) async {
+                                                    setState(
+                                                      () =>
+                                                          _tags = [..._tags, t],
+                                                    );
+                                                    await _save();
+                                                  },
+                                                  onRemove: (t) async {
+                                                    setState(
+                                                      () => _tags = _tags
+                                                          .where((e) => e != t)
+                                                          .toList(),
+                                                    );
+                                                    await _save();
                                                   },
                                                 ),
                                               ),
-                                          ],
+                                            ],
+                                          ),
+                                        ),
+
+                                        // Panel de backlinks colapsable
+                                        if (_selectedId != null)
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              color: AppColors.surface,
+                                              border: Border(
+                                                top: BorderSide(
+                                                  color: AppColors.borderColor,
+                                                  width: 1,
+                                                ),
+                                              ),
+                                            ),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                InkWell(
+                                                  onTap: () => setState(
+                                                    () => _showBacklinks =
+                                                        !_showBacklinks,
+                                                  ),
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal:
+                                                              AppColors.space16,
+                                                          vertical:
+                                                              AppColors.space8,
+                                                        ),
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(
+                                                          Icons.link_rounded,
+                                                          size: 16,
+                                                          color: AppColors
+                                                              .textMuted,
+                                                        ),
+                                                        const SizedBox(
+                                                          width:
+                                                              AppColors.space8,
+                                                        ),
+                                                        Text(
+                                                          'Backlinks',
+                                                          style: Theme.of(context)
+                                                              .textTheme
+                                                              .bodyMedium
+                                                              ?.copyWith(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                color: AppColors
+                                                                    .textSecondary,
+                                                              ),
+                                                        ),
+                                                        const Spacer(),
+                                                        Icon(
+                                                          _showBacklinks
+                                                              ? Icons
+                                                                    .keyboard_arrow_up_rounded
+                                                              : Icons
+                                                                    .keyboard_arrow_down_rounded,
+                                                          size: 20,
+                                                          color: AppColors
+                                                              .textMuted,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (_showBacklinks)
+                                                  Container(
+                                                    height: 200,
+                                                    decoration: BoxDecoration(
+                                                      border: Border(
+                                                        top: BorderSide(
+                                                          color: AppColors
+                                                              .borderColor,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    child: BacklinksPanel(
+                                                      uid: _uid,
+                                                      noteId: _selectedId!,
+                                                      onNoteOpen:
+                                                          (noteId) async {
+                                                            await _select(
+                                                              noteId,
+                                                            );
+                                                          },
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    if (_isRecording)
+                                      Positioned(
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        child: RecordingOverlay(
+                                          isRecording: _isRecording,
+                                          onStop: () async {
+                                            final url =
+                                                await AudioService.stopAndUpload(
+                                                  uid: _uid,
+                                                );
+                                            if (!mounted) return;
+                                            setState(
+                                              () => _isRecording = false,
+                                            );
+                                            if (url != null) {
+                                              final sel = _content.selection;
+                                              final i = sel.isValid
+                                                  ? sel.base.offset
+                                                  : _content.text.length;
+                                              final newText =
+                                                  '${_content.text.substring(0, i)}[audio]($url)${_content.text.substring(i)}';
+                                              setState(
+                                                () => _content.text = newText,
+                                              );
+                                              await _save();
+                                            }
+                                          },
+                                          onCancel: () async {
+                                            if (AudioService.supportsDiscard)
+                                              await AudioService.stopRecordingAndDiscard();
+                                            if (!mounted) return;
+                                            setState(
+                                              () => _isRecording = false,
+                                            );
+                                          },
                                         ),
                                       ),
                                   ],
                                 ),
-                                if (_isRecording)
-                                  Positioned(
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    child: RecordingOverlay(
-                                      isRecording: _isRecording,
-                                      onStop: () async {
-                                        final url = await AudioService.stopAndUpload(uid: _uid);
-                                        if (!mounted) return;
-                                        setState(() => _isRecording = false);
-                                        if (url != null) {
-                                          final sel = _content.selection;
-                                          final i = sel.isValid ? sel.base.offset : _content.text.length;
-                                          final newText = '${_content.text.substring(0, i)}[audio]($url)${_content.text.substring(i)}';
-                                          setState(() => _content.text = newText);
-                                          await _save();
-                                        }
-                                      },
-                                      onCancel: () async {
-                                        if (AudioService.supportsDiscard) await AudioService.stopRecordingAndDiscard();
-                                        if (!mounted) return;
-                                        setState(() => _isRecording = false);
-                                      },
-                                    ),
-                                  ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        floatingActionButton: _selectedId != null
-            ? Padding(
-                padding: EdgeInsets.only(
-                  bottom: narrow ? AppColors.space16 : AppColors.space24,
-                  right: narrow ? AppColors.space16 : AppColors.space24,
-                ),
-                child: UnifiedFABMenu(
-                  onNewNote: _create,
-                  onNewFolder: _showCreateFolderDialog,
-                  onNewFromTemplate: _createFromTemplate,
-                  onInsertImage: _insertImage,
-                  onToggleRecording: _toggleRecording,
-                  onOpenDashboard: _openDashboard,
-                  isRecording: _isRecording,
-                ),
-              )
-            : null,
-          );
-        }),
+              floatingActionButton: _selectedId != null
+                  ? Padding(
+                      padding: EdgeInsets.only(
+                        bottom: narrow ? AppColors.space16 : AppColors.space24,
+                        right: narrow ? AppColors.space16 : AppColors.space24,
+                      ),
+                      child: UnifiedFABMenu(
+                        onNewNote: _create,
+                        onNewFolder: _showCreateFolderDialog,
+                        onNewFromTemplate: _createFromTemplate,
+                        onInsertImage: _insertImage,
+                        onToggleRecording: _toggleRecording,
+                        onOpenDashboard: _openDashboard,
+                        isRecording: _isRecording,
+                      ),
+                    )
+                  : null,
+            );
+          },
+        ),
       ),
     );
   }
@@ -2852,7 +3251,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           Container(
             padding: const EdgeInsets.all(AppColors.space16),
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
+              border: Border(
+                bottom: BorderSide(color: AppColors.divider, width: 1),
+              ),
             ),
             child: Column(
               children: [
@@ -2863,10 +3264,16 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         controller: _search,
                         decoration: InputDecoration(
                           hintText: 'Buscar notas...',
-                          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            size: 20,
+                          ),
                           suffixIcon: _search.text.isNotEmpty
                               ? IconButton(
-                                  icon: const Icon(Icons.clear_rounded, size: 18),
+                                  icon: const Icon(
+                                    Icons.clear_rounded,
+                                    size: 18,
+                                  ),
                                   onPressed: () {
                                     _search.clear();
                                     _onSearchChanged('');
@@ -2884,13 +3291,15 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                       icon: Icon(
                         Icons.tune_rounded,
                         size: 20,
-                        color: (_filterTags.isNotEmpty || _filterDateRange != null) 
-                            ? AppColors.primary 
+                        color:
+                            (_filterTags.isNotEmpty || _filterDateRange != null)
+                            ? AppColors.primary
                             : AppColors.textSecondary,
                       ),
                       tooltip: 'Búsqueda avanzada',
                       style: IconButton.styleFrom(
-                        backgroundColor: (_filterTags.isNotEmpty || _filterDateRange != null)
+                        backgroundColor:
+                            (_filterTags.isNotEmpty || _filterDateRange != null)
                             ? AppColors.primary.withValues(alpha: 0.1)
                             : AppColors.surfaceLight,
                       ),
@@ -2898,7 +3307,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                   ],
                 ),
                 const SizedBox(height: AppColors.space12),
-                
+
                 // Fila de acciones simplificada (solo estadísticas y compacto)
                 Row(
                   children: [
@@ -2911,11 +3320,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                       ),
                       tooltip: 'Estadísticas',
                       style: IconButton.styleFrom(
-                        backgroundColor: _showStats 
+                        backgroundColor: _showStats
                             ? AppColors.primary.withValues(alpha: 0.1)
                             : AppColors.surfaceLight,
-                        foregroundColor: _showStats 
-                            ? AppColors.primary 
+                        foregroundColor: _showStats
+                            ? AppColors.primary
                             : AppColors.textSecondary,
                       ),
                     ),
@@ -2924,16 +3333,18 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                     IconButton(
                       onPressed: _toggleRecentSearches,
                       icon: Icon(
-                        _showRecentSearches ? Icons.history : Icons.history_outlined,
+                        _showRecentSearches
+                            ? Icons.history
+                            : Icons.history_outlined,
                         size: 20,
                       ),
                       tooltip: 'Búsquedas recientes',
                       style: IconButton.styleFrom(
-                        backgroundColor: _showRecentSearches 
+                        backgroundColor: _showRecentSearches
                             ? AppColors.primary.withValues(alpha: 0.1)
                             : AppColors.surfaceLight,
-                        foregroundColor: _showRecentSearches 
-                            ? AppColors.primary 
+                        foregroundColor: _showRecentSearches
+                            ? AppColors.primary
                             : AppColors.textSecondary,
                       ),
                     ),
@@ -2942,24 +3353,30 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                     IconButton(
                       onPressed: _toggleCompactMode,
                       icon: Icon(
-                        _compactMode ? Icons.density_small : Icons.density_medium,
+                        _compactMode
+                            ? Icons.density_small
+                            : Icons.density_medium,
                         size: 20,
                       ),
-                      tooltip: _compactMode ? 'Modo expandido' : 'Modo compacto',
+                      tooltip: _compactMode
+                          ? 'Modo expandido'
+                          : 'Modo compacto',
                       style: IconButton.styleFrom(
-                        backgroundColor: _compactMode 
+                        backgroundColor: _compactMode
                             ? AppColors.primary.withValues(alpha: 0.1)
                             : AppColors.surfaceLight,
-                        foregroundColor: _compactMode 
-                            ? AppColors.primary 
+                        foregroundColor: _compactMode
+                            ? AppColors.primary
                             : AppColors.textSecondary,
                       ),
                     ),
                   ],
                 ),
-                
+
                 // Indicador de filtros activos
-                if (_filterTags.isNotEmpty || _filterDateRange != null || _selectedFolderId != null)
+                if (_filterTags.isNotEmpty ||
+                    _filterDateRange != null ||
+                    _selectedFolderId != null)
                   Padding(
                     padding: const EdgeInsets.only(top: AppColors.space12),
                     child: Row(
@@ -2967,9 +3384,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         Expanded(
                           child: Text(
                             '${_notes.length} resultado(s)',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(color: AppColors.textSecondary),
                           ),
                         ),
                         TextButton(
@@ -2990,17 +3406,14 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
               ],
             ),
           ),
-          
+
           // Widget de estadísticas
           if (_showStats)
             Padding(
               padding: const EdgeInsets.all(AppColors.space12),
-              child: WorkspaceStats(
-                notes: _allNotes,
-                folders: _folders.length,
-              ),
+              child: WorkspaceStats(notes: _allNotes, folders: _folders.length),
             ),
-          
+
           // Widget de búsquedas recientes
           if (_showRecentSearches)
             Padding(
@@ -3017,163 +3430,205 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             ),
 
           // Sidebar sin botones extra ni dropzones: mantener limpio el menú
-          
+
           // Lista unificada de carpetas y notas con tarjetas modernas
           Expanded(
             child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                 : _notes.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(AppColors.space32),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.note_outlined,
-                                size: 48,
-                                color: AppColors.textMuted,
-                              ),
-                              const SizedBox(height: AppColors.space16),
-                              Text(
-                                'No hay notas',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: AppColors.space8),
-                              Text(
-                                'Crea tu primera nota',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppColors.space32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.note_outlined,
+                            size: 48,
+                            color: AppColors.textMuted,
                           ),
-                        ),
-                      )
-                    : EnhancedContextMenuRegion(
-                        // Click derecho en área vacía
-                        actions: (context) => EnhancedContextMenuBuilder.workspaceMenu(),
-                        onActionSelected: (action) => _handleEnhancedContextMenuAction(
-                          action.value, 
+                          const SizedBox(height: AppColors.space16),
+                          Text(
+                            (_selectedFolderId == '__SHARED_WITH_ME__' ||
+                                    _selectedFolderId == '__SHARED_BY_ME__')
+                                ? 'No hay notas compartidas'
+                                : 'No hay notas',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: AppColors.space8),
+                          Text(
+                            (_selectedFolderId == '__SHARED_WITH_ME__' ||
+                                    _selectedFolderId == '__SHARED_BY_ME__')
+                                ? (_selectedFolderId == '__SHARED_WITH_ME__'
+                                      ? 'Cuando alguien comparta contigo, aparecerán aquí'
+                                      : 'Aún no has compartido notas')
+                                : 'Crea tu primera nota',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : EnhancedContextMenuRegion(
+                    // Click derecho en área vacía
+                    actions: (context) =>
+                        EnhancedContextMenuBuilder.workspaceMenu(),
+                    onActionSelected: (action) =>
+                        _handleEnhancedContextMenuAction(
+                          action.value,
                           context: context,
                         ),
-                        child: Builder(
-                          builder: (context) {
-                            // En secciones virtuales de "Compartidas", no mostramos carpetas
-                            final bool inVirtualShared = _selectedFolderId == '__SHARED_WITH_ME__' || _selectedFolderId == '__SHARED_BY_ME__';
-                            final List<Map<String, dynamic>> notesWithoutFolder;
-                            if (inVirtualShared) {
-                              notesWithoutFolder = List<Map<String, dynamic>>.from(_notes);
-                            } else {
-                              // Obtener IDs de notas que están en carpetas
-                              final Set<String> notesInFolders = {};
-                              for (final folder in _folders) {
-                                notesInFolders.addAll(folder.noteIds);
-                              }
-                              // Filtrar notas que NO están en carpetas
-                              notesWithoutFolder = _notes
-                                  .where((n) => !notesInFolders.contains(n['id'].toString()))
-                                  .toList();
+                    child: Builder(
+                      builder: (context) {
+                        // En secciones virtuales de "Compartidas", no mostramos carpetas
+                        final bool inVirtualShared =
+                            _selectedFolderId == '__SHARED_WITH_ME__' ||
+                            _selectedFolderId == '__SHARED_BY_ME__';
+                        final List<Map<String, dynamic>> notesWithoutFolder;
+                        if (inVirtualShared) {
+                          notesWithoutFolder = List<Map<String, dynamic>>.from(
+                            _notes,
+                          );
+                        } else {
+                          // Obtener IDs de notas que están en carpetas
+                          final Set<String> notesInFolders = {};
+                          for (final folder in _folders) {
+                            notesInFolders.addAll(folder.noteIds);
+                          }
+                          // Filtrar notas que NO están en carpetas
+                          notesWithoutFolder = _notes
+                              .where(
+                                (n) => !notesInFolders.contains(
+                                  n['id'].toString(),
+                                ),
+                              )
+                              .toList();
+                        }
+
+                        return ListView.builder(
+                          padding: const EdgeInsets.all(AppColors.space12),
+                          itemCount:
+                              (inVirtualShared ? 0 : _folders.length) +
+                              notesWithoutFolder.length +
+                              2,
+                          itemBuilder: (context, i) {
+                            // Sección "Compartidas"
+                            if (i == 0) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppColors.space8,
+                                  vertical: AppColors.space4,
+                                ),
+                                child: Text(
+                                  'Compartidas',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textMuted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              );
                             }
-                            
-                            return ListView.builder(
-                              padding: const EdgeInsets.all(AppColors.space12),
-                              itemCount: (inVirtualShared ? 0 : _folders.length) + notesWithoutFolder.length + 2,
-                              itemBuilder: (context, i) {
-                                // Sección "Compartidas"
-                                if (i == 0) {
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: AppColors.space8, vertical: AppColors.space4),
-                                    child: Text(
-                                      'Compartidas',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textMuted,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  );
-                                }
-                                if (i == 1) {
-                                  return Column(
-                                    children: [
-                                      _buildVirtualSharedTile(
-                                        id: '__SHARED_WITH_ME__',
-                                        name: 'Conmigo',
-                                        icon: Icons.inbox_rounded,
-                                        color: AppColors.info,
-                                      ),
-                                      _buildVirtualSharedTile(
-                                        id: '__SHARED_BY_ME__',
-                                        name: 'Por mí',
-                                        icon: Icons.send_rounded,
-                                        color: AppColors.secondary,
-                                      ),
-                                      const Divider(color: AppColors.borderColor, height: 1),
-                                    ],
-                                  );
-                                }
-                                // Sección de carpetas con sus notas
-                                final baseIndex = 2; // virtual header + tiles
-                                if (!inVirtualShared && i - baseIndex < _folders.length) {
-                                  final folder = _folders[i - baseIndex];
-                                  final noteCount = folder.noteIds.length;
-                                  return _buildFolderCard(folder, noteCount);
-                                }
-                                
-                                // Notas sin carpeta (con menú contextual)
-                                final noteIndex = i - (inVirtualShared ? 0 : _folders.length) - baseIndex;
-                                final note = notesWithoutFolder[noteIndex];
-                                final id = note['id'].toString();
-                                return EnhancedContextMenuRegion(
-                                  actions: (context) => EnhancedContextMenuBuilder.noteMenu(
+                            if (i == 1) {
+                              return Column(
+                                children: [
+                                  _buildVirtualSharedTile(
+                                    id: '__SHARED_WITH_ME__',
+                                    name: 'Conmigo',
+                                    icon: Icons.inbox_rounded,
+                                    color: AppColors.info,
+                                  ),
+                                  _buildVirtualSharedTile(
+                                    id: '__SHARED_BY_ME__',
+                                    name: 'Por mí',
+                                    icon: Icons.send_rounded,
+                                    color: AppColors.secondary,
+                                  ),
+                                  const Divider(
+                                    color: AppColors.borderColor,
+                                    height: 1,
+                                  ),
+                                ],
+                              );
+                            }
+                            // Sección de carpetas con sus notas
+                            final baseIndex = 2; // virtual header + tiles
+                            if (!inVirtualShared &&
+                                i - baseIndex < _folders.length) {
+                              final folder = _folders[i - baseIndex];
+                              final noteCount = folder.noteIds.length;
+                              return _buildFolderCard(folder, noteCount);
+                            }
+
+                            // Notas sin carpeta (con menú contextual)
+                            final noteIndex =
+                                i -
+                                (inVirtualShared ? 0 : _folders.length) -
+                                baseIndex;
+                            final note = notesWithoutFolder[noteIndex];
+                            final id = note['id'].toString();
+                            return EnhancedContextMenuRegion(
+                              actions: (context) =>
+                                  EnhancedContextMenuBuilder.noteMenu(
                                     isInFolder: false,
                                     isPinned: note['pinned'] == true,
                                     isFavorite: note['favorite'] == true,
                                     isArchived: note['archived'] == true,
                                     hasIcon: note['icon'] != null,
                                   ),
-                                  onActionSelected: (action) => _handleEnhancedContextMenuAction(
-                                    action.value, 
-                                    context: context, 
+                              onActionSelected: (action) =>
+                                  _handleEnhancedContextMenuAction(
+                                    action.value,
+                                    context: context,
                                     noteId: id,
                                   ),
-                                  child: NotesSidebarCard(
-                                    note: note,
-                                    isSelected: id == _selectedId,
-                                    onTap: () => _select(id),
-                                    onPin: () async {
-                                      if (inVirtualShared || note['isShared'] == true) {
-                                        ToastService.info('No puedes anclar notas compartidas');
-                                        return;
-                                      }
-                                      await FirestoreService.instance.setPinned(
-                                        uid: _uid,
-                                        noteId: id,
-                                        pinned: !(note['pinned'] == true),
-                                      );
-                                      await _loadNotes();
-                                    },
-                                    onDelete: () async {
-                                      if (inVirtualShared || note['isShared'] == true) {
-                                        ToastService.info('No puedes eliminar notas compartidas');
-                                        return;
-                                      }
-                                      await _delete(id);
-                                    },
-                                    onSetIcon: () => _showNoteIconPicker(noteId: id, initialIcon: note['icon']?.toString(), initialColor: note['iconColor'] is int ? Color(note['iconColor']) : null),
-                                    onClearIcon: () async => _clearNoteIcon(id),
-                                    enableDrag: !inVirtualShared,
-                                    compact: _compactMode,
-                                  ),
-                                );
-                              },
+                              child: NotesSidebarCard(
+                                note: note,
+                                isSelected: id == _selectedId,
+                                onTap: () => _select(id),
+                                onPin: () async {
+                                  if (inVirtualShared ||
+                                      note['isShared'] == true) {
+                                    ToastService.info(
+                                      'No puedes anclar notas compartidas',
+                                    );
+                                    return;
+                                  }
+                                  await FirestoreService.instance.setPinned(
+                                    uid: _uid,
+                                    noteId: id,
+                                    pinned: !(note['pinned'] == true),
+                                  );
+                                  await _loadNotes();
+                                },
+                                onDelete: () async {
+                                  if (inVirtualShared ||
+                                      note['isShared'] == true) {
+                                    ToastService.info(
+                                      'No puedes eliminar notas compartidas',
+                                    );
+                                    return;
+                                  }
+                                  await _delete(id);
+                                },
+                                onSetIcon: () => _showNoteIconPicker(
+                                  noteId: id,
+                                  initialIcon: note['icon']?.toString(),
+                                  initialColor: note['iconColor'] is int
+                                      ? Color(note['iconColor'])
+                                      : null,
+                                ),
+                                onClearIcon: () async => _clearNoteIcon(id),
+                                enableDrag: !inVirtualShared,
+                                compact: _compactMode,
+                              ),
                             );
                           },
-                        ),
-                      ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -3186,10 +3641,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   }
 
   // Nuevas funciones para el menú contextual mejorado
-  
+
   // Icon registry for large icon/color sets
   // ignore_for_file: unused_import
-  
 
   Future<void> _showNoteIconPicker({
     required String noteId,
@@ -3207,12 +3661,19 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         List<MapEntry<String, IconData>> filtered = allIcons;
         int tabIndex = 0;
         String emojiInput = '';
-        String hexInput = selectedColor.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase();
+        String hexInput = selectedColor
+            .toARGB32()
+            .toRadixString(16)
+            .padLeft(8, '0')
+            .toUpperCase();
 
         return StatefulBuilder(
           builder: (ctx, setState) => AlertDialog(
             backgroundColor: AppColors.surface,
-            title: const Text('Icono de nota', style: TextStyle(color: AppColors.textPrimary)),
+            title: const Text(
+              'Icono de nota',
+              style: TextStyle(color: AppColors.textPrimary),
+            ),
             content: SizedBox(
               width: 420,
               child: Column(
@@ -3251,7 +3712,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                       onChanged: (v) {
                         setState(() {
                           query = v.trim().toLowerCase();
-                          filtered = allIcons.where((e) => e.key.toLowerCase().contains(query)).toList();
+                          filtered = allIcons
+                              .where((e) => e.key.toLowerCase().contains(query))
+                              .toList();
                         });
                       },
                     ),
@@ -3260,24 +3723,37 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                     SizedBox(
                       height: 220,
                       child: GridView.builder(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 6,
-                          mainAxisSpacing: 8,
-                          crossAxisSpacing: 8,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 6,
+                              mainAxisSpacing: 8,
+                              crossAxisSpacing: 8,
+                            ),
                         itemCount: filtered.length,
                         itemBuilder: (gctx, i) {
                           final entry = filtered[i];
                           final isSel = entry.key == selectedIcon;
                           return InkWell(
-                            onTap: () => setState(() => selectedIcon = entry.key),
+                            onTap: () =>
+                                setState(() => selectedIcon = entry.key),
                             child: Container(
                               decoration: BoxDecoration(
-                                color: isSel ? AppColors.primary.withValues(alpha: 0.2) : AppColors.surfaceLight,
+                                color: isSel
+                                    ? AppColors.primary.withValues(alpha: 0.2)
+                                    : AppColors.surfaceLight,
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: isSel ? AppColors.primary : AppColors.borderColor),
+                                border: Border.all(
+                                  color: isSel
+                                      ? AppColors.primary
+                                      : AppColors.borderColor,
+                                ),
                               ),
-                              child: Icon(entry.value, color: isSel ? AppColors.primary : AppColors.textSecondary),
+                              child: Icon(
+                                entry.value,
+                                color: isSel
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                              ),
                             ),
                           );
                         },
@@ -3302,9 +3778,15 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         decoration: BoxDecoration(
                           color: AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primary, width: 2),
+                          border: Border.all(
+                            color: AppColors.primary,
+                            width: 2,
+                          ),
                         ),
-                        child: Text(emojiInput, style: const TextStyle(fontSize: 32)),
+                        child: Text(
+                          emojiInput,
+                          style: const TextStyle(fontSize: 32),
+                        ),
                       ),
                   ] else if (tabIndex == 2) ...[
                     // HEX color input
@@ -3320,7 +3802,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                           hexInput = v.toUpperCase();
                           if (hexInput.length == 8) {
                             try {
-                              selectedColor = Color(int.parse(hexInput, radix: 16));
+                              selectedColor = Color(
+                                int.parse(hexInput, radix: 16),
+                              );
                             } catch (_) {}
                           }
                         });
@@ -3347,7 +3831,10 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          const Text('Color:', style: TextStyle(color: AppColors.textSecondary)),
+                          const Text(
+                            'Color:',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
                           ...NoteIconRegistry.palette.map((c) {
                             final sel = selectedColor == c;
                             return GestureDetector(
@@ -3359,7 +3846,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                 decoration: BoxDecoration(
                                   color: c,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: sel ? Colors.white : AppColors.borderColor, width: sel ? 2 : 1),
+                                  border: Border.all(
+                                    color: sel
+                                        ? Colors.white
+                                        : AppColors.borderColor,
+                                    width: sel ? 2 : 1,
+                                  ),
                                 ),
                               ),
                             );
@@ -3389,10 +3881,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       await FirestoreService.instance.updateNote(
         uid: _uid,
         noteId: noteId,
-        data: {
-          'icon': selectedIcon,
-          'iconColor': selectedColor.toARGB32(),
-        },
+        data: {'icon': selectedIcon, 'iconColor': selectedColor.toARGB32()},
       );
       // ✅ CORRECCIÓN: Actualizar solo la nota específica en lugar de recargar todo
       _updateNoteInList(noteId, {
@@ -3406,31 +3895,29 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     await FirestoreService.instance.updateNote(
       uid: _uid,
       noteId: noteId,
-      data: {
-        'icon': null,
-        'iconColor': null,
-      },
+      data: {'icon': null, 'iconColor': null},
     );
     // ✅ CORRECCIÓN: Actualizar solo la nota específica en lugar de recargar todo
-    _updateNoteInList(noteId, {
-      'icon': null,
-      'iconColor': null,
-    });
+    _updateNoteInList(noteId, {'icon': null, 'iconColor': null});
   }
 
   /// Actualiza una nota específica en las listas locales sin recargar todo
   void _updateNoteInList(String noteId, Map<String, dynamic> updates) {
     if (!mounted) return;
-    
+
     setState(() {
       // Actualizar en _allNotes
-      final allIndex = _allNotes.indexWhere((note) => note['id'].toString() == noteId);
+      final allIndex = _allNotes.indexWhere(
+        (note) => note['id'].toString() == noteId,
+      );
       if (allIndex >= 0) {
         _allNotes[allIndex] = {..._allNotes[allIndex], ...updates};
       }
-      
+
       // Actualizar en _notes (lista filtrada)
-      final notesIndex = _notes.indexWhere((note) => note['id'].toString() == noteId);
+      final notesIndex = _notes.indexWhere(
+        (note) => note['id'].toString() == noteId,
+      );
       if (notesIndex >= 0) {
         _notes[notesIndex] = {..._notes[notesIndex], ...updates};
       }
@@ -3438,8 +3925,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   }
 
   Future<void> _showRenameNoteDialog(String noteId) async {
-    final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId, orElse: () => {});
-    final controller = TextEditingController(text: (note['title']?.toString() ?? '').trim());
+    final note = _allNotes.firstWhere(
+      (n) => n['id'].toString() == noteId,
+      orElse: () => {},
+    );
+    final controller = TextEditingController(
+      text: (note['title']?.toString() ?? '').trim(),
+    );
     final newTitle = await showDialog<String?>(
       context: context,
       builder: (ctx) {
@@ -3455,8 +3947,14 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Guardar')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: const Text('Guardar'),
+            ),
           ],
         );
       },
@@ -3466,7 +3964,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       ToastService.warning('El título no puede estar vacío');
       return;
     }
-    await FirestoreService.instance.updateNote(uid: _uid, noteId: noteId, data: {'title': newTitle});
+    await FirestoreService.instance.updateNote(
+      uid: _uid,
+      noteId: noteId,
+      data: {'title': newTitle},
+    );
     _updateNoteInList(noteId, {'title': newTitle});
   }
 
@@ -3487,8 +3989,14 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Guardar')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: const Text('Guardar'),
+            ),
           ],
         );
       },
@@ -3498,15 +4006,21 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       ToastService.warning('El nombre no puede estar vacío');
       return;
     }
-    await FirestoreService.instance.updateFolder(uid: _uid, folderId: folder.id, data: {'name': newName});
+    await FirestoreService.instance.updateFolder(
+      uid: _uid,
+      folderId: folder.id,
+      data: {'name': newName},
+    );
     await _loadFolders();
   }
 
   Future<void> _showFolderIconPicker(String folderId) async {
     final folder = _folders.firstWhere((f) => f.id == folderId);
-    
+
     Color selectedColor = folder.color;
-    String? selectedIcon = folder.emoji == null ? _iconToString(folder.icon) : null;
+    String? selectedIcon = folder.emoji == null
+        ? _iconToString(folder.icon)
+        : null;
     String? selectedEmoji = folder.emoji;
 
     final result = await showDialog<bool>(
@@ -3517,12 +4031,19 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         List<MapEntry<String, IconData>> filtered = allIcons;
         int tabIndex = selectedEmoji != null ? 1 : 0;
         String emojiInput = selectedEmoji ?? '';
-        String hexInput = selectedColor.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase();
+        String hexInput = selectedColor
+            .toARGB32()
+            .toRadixString(16)
+            .padLeft(8, '0')
+            .toUpperCase();
 
         return StatefulBuilder(
           builder: (ctx, setState) => AlertDialog(
             backgroundColor: AppColors.surface,
-            title: const Text('Icono y color de carpeta', style: TextStyle(color: AppColors.textPrimary)),
+            title: const Text(
+              'Icono y color de carpeta',
+              style: TextStyle(color: AppColors.textPrimary),
+            ),
             content: SizedBox(
               width: 420,
               child: Column(
@@ -3561,7 +4082,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                       onChanged: (v) {
                         setState(() {
                           query = v.trim().toLowerCase();
-                          filtered = allIcons.where((e) => e.key.toLowerCase().contains(query)).toList();
+                          filtered = allIcons
+                              .where((e) => e.key.toLowerCase().contains(query))
+                              .toList();
                         });
                       },
                     ),
@@ -3570,11 +4093,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                     SizedBox(
                       height: 220,
                       child: GridView.builder(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 6,
-                          mainAxisSpacing: 8,
-                          crossAxisSpacing: 8,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 6,
+                              mainAxisSpacing: 8,
+                              crossAxisSpacing: 8,
+                            ),
                         itemCount: filtered.length,
                         itemBuilder: (gctx, i) {
                           final entry = filtered[i];
@@ -3586,11 +4110,22 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                             }),
                             child: Container(
                               decoration: BoxDecoration(
-                                color: isSel ? AppColors.primary.withValues(alpha: 0.2) : AppColors.surfaceLight,
+                                color: isSel
+                                    ? AppColors.primary.withValues(alpha: 0.2)
+                                    : AppColors.surfaceLight,
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: isSel ? AppColors.primary : AppColors.borderColor),
+                                border: Border.all(
+                                  color: isSel
+                                      ? AppColors.primary
+                                      : AppColors.borderColor,
+                                ),
                               ),
-                              child: Icon(entry.value, color: isSel ? AppColors.primary : AppColors.textSecondary),
+                              child: Icon(
+                                entry.value,
+                                color: isSel
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                              ),
                             ),
                           );
                         },
@@ -3619,9 +4154,15 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         decoration: BoxDecoration(
                           color: AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primary, width: 2),
+                          border: Border.all(
+                            color: AppColors.primary,
+                            width: 2,
+                          ),
                         ),
-                        child: Text(emojiInput, style: const TextStyle(fontSize: 32)),
+                        child: Text(
+                          emojiInput,
+                          style: const TextStyle(fontSize: 32),
+                        ),
                       ),
                   ] else if (tabIndex == 2) ...[
                     // HEX color input
@@ -3637,7 +4178,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                           hexInput = v.toUpperCase();
                           if (hexInput.length == 8) {
                             try {
-                              selectedColor = Color(int.parse(hexInput, radix: 16));
+                              selectedColor = Color(
+                                int.parse(hexInput, radix: 16),
+                              );
                             } catch (_) {}
                           }
                         });
@@ -3664,7 +4207,10 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          const Text('Color:', style: TextStyle(color: AppColors.textSecondary)),
+                          const Text(
+                            'Color:',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
                           ...NoteIconRegistry.palette.map((c) {
                             final sel = selectedColor == c;
                             return GestureDetector(
@@ -3676,7 +4222,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                 decoration: BoxDecoration(
                                   color: c,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: sel ? Colors.white : AppColors.borderColor, width: sel ? 2 : 1),
+                                  border: Border.all(
+                                    color: sel
+                                        ? Colors.white
+                                        : AppColors.borderColor,
+                                    width: sel ? 2 : 1,
+                                  ),
                                 ),
                               ),
                             );
@@ -3704,10 +4255,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
 
     if (result == true) {
       try {
-        final updateData = <String, dynamic>{
-          'color': selectedColor.toARGB32(),
-        };
-        
+        final updateData = <String, dynamic>{'color': selectedColor.toARGB32()};
+
         if (selectedEmoji != null) {
           updateData['emoji'] = selectedEmoji;
           updateData['icon'] = null; // Clear icon when emoji is set
@@ -3715,7 +4264,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           updateData['icon'] = selectedIcon;
           updateData['emoji'] = null; // Clear emoji when icon is set
         }
-        
+
         await FirestoreService.instance.updateFolder(
           uid: _uid,
           folderId: folderId,
@@ -3768,12 +4317,15 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   Future<void> _showCreateSubfolderDialog(String? parentFolderId) async {
     final nameController = TextEditingController();
     final colorNotifier = ValueNotifier<Color>(AppColors.primary);
-    
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Nueva subcarpeta', style: TextStyle(color: AppColors.textPrimary)),
+        title: const Text(
+          'Nueva subcarpeta',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3791,7 +4343,10 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
               valueListenable: colorNotifier,
               builder: (context, color, _) => Row(
                 children: [
-                  const Text('Color: ', style: TextStyle(color: AppColors.textSecondary)),
+                  const Text(
+                    'Color: ',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                   GestureDetector(
                     onTap: () async {
                       final newColor = await _showColorPicker(color);
@@ -3840,13 +4395,18 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           'order': _folders.length,
         };
 
-        await FirestoreService.instance.createFolder(uid: _uid, data: folderData);
+        await FirestoreService.instance.createFolder(
+          uid: _uid,
+          data: folderData,
+        );
         await _loadFolders();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Subcarpeta "${nameController.text.trim()}" creada'),
+              content: Text(
+                'Subcarpeta "${nameController.text.trim()}" creada',
+              ),
               backgroundColor: AppColors.success,
             ),
           );
@@ -3869,7 +4429,10 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Seleccionar color', style: TextStyle(color: AppColors.textPrimary)),
+        title: const Text(
+          'Seleccionar color',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
         content: SizedBox(
           width: 250,
           height: 150,
@@ -3882,11 +4445,24 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
             itemCount: 18,
             itemBuilder: (context, index) {
               final colors = [
-                AppColors.primary, Colors.red, Colors.green, Colors.blue,
-                Colors.orange, Colors.purple, Colors.teal, Colors.pink,
-                Colors.indigo, Colors.cyan, Colors.lime, Colors.amber,
-                Colors.brown, Colors.grey, Colors.deepOrange, Colors.lightBlue,
-                Colors.lightGreen, Colors.deepPurple,
+                AppColors.primary,
+                Colors.red,
+                Colors.green,
+                Colors.blue,
+                Colors.orange,
+                Colors.purple,
+                Colors.teal,
+                Colors.pink,
+                Colors.indigo,
+                Colors.cyan,
+                Colors.lime,
+                Colors.amber,
+                Colors.brown,
+                Colors.grey,
+                Colors.deepOrange,
+                Colors.lightBlue,
+                Colors.lightGreen,
+                Colors.deepPurple,
               ];
               final color = colors[index];
               return InkWell(
@@ -3896,7 +4472,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                     color: color,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: color == currentColor ? Colors.white : Colors.transparent,
+                      color: color == currentColor
+                          ? Colors.white
+                          : Colors.transparent,
                       width: 2,
                     ),
                   ),
@@ -3918,12 +4496,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   Future<void> _duplicateFolder(String folderId) async {
     try {
       final folder = _folders.firstWhere((f) => f.id == folderId);
-      
+
       final folderData = {
         'name': '${folder.name} (copia)',
         'icon': _iconToString(folder.icon),
         'color': folder.color.toARGB32(),
-        'noteIds': folder.noteIds.toList(), // Copia las referencias a las mismas notas
+        'noteIds': folder.noteIds
+            .toList(), // Copia las referencias a las mismas notas
         'createdAt': DateTime.now().toIso8601String(),
         'updatedAt': DateTime.now().toIso8601String(),
         'order': _folders.length,
@@ -3931,11 +4510,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
 
       await FirestoreService.instance.createFolder(uid: _uid, data: folderData);
       await _loadFolders();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Carpeta "${folder.name}" duplicada con ${folder.noteIds.length} notas'),
+            content: Text(
+              'Carpeta "${folder.name}" duplicada con ${folder.noteIds.length} notas',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
@@ -3955,9 +4536,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   void _copyFolderLink(String folderId) {
     final folder = _folders.firstWhere((f) => f.id == folderId);
     final link = 'nootes://folder/$folderId';
-    
+
     Clipboard.setData(ClipboardData(text: link));
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

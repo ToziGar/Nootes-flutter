@@ -47,10 +47,10 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
   late ScrollController _editorScrollController;
   late ScrollController _lineNumbersScrollController;
   late ScrollController _minimapScrollController;
-  
+
   final AutoCompleteService _autoCompleteService = AutoCompleteService();
   final SyntaxHighlightService _syntaxService = SyntaxHighlightService();
-  
+
   List<AutoCompleteSuggestion> _suggestions = [];
   List<CodeSnippet> _snippets = [];
   bool _showSuggestions = false;
@@ -58,7 +58,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
   int _selectedSuggestionIndex = 0;
   String _currentWord = '';
   int _currentWordStart = 0;
-  
+
   // Estado del editor
   int _currentLine = 1;
   int _currentColumn = 1;
@@ -103,10 +103,10 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
         // En algunos casos (cambio de tamaño), la posición todavía no está lista
       }
     });
-    
+
     // Inicializar servicios básicos
     _autoCompleteService.initialize();
-    
+
     // Inicializar servicios ultra-avanzados
     _multiCursorService = multi_cursor.MultiCursorService();
     _bracketService = bracket.BracketMatchingService();
@@ -115,7 +115,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
     _indentationService = indentation.SmartIndentationService();
     _commandService = commands.CommandPaletteService();
     _zenService = zen.ZenModeService();
-    
+
     // Configurar servicios
     _multiCursorService.initialize(_controller);
     _bracketService.initialize(_controller);
@@ -123,7 +123,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
     _foldingService.initialize(_controller);
     _indentationService.initialize(_controller);
     _commandService.initialize();
-    
+
     _controller.addListener(_onTextChanged);
     _updateStats();
   }
@@ -142,7 +142,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
     final text = _controller.text;
     widget.onTextChanged(text);
     _updateStats();
-    
+
     if (widget.autoComplete) {
       _handleAutoComplete();
     }
@@ -152,14 +152,14 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
     final text = _controller.text;
     final lines = text.split('\n');
     final selection = _controller.selection;
-    
+
     setState(() {
       _totalLines = lines.length;
-      
+
       if (selection.isValid) {
         int line = 1;
         int column = 1;
-        
+
         for (int i = 0; i < selection.start && i < text.length; i++) {
           if (text[i] == '\n') {
             line++;
@@ -168,7 +168,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
             column++;
           }
         }
-        
+
         _currentLine = line;
         _currentColumn = column;
       }
@@ -178,27 +178,34 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
   void _handleAutoComplete() async {
     final selection = _controller.selection;
     if (!selection.isValid) return;
-    
+
     final text = _controller.text;
     final cursorPos = selection.start;
-    
+
     // Encontrar la palabra actual
     int wordStart = cursorPos;
-    while (wordStart > 0 && text[wordStart - 1] != ' ' && text[wordStart - 1] != '\n') {
+    while (wordStart > 0 &&
+        text[wordStart - 1] != ' ' &&
+        text[wordStart - 1] != '\n') {
       wordStart--;
     }
-    
+
     int wordEnd = cursorPos;
-    while (wordEnd < text.length && text[wordEnd] != ' ' && text[wordEnd] != '\n') {
+    while (wordEnd < text.length &&
+        text[wordEnd] != ' ' &&
+        text[wordEnd] != '\n') {
       wordEnd++;
     }
-    
+
     final currentWord = text.substring(wordStart, cursorPos);
-    
+
     if (currentWord.length >= 2) {
-      final suggestions = await _autoCompleteService.getSuggestions(currentWord, _controller.selection.start);
+      final suggestions = await _autoCompleteService.getSuggestions(
+        currentWord,
+        _controller.selection.start,
+      );
       final snippets = _autoCompleteService.getCodeSnippets(currentWord);
-      
+
       setState(() {
         _currentWord = currentWord;
         _currentWordStart = wordStart;
@@ -218,40 +225,42 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
 
   void _applySuggestion(String suggestion) {
     final text = _controller.text;
-    final newText = text.substring(0, _currentWordStart) + 
-                   suggestion + 
-                   text.substring(_currentWordStart + _currentWord.length);
-    
+    final newText =
+        text.substring(0, _currentWordStart) +
+        suggestion +
+        text.substring(_currentWordStart + _currentWord.length);
+
     _controller.text = newText;
     _controller.selection = TextSelection.collapsed(
       offset: _currentWordStart + suggestion.length,
     );
-    
+
     setState(() {
       _showSuggestions = false;
       _showSnippets = false;
     });
-    
+
     _autoCompleteService.addUserWord(suggestion);
   }
 
   void _applySnippet(CodeSnippet snippet) {
     final text = _controller.text;
     String template = snippet.template;
-    
+
     // Procesar variables del snippet (simple implementación)
     template = template.replaceAll(RegExp(r'\$\{\d+:([^}]*)\}'), r'$1');
     template = template.replaceAll(RegExp(r'\$\d+'), '');
-    
-    final newText = text.substring(0, _currentWordStart) + 
-                   template + 
-                   text.substring(_currentWordStart + _currentWord.length);
-    
+
+    final newText =
+        text.substring(0, _currentWordStart) +
+        template +
+        text.substring(_currentWordStart + _currentWord.length);
+
     _controller.text = newText;
     _controller.selection = TextSelection.collapsed(
       offset: _currentWordStart + template.length,
     );
-    
+
     setState(() {
       _showSuggestions = false;
       _showSnippets = false;
@@ -260,7 +269,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
 
   Widget _buildSuggestionsPanel() {
     if (!_showSuggestions && !_showSnippets) return const SizedBox.shrink();
-    
+
     return Positioned(
       left: 50,
       top: 100,
@@ -296,7 +305,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
                     itemBuilder: (context, index) {
                       final suggestion = _suggestions[index];
                       final isSelected = index == _selectedSuggestionIndex;
-                      
+
                       return ListTile(
                         dense: true,
                         selected: isSelected,
@@ -339,7 +348,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
                     itemCount: _snippets.length,
                     itemBuilder: (context, index) {
                       final snippet = _snippets[index];
-                      
+
                       return ListTile(
                         dense: true,
                         leading: const Icon(
@@ -370,7 +379,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
 
   Widget _buildLineNumbers() {
     if (!widget.showLineNumbers) return const SizedBox.shrink();
-    
+
     return Container(
       width: 50,
       color: Theme.of(context).scaffoldBackgroundColor.withOpacityCompat(0.5),
@@ -380,19 +389,23 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
         itemBuilder: (context, index) {
           final lineNumber = index + 1;
           final isCurrentLine = lineNumber == _currentLine;
-          
+
           return Container(
             height: widget.fontSize * 1.5,
             alignment: Alignment.centerRight,
             padding: const EdgeInsets.only(right: 8),
-            color: isCurrentLine ? AppColors.primary.withOpacityCompat(0.1) : null,
+            color: isCurrentLine
+                ? AppColors.primary.withOpacityCompat(0.1)
+                : null,
             child: Text(
               lineNumber.toString(),
               style: TextStyle(
                 fontSize: widget.fontSize * 0.8,
-                color: isCurrentLine 
+                color: isCurrentLine
                     ? AppColors.primary
-                    : Theme.of(context).textTheme.bodySmall?.color?.withOpacityCompat(0.6),
+                    : Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.color?.withOpacityCompat(0.6),
                 fontFamily: 'monospace',
               ),
             ),
@@ -404,7 +417,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
 
   Widget _buildMinimap() {
     if (!widget.showMinimap) return const SizedBox.shrink();
-    
+
     return Container(
       width: 100,
       color: Theme.of(context).scaffoldBackgroundColor.withOpacityCompat(0.8),
@@ -417,7 +430,9 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
             style: TextStyle(
               fontSize: 4,
               fontFamily: 'monospace',
-              color: Theme.of(context).textTheme.bodySmall?.color?.withOpacityCompat(0.5),
+              color: Theme.of(
+                context,
+              ).textTheme.bodySmall?.color?.withOpacityCompat(0.5),
             ),
           ),
         ),
@@ -431,26 +446,16 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        border: Border(
-          top: BorderSide(
-            color: Theme.of(context).dividerColor,
-          ),
-        ),
+        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
       ),
       child: Row(
         children: [
           Text(
             'Ln $_currentLine, Col $_currentColumn',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.primary,
-            ),
+            style: TextStyle(fontSize: 12, color: AppColors.primary),
           ),
           const SizedBox(width: 16),
-          Text(
-            'Líneas: $_totalLines',
-            style: const TextStyle(fontSize: 12),
-          ),
+          Text('Líneas: $_totalLines', style: const TextStyle(fontSize: 12)),
           const SizedBox(width: 16),
           Text(
             'Caracteres: ${_controller.text.length}',
@@ -458,18 +463,10 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
           ),
           const Spacer(),
           if (widget.syntaxHighlighting)
-            const Icon(
-              Icons.palette,
-              size: 16,
-              color: Colors.green,
-            ),
+            const Icon(Icons.palette, size: 16, color: Colors.green),
           if (widget.autoComplete) ...[
             const SizedBox(width: 8),
-            const Icon(
-              Icons.auto_awesome,
-              size: 16,
-              color: Colors.blue,
-            ),
+            const Icon(Icons.auto_awesome, size: 16, color: Colors.blue),
           ],
         ],
       ),
@@ -504,7 +501,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
     final theme = widget.themeMode == ThemeMode.dark
         ? SyntaxTheme.darkTheme()
         : SyntaxTheme.defaultTheme();
-    
+
     return TextField(
       controller: _controller,
       focusNode: _focusNode,
@@ -522,14 +519,16 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
       ),
       onChanged: (text) => _onTextChanged(),
       onTap: () => _updateStats(),
-      buildCounter: (context, {required currentLength, required isFocused, maxLength}) {
-        // Construir texto con resaltado de sintaxis
-        final highlightedText = _syntaxService.highlightText(_controller.text, theme: theme);
-        
-        return RichText(
-          text: highlightedText,
-        );
-      },
+      buildCounter:
+          (context, {required currentLength, required isFocused, maxLength}) {
+            // Construir texto con resaltado de sintaxis
+            final highlightedText = _syntaxService.highlightText(
+              _controller.text,
+              theme: theme,
+            );
+
+            return RichText(text: highlightedText);
+          },
     );
   }
 
@@ -564,18 +563,18 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
           if (_handleKeyboardShortcuts(event)) {
             return;
           }
-          
+
           // Manejar atajos de teclado básicos
           if (event.logicalKey == LogicalKeyboardKey.controlLeft ||
               event.logicalKey == LogicalKeyboardKey.controlRight) {
             _isCtrlPressed = true;
           }
-          
+
           // Ctrl + Espacio para autocompletado
           if (_isCtrlPressed && event.logicalKey == LogicalKeyboardKey.space) {
             _handleAutoComplete();
           }
-          
+
           // Escape para cerrar sugerencias
           if (event.logicalKey == LogicalKeyboardKey.escape) {
             setState(() {
@@ -583,18 +582,19 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
               _showSnippets = false;
             });
           }
-          
+
           // Navegación en sugerencias
           if (_showSuggestions) {
             if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
               setState(() {
-                _selectedSuggestionIndex = 
+                _selectedSuggestionIndex =
                     (_selectedSuggestionIndex + 1) % _suggestions.length;
               });
             } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
               setState(() {
-                _selectedSuggestionIndex = 
-                    (_selectedSuggestionIndex - 1 + _suggestions.length) % _suggestions.length;
+                _selectedSuggestionIndex =
+                    (_selectedSuggestionIndex - 1 + _suggestions.length) %
+                    _suggestions.length;
               });
             } else if (event.logicalKey == LogicalKeyboardKey.enter) {
               if (_selectedSuggestionIndex < _suggestions.length) {
@@ -611,17 +611,10 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
       },
       child: Container(
         decoration: BoxDecoration(
-          border: Border.all(
-            color: Theme.of(context).dividerColor,
-          ),
+          border: Border.all(color: Theme.of(context).dividerColor),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Column(
-          children: [
-            _buildEditor(),
-            _buildStatusBar(),
-          ],
-        ),
+        child: Column(children: [_buildEditor(), _buildStatusBar()]),
       ),
     );
   }
@@ -659,13 +652,13 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
           return true;
       }
     }
-    
+
     if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.f11) {
       // Modo Zen con F11
       _toggleZenMode();
       return true;
     }
-    
+
     return false;
   }
 
@@ -687,10 +680,7 @@ class _AdvancedEditorState extends State<AdvancedEditor> {
         controller: _controller,
         focusNode: _focusNode,
         maxLines: null,
-        style: TextStyle(
-          fontSize: widget.fontSize,
-          fontFamily: 'monospace',
-        ),
+        style: TextStyle(fontSize: widget.fontSize, fontFamily: 'monospace'),
         decoration: const InputDecoration(
           border: InputBorder.none,
           contentPadding: EdgeInsets.all(16),

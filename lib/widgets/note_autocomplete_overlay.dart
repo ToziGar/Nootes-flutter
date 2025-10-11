@@ -28,10 +28,7 @@ class NoteAutocompleteOverlay extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppColors.radiusMd),
       color: AppColors.surface,
       child: Container(
-        constraints: const BoxConstraints(
-          maxHeight: 300,
-          maxWidth: 400,
-        ),
+        constraints: const BoxConstraints(maxHeight: 300, maxWidth: 400),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppColors.radiusMd),
@@ -60,17 +57,17 @@ class NoteAutocompleteOverlay extends StatelessWidget {
                   Text(
                     'Enlazar nota',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textMuted,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const Spacer(),
                   Text(
                     query.isNotEmpty ? '"$query"' : 'Todas',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.primary,
-                          fontStyle: FontStyle.italic,
-                        ),
+                      color: AppColors.primary,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ],
               ),
@@ -112,18 +109,14 @@ class NoteAutocompleteOverlay extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.note_outlined,
-                  size: 18,
-                  color: AppColors.textMuted,
-                ),
+                Icon(Icons.note_outlined, size: 18, color: AppColors.textMuted),
                 const SizedBox(width: AppColors.space8),
                 Expanded(
                   child: Text(
                     suggestion.title.isEmpty ? 'Sin título' : suggestion.title,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
+                      fontWeight: FontWeight.w500,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -147,9 +140,9 @@ class NoteAutocompleteOverlay extends StatelessWidget {
                     child: Text(
                       tag,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.primary,
-                            fontSize: 10,
-                          ),
+                        color: AppColors.primary,
+                        fontSize: 10,
+                      ),
                     ),
                   );
                 }).toList(),
@@ -185,18 +178,18 @@ class NoteAutocompleteOverlay extends StatelessWidget {
             const SizedBox(height: AppColors.space8),
             Text(
               'No hay notas que coincidan',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textMuted,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
             ),
             if (query.isNotEmpty) ...[
               const SizedBox(height: AppColors.space4),
               Text(
                 'Busca: "$query"',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textMuted,
-                      fontStyle: FontStyle.italic,
-                    ),
+                  color: AppColors.textMuted,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ],
           ],
@@ -212,17 +205,15 @@ class NoteSuggestion {
   final String title;
   final List<String> tags;
 
-  NoteSuggestion({
-    required this.id,
-    required this.title,
-    this.tags = const [],
-  });
+  NoteSuggestion({required this.id, required this.title, this.tags = const []});
 
   factory NoteSuggestion.fromMap(Map<String, dynamic> data) {
     return NoteSuggestion(
       id: data['id'] as String,
       title: (data['title'] as String?) ?? '',
-      tags: (data['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      tags:
+          (data['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+          [],
     );
   }
 }

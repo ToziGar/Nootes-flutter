@@ -19,7 +19,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final _authService = AuthService.instance;
-  
+
   String _themeMode = 'Sistema'; // Claro, Oscuro, Sistema
   bool _notifications = true;
   bool _autoSave = true;
@@ -29,13 +29,13 @@ class _SettingsPageState extends State<SettingsPage> {
   Timer? _saveDebounce;
   bool _saving = false;
   DateTime? _lastSaved;
-  
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
   }
-  
+
   Future<void> _loadSettings() async {
     // Preferencias locales para fallback inmediato
     final themeMode = await PreferencesService.getThemeModeString();
@@ -60,7 +60,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _defaultView = (remote?['defaultView'] as String?) ?? _defaultView;
     });
   }
-  
+
   Future<void> _saveSettings() async {
     final uid = _authService.currentUser?.uid;
     try {
@@ -76,18 +76,23 @@ class _SettingsPageState extends State<SettingsPage> {
         default:
           await PreferencesService.setThemeMode(ThemeMode.system);
       }
-      await PreferencesService.setLocale(Locale(_language == 'English' ? 'en' : 'es', ''));
+      await PreferencesService.setLocale(
+        Locale(_language == 'English' ? 'en' : 'es', ''),
+      );
 
       // Persistir en Firestore (si hay usuario)
       if (uid != null) {
-        await FirestoreService.instance.updateUserSettings(uid: uid, data: {
-          'themeMode': _themeMode,
-          'language': _language,
-          'notifications': _notifications,
-          'autoSave': _autoSave,
-          'backupEnabled': _backupEnabled,
-          'defaultView': _defaultView,
-        });
+        await FirestoreService.instance.updateUserSettings(
+          uid: uid,
+          data: {
+            'themeMode': _themeMode,
+            'language': _language,
+            'notifications': _notifications,
+            'autoSave': _autoSave,
+            'backupEnabled': _backupEnabled,
+            'defaultView': _defaultView,
+          },
+        );
       }
 
       if (!mounted) return;
@@ -108,22 +113,20 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     }
   }
-  
+
   Future<void> _exportData() async {
     try {
       final uid = _authService.currentUser?.uid;
       if (uid == null) return;
-      
+
       final notes = await FirestoreService.instance.listNotes(uid: uid);
-      
+
       if (!mounted) return;
-      
+
       await showDialog(
         context: context,
-        builder: (context) => ExportImportDialog(
-          notes: notes,
-          onImport: _handleImport,
-        ),
+        builder: (context) =>
+            ExportImportDialog(notes: notes, onImport: _handleImport),
       );
     } catch (e) {
       if (!mounted) return;
@@ -135,12 +138,12 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     }
   }
-  
+
   Future<void> _handleImport(List<Map<String, dynamic>> importedNotes) async {
     try {
       final uid = _authService.currentUser?.uid;
       if (uid == null) return;
-      
+
       // Importar todas las notas
       for (final note in importedNotes) {
         await FirestoreService.instance.createNote(
@@ -153,11 +156,13 @@ class _SettingsPageState extends State<SettingsPage> {
           },
         );
       }
-      
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${importedNotes.length} notas importadas correctamente'),
+          content: Text(
+            '${importedNotes.length} notas importadas correctamente',
+          ),
           backgroundColor: AppColors.success,
         ),
       );
@@ -171,11 +176,11 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     }
   }
-  
+
   Future<void> _importData() async {
     await _exportData(); // Abre el mismo diálogo que tiene ambas opciones
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -192,7 +197,10 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimaryLight),
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+            color: AppColors.textPrimaryLight,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -200,7 +208,8 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: const EdgeInsets.only(right: AppColors.space16),
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
-              transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+              transitionBuilder: (child, anim) =>
+                  FadeTransition(opacity: anim, child: child),
               child: _saving
                   ? Row(
                       key: const ValueKey('saving'),
@@ -211,22 +220,31 @@ class _SettingsPageState extends State<SettingsPage> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                         SizedBox(width: 8),
-                        Text('Guardando...', style: TextStyle(color: AppColors.textSecondaryLight)),
+                        Text(
+                          'Guardando...',
+                          style: TextStyle(color: AppColors.textSecondaryLight),
+                        ),
                       ],
                     )
                   : (_lastSaved != null)
-                      ? Row(
-                          key: const ValueKey('saved'),
-                          children: [
-                            const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Guardado',
-                              style: const TextStyle(color: AppColors.textSecondaryLight),
-                            ),
-                          ],
-                        )
-                      : const SizedBox.shrink(key: ValueKey('idle')),
+                  ? Row(
+                      key: const ValueKey('saved'),
+                      children: [
+                        const Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.success,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Guardado',
+                          style: const TextStyle(
+                            color: AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(key: ValueKey('idle')),
             ),
           ),
         ],
@@ -239,7 +257,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: AppColors.space16),
           _buildProfileCard(),
           const SizedBox(height: AppColors.space32),
-          
+
           // Sección: Apariencia
           _buildSectionHeader('Apariencia', Icons.palette_rounded),
           const SizedBox(height: AppColors.space16),
@@ -247,7 +265,10 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Tema',
             subtitle: _themeMode,
             icon: Icons.palette_rounded,
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondaryLight,
+            ),
             onTap: () => _showThemeDialog(),
           ),
           const SizedBox(height: AppColors.space12),
@@ -255,7 +276,10 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Idioma',
             subtitle: _language,
             icon: Icons.language_rounded,
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondaryLight,
+            ),
             onTap: () => _showLanguageDialog(),
           ),
           const SizedBox(height: AppColors.space12),
@@ -263,11 +287,14 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Vista predeterminada',
             subtitle: _defaultView,
             icon: Icons.view_module_rounded,
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondaryLight,
+            ),
             onTap: () => _showDefaultViewDialog(),
           ),
           const SizedBox(height: AppColors.space32),
-          
+
           // Sección: Notificaciones
           _buildSectionHeader('Notificaciones', Icons.notifications_rounded),
           const SizedBox(height: AppColors.space16),
@@ -285,7 +312,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: AppColors.space32),
-          
+
           // Sección: Editor
           _buildSectionHeader('Editor', Icons.edit_rounded),
           const SizedBox(height: AppColors.space16),
@@ -303,7 +330,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: AppColors.space32),
-          
+
           // Sección: Datos
           _buildSectionHeader('Datos', Icons.storage_rounded),
           const SizedBox(height: AppColors.space16),
@@ -325,7 +352,10 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Exportar datos',
             subtitle: 'Descargar todas tus notas',
             icon: Icons.download_rounded,
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondaryLight,
+            ),
             onTap: _exportData,
           ),
           const SizedBox(height: AppColors.space12),
@@ -333,11 +363,14 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Importar datos',
             subtitle: 'Cargar notas desde un archivo',
             icon: Icons.upload_rounded,
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondaryLight,
+            ),
             onTap: _importData,
           ),
           const SizedBox(height: AppColors.space32),
-          
+
           // Sección: Cuenta
           _buildSectionHeader('Cuenta', Icons.account_circle_rounded),
           const SizedBox(height: AppColors.space16),
@@ -345,7 +378,10 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Cerrar sesión',
             subtitle: 'Salir de tu cuenta',
             icon: Icons.logout_rounded,
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.danger),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.danger,
+            ),
             onTap: _confirmLogout,
             textColor: AppColors.danger,
           ),
@@ -354,11 +390,14 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Restablecer ajustes',
             subtitle: 'Vuelve a los valores predeterminados',
             icon: Icons.restore_rounded,
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondaryLight,
+            ),
             onTap: _confirmResetSettings,
           ),
           const SizedBox(height: AppColors.space48),
-          
+
           // Botón Guardar
           GradientButton(
             onPressed: _saveSettings,
@@ -369,7 +408,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
-  
+
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
       children: [
@@ -393,7 +432,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ],
     );
   }
-  
+
   Widget _buildProfileCard() {
     final email = _authService.currentUser?.email ?? 'Usuario';
     return Container(
@@ -414,7 +453,11 @@ class _SettingsPageState extends State<SettingsPage> {
               shape: BoxShape.circle,
               boxShadow: AppTheme.shadowSm,
             ),
-            child: const Icon(Icons.person_rounded, color: Colors.white, size: 36),
+            child: const Icon(
+              Icons.person_rounded,
+              color: Colors.white,
+              size: 36,
+            ),
           ),
           const SizedBox(width: AppColors.space16),
           Expanded(
@@ -436,7 +479,10 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         gradient: AppTheme.gradientAccent,
                         borderRadius: BorderRadius.circular(999),
@@ -445,9 +491,19 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.star_rounded, color: Colors.white, size: 16),
+                          Icon(
+                            Icons.star_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
                           SizedBox(width: 6),
-                          Text('Premium', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                          Text(
+                            'Premium',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -459,8 +515,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   runSpacing: 8,
                   children: [
                     _profileChip(icon: Icons.badge_rounded, label: 'Perfil'),
-                    _profileChip(icon: Icons.translate_rounded, label: _language),
-                    _profileChip(icon: Icons.palette_rounded, label: _themeMode),
+                    _profileChip(
+                      icon: Icons.translate_rounded,
+                      label: _language,
+                    ),
+                    _profileChip(
+                      icon: Icons.palette_rounded,
+                      label: _themeMode,
+                    ),
                   ],
                 ),
               ],
@@ -493,7 +555,11 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondaryLight),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondaryLight,
+            ),
           ),
         ],
       ),
@@ -510,23 +576,33 @@ class _SettingsPageState extends State<SettingsPage> {
       data = await FirestoreService.instance.getUserProfile(uid: uid);
     } catch (_) {}
 
-  final fullNameCtrl = TextEditingController(text: (data?['fullName'] ?? '').toString());
-  final usernameCtrl = TextEditingController(text: (data?['username'] ?? '').toString());
-  final organizationCtrl = TextEditingController(text: (data?['organization'] ?? '').toString());
-  final roleCtrl = TextEditingController(text: (data?['role'] ?? '').toString());
-  String selectedLanguage = (data?['language'] ?? _language);
-  // Normaliza a valores permitidos por el Dropdown
-  if (selectedLanguage != 'Español' && selectedLanguage != 'English') {
-    final lower = selectedLanguage.toString().toLowerCase();
-    if (lower == 'es' || lower.startsWith('es')) {
-      selectedLanguage = 'Español';
-    } else if (lower == 'en' || lower.startsWith('en')) {
-      selectedLanguage = 'English';
-    } else {
-      selectedLanguage = (_language == 'Español' || _language == 'English') ? _language : 'Español';
+    final fullNameCtrl = TextEditingController(
+      text: (data?['fullName'] ?? '').toString(),
+    );
+    final usernameCtrl = TextEditingController(
+      text: (data?['username'] ?? '').toString(),
+    );
+    final organizationCtrl = TextEditingController(
+      text: (data?['organization'] ?? '').toString(),
+    );
+    final roleCtrl = TextEditingController(
+      text: (data?['role'] ?? '').toString(),
+    );
+    String selectedLanguage = (data?['language'] ?? _language);
+    // Normaliza a valores permitidos por el Dropdown
+    if (selectedLanguage != 'Español' && selectedLanguage != 'English') {
+      final lower = selectedLanguage.toString().toLowerCase();
+      if (lower == 'es' || lower.startsWith('es')) {
+        selectedLanguage = 'Español';
+      } else if (lower == 'en' || lower.startsWith('en')) {
+        selectedLanguage = 'English';
+      } else {
+        selectedLanguage = (_language == 'Español' || _language == 'English')
+            ? _language
+            : 'Español';
+      }
     }
-  }
-  final formKey = GlobalKey<FormState>();
+    final formKey = GlobalKey<FormState>();
 
     if (!mounted) return;
 
@@ -535,7 +611,9 @@ class _SettingsPageState extends State<SettingsPage> {
       isScrollControlled: true,
       backgroundColor: AppColors.surfaceLight2,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppColors.radiusXl)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppColors.radiusXl),
+        ),
       ),
       builder: (ctx) {
         return Padding(
@@ -552,123 +630,160 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.gradientPrimary,
-                      borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.gradientPrimary,
+                        borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                      ),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: Colors.white,
+                      ),
                     ),
-                    child: const Icon(Icons.person_rounded, color: Colors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text('Editar perfil', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
-                const SizedBox(height: 16),
-                _InlineField(
-                controller: fullNameCtrl,
-                label: 'Nombre completo',
-                icon: Icons.person_outline_rounded,
-                requiredField: true,
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
-              ),
-                const SizedBox(height: 10),
-                _InlineField(
-                controller: usernameCtrl,
-                label: 'Usuario (handle)',
-                icon: Icons.alternate_email_rounded,
-                validator: (v) {
-                  final value = (v ?? '').trim();
-                  if (value.isEmpty) return null; // opcional
-                  final ok = RegExp(r'^[a-z0-9._]{3,20} ? ? ?$').hasMatch(value) || RegExp(r'^[a-z0-9._]{3,20} ?$').hasMatch(value) || RegExp(r'^[a-z0-9._]{3,20}$').hasMatch(value);
-                  return ok ? null : 'Solo minúsculas, números, . y _ (3-20)';
-                },
-              ),
-                const SizedBox(height: 10),
-                _InlineField(controller: organizationCtrl, label: 'Organización', icon: Icons.business_outlined),
-                const SizedBox(height: 10),
-                _InlineField(controller: roleCtrl, label: 'Rol', icon: Icons.badge_outlined),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Idioma',
-                  prefixIcon: Icon(Icons.translate_rounded),
-                ),
-                initialValue: selectedLanguage,
-                items: const [
-                  DropdownMenuItem(value: 'Español', child: Text('Español')),
-                  DropdownMenuItem(value: 'English', child: Text('English')),
-                ],
-                onChanged: (v) => selectedLanguage = v ?? selectedLanguage,
-              ),
-                const SizedBox(height: 16),
-                Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Editar perfil',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
                       onPressed: () => Navigator.pop(ctx),
                       icon: const Icon(Icons.close_rounded),
-                      label: const Text('Cancelar'),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _InlineField(
+                  controller: fullNameCtrl,
+                  label: 'Nombre completo',
+                  icon: Icons.person_outline_rounded,
+                  requiredField: true,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                ),
+                const SizedBox(height: 10),
+                _InlineField(
+                  controller: usernameCtrl,
+                  label: 'Usuario (handle)',
+                  icon: Icons.alternate_email_rounded,
+                  validator: (v) {
+                    final value = (v ?? '').trim();
+                    if (value.isEmpty) return null; // opcional
+                    final ok =
+                        RegExp(r'^[a-z0-9._]{3,20} ? ? ?$').hasMatch(value) ||
+                        RegExp(r'^[a-z0-9._]{3,20} ?$').hasMatch(value) ||
+                        RegExp(r'^[a-z0-9._]{3,20}$').hasMatch(value);
+                    return ok ? null : 'Solo minúsculas, números, . y _ (3-20)';
+                  },
+                ),
+                const SizedBox(height: 10),
+                _InlineField(
+                  controller: organizationCtrl,
+                  label: 'Organización',
+                  icon: Icons.business_outlined,
+                ),
+                const SizedBox(height: 10),
+                _InlineField(
+                  controller: roleCtrl,
+                  label: 'Rol',
+                  icon: Icons.badge_outlined,
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    labelText: 'Idioma',
+                    prefixIcon: Icon(Icons.translate_rounded),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () async {
-                        if (!(formKey.currentState?.validate() ?? false)) return;
-                        final fullName = fullNameCtrl.text.trim();
-                        final newUsername = usernameCtrl.text.trim();
-                        try {
-                          // Si cambió el handle y no está vacío, intentar reservarlo/cambiarlo
-                          final prevUsername = (data?['username'] ?? '').toString();
-                          if (newUsername.isNotEmpty && newUsername != prevUsername) {
-                            await FirestoreService.instance.changeHandle(uid: uid, newUsername: newUsername);
-                          }
-
-                          await FirestoreService.instance.updateUserProfile(uid: uid, data: {
-                            'fullName': fullName,
-                            'username': newUsername,
-                            'organization': organizationCtrl.text.trim(),
-                            'role': roleCtrl.text.trim(),
-                            'language': selectedLanguage,
-                            'updatedAt': DateTime.now().toIso8601String(),
-                          });
-
-                          // Aplicar idioma inmediatamente
-                          if (selectedLanguage != _language) {
-                            final locale = selectedLanguage == 'English' ? const Locale('en', '') : const Locale('es', '');
-                            AppService.changeLocale(locale);
-                            await PreferencesService.setLocale(locale);
-                          }
-                          // Asegura que ambos contextos sigan montados
-                          if (!mounted) return;
-                          if (!ctx.mounted) return;
-                          Navigator.pop(ctx);
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(content: Text('Perfil actualizado')),
-                          );
-                          // Refrescar cabecera de perfil
-                          _loadSettings();
-                        } catch (e) {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.check_rounded),
-                      label: const Text('Guardar'),
+                  initialValue: selectedLanguage,
+                  items: const [
+                    DropdownMenuItem(value: 'Español', child: Text('Español')),
+                    DropdownMenuItem(value: 'English', child: Text('English')),
+                  ],
+                  onChanged: (v) => selectedLanguage = v ?? selectedLanguage,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded),
+                        label: const Text('Cancelar'),
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () async {
+                          if (!(formKey.currentState?.validate() ?? false))
+                            return;
+                          final fullName = fullNameCtrl.text.trim();
+                          final newUsername = usernameCtrl.text.trim();
+                          try {
+                            // Si cambió el handle y no está vacío, intentar reservarlo/cambiarlo
+                            final prevUsername = (data?['username'] ?? '')
+                                .toString();
+                            if (newUsername.isNotEmpty &&
+                                newUsername != prevUsername) {
+                              await FirestoreService.instance.changeHandle(
+                                uid: uid,
+                                newUsername: newUsername,
+                              );
+                            }
+
+                            await FirestoreService.instance.updateUserProfile(
+                              uid: uid,
+                              data: {
+                                'fullName': fullName,
+                                'username': newUsername,
+                                'organization': organizationCtrl.text.trim(),
+                                'role': roleCtrl.text.trim(),
+                                'language': selectedLanguage,
+                                'updatedAt': DateTime.now().toIso8601String(),
+                              },
+                            );
+
+                            // Aplicar idioma inmediatamente
+                            if (selectedLanguage != _language) {
+                              final locale = selectedLanguage == 'English'
+                                  ? const Locale('en', '')
+                                  : const Locale('es', '');
+                              AppService.changeLocale(locale);
+                              await PreferencesService.setLocale(locale);
+                            }
+                            // Asegura que ambos contextos sigan montados
+                            if (!mounted) return;
+                            if (!ctx.mounted) return;
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              const SnackBar(
+                                content: Text('Perfil actualizado'),
+                              ),
+                            );
+                            // Refrescar cabecera de perfil
+                            _loadSettings();
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: $e'),
+                                backgroundColor: AppColors.danger,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.check_rounded),
+                        label: const Text('Guardar'),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -676,7 +791,7 @@ class _SettingsPageState extends State<SettingsPage> {
       },
     );
   }
-  
+
   Widget _buildSettingCard({
     required String title,
     required String subtitle,
@@ -703,7 +818,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 color: AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(AppColors.radiusSm),
               ),
-              child: Icon(icon, color: textColor ?? AppColors.primary, size: 20),
+              child: Icon(
+                icon,
+                color: textColor ?? AppColors.primary,
+                size: 20,
+              ),
             ),
             const SizedBox(width: AppColors.space16),
             Expanded(
@@ -735,13 +854,16 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
-  
+
   void _showThemeDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surfaceLight2,
-        title: const Text('Seleccionar tema', style: TextStyle(color: AppColors.textPrimaryLight)),
+        title: const Text(
+          'Seleccionar tema',
+          style: TextStyle(color: AppColors.textPrimaryLight),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -753,30 +875,36 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
-  
+
   Widget _buildThemeOption(String name, ThemeMode mode) {
     return ListTile(
-      title: Text(name, style: const TextStyle(color: AppColors.textPrimaryLight)),
+      title: Text(
+        name,
+        style: const TextStyle(color: AppColors.textPrimaryLight),
+      ),
       trailing: _themeMode == name
           ? const Icon(Icons.check_rounded, color: AppColors.primary)
           : null,
       onTap: () async {
         setState(() => _themeMode = name);
         Navigator.pop(context);
-        
+
         // Aplicar el cambio de tema inmediatamente
         AppService.changeTheme(mode);
         _scheduleSave();
       },
     );
   }
-  
+
   void _showLanguageDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surfaceLight2,
-        title: const Text('Seleccionar idioma', style: TextStyle(color: AppColors.textPrimaryLight)),
+        title: const Text(
+          'Seleccionar idioma',
+          style: TextStyle(color: AppColors.textPrimaryLight),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -787,17 +915,20 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
-  
+
   Widget _buildLanguageOption(String name, String code) {
     return ListTile(
-      title: Text(name, style: const TextStyle(color: AppColors.textPrimaryLight)),
+      title: Text(
+        name,
+        style: const TextStyle(color: AppColors.textPrimaryLight),
+      ),
       trailing: _language == name
           ? const Icon(Icons.check_rounded, color: AppColors.primary)
           : null,
       onTap: () async {
         setState(() => _language = name);
         Navigator.pop(context);
-        
+
         // Aplicar el cambio de idioma inmediatamente
         final locale = Locale(code, '');
         AppService.changeLocale(locale);
@@ -806,13 +937,16 @@ class _SettingsPageState extends State<SettingsPage> {
       },
     );
   }
-  
+
   void _showDefaultViewDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surfaceLight2,
-        title: const Text('Vista predeterminada', style: TextStyle(color: AppColors.textPrimaryLight)),
+        title: const Text(
+          'Vista predeterminada',
+          style: TextStyle(color: AppColors.textPrimaryLight),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -824,11 +958,14 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
-  
+
   Widget _buildViewOption(String name, IconData icon) {
     return ListTile(
       leading: Icon(icon, color: AppColors.primary),
-      title: Text(name, style: const TextStyle(color: AppColors.textPrimaryLight)),
+      title: Text(
+        name,
+        style: const TextStyle(color: AppColors.textPrimaryLight),
+      ),
       trailing: _defaultView == name
           ? const Icon(Icons.check_rounded, color: AppColors.primary)
           : null,
@@ -839,13 +976,16 @@ class _SettingsPageState extends State<SettingsPage> {
       },
     );
   }
-  
+
   void _confirmLogout() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surfaceLight2,
-        title: const Text('Cerrar sesión', style: TextStyle(color: AppColors.textPrimaryLight)),
+        title: const Text(
+          'Cerrar sesión',
+          style: TextStyle(color: AppColors.textPrimaryLight),
+        ),
         content: const Text(
           '¿Estás seguro que deseas cerrar sesión?',
           style: TextStyle(color: AppColors.textSecondaryLight),
@@ -913,11 +1053,23 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surfaceLight2,
-        title: const Text('Restablecer ajustes', style: TextStyle(color: AppColors.textPrimaryLight)),
-        content: const Text('Esto restaurará los valores predeterminados de apariencia y preferencias.', style: TextStyle(color: AppColors.textSecondaryLight)),
+        title: const Text(
+          'Restablecer ajustes',
+          style: TextStyle(color: AppColors.textPrimaryLight),
+        ),
+        content: const Text(
+          'Esto restaurará los valores predeterminados de apariencia y preferencias.',
+          style: TextStyle(color: AppColors.textSecondaryLight),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Restablecer')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Restablecer'),
+          ),
         ],
       ),
     );
@@ -939,7 +1091,9 @@ class _SettingsPageState extends State<SettingsPage> {
     await PreferencesService.setLocale(const Locale('es', ''));
     await _saveSettings();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ajustes restablecidos')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Ajustes restablecidos')));
   }
 }
 

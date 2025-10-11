@@ -8,7 +8,7 @@ import '../services/toast_service.dart';
 enum NotificationType {
   reminder,
   newShare,
-  shareAccepted, 
+  shareAccepted,
   shareRejected,
   shareRevoked,
   shareReminder,
@@ -21,19 +21,19 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
-  
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService.instance;
-  
+
   Timer? _reminderTimer;
   List<NotificationItem> _pendingNotifications = [];
-  
+
   /// Inicializa el servicio de notificaciones
   Future<void> initialize() async {
     await _loadPendingNotifications();
     _startReminderTimer();
   }
-  
+
   /// Programa un recordatorio para una nota
   Future<void> scheduleReminder({
     required String noteId,
@@ -43,7 +43,7 @@ class NotificationService {
   }) async {
     final uid = _authService.currentUser?.uid;
     if (uid == null) return;
-    
+
     final notification = {
       'noteId': noteId,
       'noteTitle': noteTitle,
@@ -53,16 +53,16 @@ class NotificationService {
       'isActive': true,
       'createdAt': FieldValue.serverTimestamp(),
     };
-    
+
     await _firestore
         .collection('users')
         .doc(uid)
         .collection('notifications')
         .add(notification);
-    
+
     await _loadPendingNotifications();
   }
-  
+
   /// Programa una notificación de seguimiento
   Future<void> scheduleFollowUp({
     required String noteId,
@@ -78,27 +78,27 @@ class NotificationService {
       message: message ?? 'Seguimiento: $noteTitle',
     );
   }
-  
+
   /// Cancela un recordatorio
   Future<void> cancelReminder(String notificationId) async {
     final uid = _authService.currentUser?.uid;
     if (uid == null) return;
-    
+
     await _firestore
         .collection('users')
         .doc(uid)
         .collection('notifications')
         .doc(notificationId)
         .update({'isActive': false});
-    
+
     await _loadPendingNotifications();
   }
-  
+
   /// Obtiene todas las notificaciones del usuario
   Future<List<NotificationItem>> getNotifications() async {
     final uid = _authService.currentUser?.uid;
     if (uid == null) return [];
-    
+
     final snapshot = await _firestore
         .collection('users')
         .doc(uid)
@@ -106,7 +106,7 @@ class NotificationService {
         .where('isActive', isEqualTo: true)
         .orderBy('reminderTime', descending: true)
         .get();
-    
+
     return snapshot.docs.map((doc) {
       final data = doc.data();
       return NotificationItem(
@@ -123,15 +123,17 @@ class NotificationService {
       );
     }).toList();
   }
-  
+
   /// Carga notificaciones pendientes
   Future<void> _loadPendingNotifications() async {
     _pendingNotifications = await getNotifications();
     _pendingNotifications = _pendingNotifications
-        .where((notification) => notification.reminderTime.isAfter(DateTime.now()))
+        .where(
+          (notification) => notification.reminderTime.isAfter(DateTime.now()),
+        )
         .toList();
   }
-  
+
   /// Inicia el timer para verificar recordatorios
   void _startReminderTimer() {
     _reminderTimer?.cancel();
@@ -139,61 +141,61 @@ class NotificationService {
       _checkReminders();
     });
   }
-  
+
   /// Verifica si hay recordatorios listos para mostrar
   void _checkReminders() {
     final now = DateTime.now();
     final readyNotifications = _pendingNotifications
-        .where((notification) => 
-            notification.reminderTime.isBefore(now) || 
-            notification.reminderTime.isAtSameMomentAs(now))
+        .where(
+          (notification) =>
+              notification.reminderTime.isBefore(now) ||
+              notification.reminderTime.isAtSameMomentAs(now),
+        )
         .toList();
-    
+
     for (final notification in readyNotifications) {
       _showNotification(notification);
       _pendingNotifications.remove(notification);
     }
   }
-  
+
   /// Muestra una notificación
   void _showNotification(NotificationItem notification) {
     // En una app web, podríamos usar la API de notificaciones del navegador
     // Por ahora, mostraremos un SnackBar
-  debugPrint('🔔 Notificación: ${notification.message}');
-    
+    debugPrint('🔔 Notificación: ${notification.message}');
+
     // TODO: Implementar notificaciones nativas del navegador
     // if (kIsWeb) {
     //   _showBrowserNotification(notification);
     // }
   }
-  
+
   /// Obtiene estadísticas de notificaciones
   Future<Map<String, int>> getNotificationStats() async {
     final uid = _authService.currentUser?.uid;
     if (uid == null) return {};
-    
+
     final snapshot = await _firestore
         .collection('users')
         .doc(uid)
         .collection('notifications')
         .get();
-    
+
     int total = snapshot.docs.length;
-    int active = snapshot.docs.where((doc) => doc.data()['isActive'] == true).length;
+    int active = snapshot.docs
+        .where((doc) => doc.data()['isActive'] == true)
+        .length;
     int completed = total - active;
-    
-    return {
-      'total': total,
-      'active': active,
-      'completed': completed,
-    };
+
+    return {'total': total, 'active': active, 'completed': completed};
   }
-  
+
   /// Limpia notificaciones antiguas (más de 30 días)
   Future<void> cleanupOldNotifications() async {
     final uid = _authService.currentUser?.uid;
     if (uid == null) return;
-    
+
     final cutoffDate = DateTime.now().subtract(const Duration(days: 30));
     final snapshot = await _firestore
         .collection('users')
@@ -202,14 +204,14 @@ class NotificationService {
         .where('reminderTime', isLessThan: Timestamp.fromDate(cutoffDate))
         .where('isActive', isEqualTo: false)
         .get();
-    
+
     final batch = _firestore.batch();
     for (final doc in snapshot.docs) {
       batch.delete(doc.reference);
     }
     await batch.commit();
   }
-  
+
   /// Detiene el servicio
   void dispose() {
     _reminderTimer?.cancel();
@@ -263,7 +265,7 @@ class NotificationService {
     required SharedItemType itemType,
   }) async {
     final itemTypeText = itemType == SharedItemType.note ? 'nota' : 'carpeta';
-    
+
     await createShareNotification(
       userId: recipientId,
       type: NotificationType.newShare,
@@ -291,7 +293,8 @@ class NotificationService {
       userId: ownerId,
       type: NotificationType.shareAccepted,
       title: '✅ Compartición aceptada',
-      message: '$recipientName ($recipientEmail) ha aceptado tu compartición de "$itemTitle"',
+      message:
+          '$recipientName ($recipientEmail) ha aceptado tu compartición de "$itemTitle"',
       metadata: {
         'recipientName': recipientName,
         'recipientEmail': recipientEmail,
@@ -313,7 +316,8 @@ class NotificationService {
       userId: ownerId,
       type: NotificationType.shareRejected,
       title: '❌ Compartición rechazada',
-      message: '$recipientName ($recipientEmail) ha rechazado tu compartición de "$itemTitle"',
+      message:
+          '$recipientName ($recipientEmail) ha rechazado tu compartición de "$itemTitle"',
       metadata: {
         'recipientName': recipientName,
         'recipientEmail': recipientEmail,
@@ -335,10 +339,7 @@ class NotificationService {
       type: NotificationType.shareRevoked,
       title: '🚫 Acceso revocado',
       message: '$ownerName ha revocado tu acceso a "$itemTitle"',
-      metadata: {
-        'ownerName': ownerName,
-        'itemTitle': itemTitle,
-      },
+      metadata: {'ownerName': ownerName, 'itemTitle': itemTitle},
       shareId: shareId,
     );
   }
@@ -355,7 +356,8 @@ class NotificationService {
       userId: ownerId,
       type: NotificationType.shareLeft,
       title: '👋 Acceso abandonado',
-      message: '$recipientName ($recipientEmail) se salió de la compartición de "$itemTitle"',
+      message:
+          '$recipientName ($recipientEmail) se salió de la compartición de "$itemTitle"',
       metadata: {
         'recipientName': recipientName,
         'recipientEmail': recipientEmail,
@@ -376,11 +378,9 @@ class NotificationService {
       userId: recipientId,
       type: NotificationType.shareReminder,
       title: '⏰ Recordatorio',
-      message: 'Tienes una compartición pendiente de "$itemTitle" desde hace $daysPending días',
-      metadata: {
-        'itemTitle': itemTitle,
-        'daysPending': daysPending,
-      },
+      message:
+          'Tienes una compartición pendiente de "$itemTitle" desde hace $daysPending días',
+      metadata: {'itemTitle': itemTitle, 'daysPending': daysPending},
       shareId: shareId,
     );
   }
@@ -396,7 +396,8 @@ class NotificationService {
       userId: ownerId,
       type: NotificationType.shareExpiring,
       title: '⚠️ Enlace próximo a expirar',
-      message: 'Tu compartición de "$itemTitle" expirará en $daysUntilExpiration días',
+      message:
+          'Tu compartición de "$itemTitle" expirará en $daysUntilExpiration días',
       metadata: {
         'itemTitle': itemTitle,
         'daysUntilExpiration': daysUntilExpiration,
@@ -461,7 +462,11 @@ class NotificationService {
   }
 
   /// Mostrar toast para notificaciones de compartición
-  void _showShareNotificationToast(NotificationType type, String title, String message) {
+  void _showShareNotificationToast(
+    NotificationType type,
+    String title,
+    String message,
+  ) {
     switch (type) {
       case NotificationType.newShare:
         ToastService.info('$title\n$message');
@@ -503,7 +508,7 @@ class NotificationItem {
   final Map<String, dynamic> metadata;
   final String? shareId;
   final bool isRead;
-  
+
   const NotificationItem({
     required this.id,
     required this.noteId,
@@ -615,8 +620,9 @@ class _NotificationsListState extends State<NotificationsList> {
       itemCount: _notifications.length,
       itemBuilder: (context, index) {
         final notification = _notifications[index];
-        final isShare = notification.notificationType != NotificationType.reminder;
-        
+        final isShare =
+            notification.notificationType != NotificationType.reminder;
+
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: ListTile(
@@ -635,7 +641,9 @@ class _NotificationsListState extends State<NotificationsList> {
             title: Text(
               notification.noteTitle,
               style: TextStyle(
-                fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+                fontWeight: notification.isRead
+                    ? FontWeight.normal
+                    : FontWeight.bold,
               ),
             ),
             subtitle: Column(
@@ -644,9 +652,9 @@ class _NotificationsListState extends State<NotificationsList> {
                 Text(notification.message),
                 const SizedBox(height: 4),
                 Text(
-                  isShare 
-                    ? _formatShareDate(notification.reminderTime)
-                    : 'Programado para: ${notification.reminderTime.toString().substring(0, 16)}',
+                  isShare
+                      ? _formatShareDate(notification.reminderTime)
+                      : 'Programado para: ${notification.reminderTime.toString().substring(0, 16)}',
                   style: const TextStyle(fontSize: 12),
                 ),
               ],

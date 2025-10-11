@@ -18,10 +18,14 @@ class _TrashPageState extends State<TrashPage> {
     super.initState();
     _init = _load();
   }
+
   Future<void> _load() async {
-    final list = await FirestoreService.instance.listTrashedNotesSummary(uid: _uid);
+    final list = await FirestoreService.instance.listTrashedNotesSummary(
+      uid: _uid,
+    );
     setState(() => _items = list);
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -35,16 +39,27 @@ class _TrashPageState extends State<TrashPage> {
                   context: context,
                   builder: (context) => AlertDialog(
                     title: const Text('Vaciar papelera'),
-                    content: const Text('¿Eliminar permanentemente todas las notas de la papelera?'),
+                    content: const Text(
+                      '¿Eliminar permanentemente todas las notas de la papelera?',
+                    ),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-                      FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Vaciar')),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancelar'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Vaciar'),
+                      ),
                     ],
                   ),
                 );
                 if (ok == true) {
                   for (final n in _items) {
-                    await FirestoreService.instance.purgeNote(uid: _uid, noteId: n['id'].toString());
+                    await FirestoreService.instance.purgeNote(
+                      uid: _uid,
+                      noteId: n['id'].toString(),
+                    );
                   }
                   await _load();
                 }
@@ -61,14 +76,17 @@ class _TrashPageState extends State<TrashPage> {
             if (snapshot.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (_items.isEmpty) return const Center(child: Text('Papelera vacía'));
+            if (_items.isEmpty)
+              return const Center(child: Text('Papelera vacía'));
             return ListView.separated(
               padding: const EdgeInsets.all(12),
               itemCount: _items.length,
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, i) {
                 final n = _items[i];
-                final title = (n['title']?.toString() ?? '').isEmpty ? n['id'].toString() : n['title'].toString();
+                final title = (n['title']?.toString() ?? '').isEmpty
+                    ? n['id'].toString()
+                    : n['title'].toString();
                 return ListTile(
                   leading: const Icon(Icons.note_rounded),
                   title: Text(title),
@@ -77,7 +95,10 @@ class _TrashPageState extends State<TrashPage> {
                     children: [
                       TextButton(
                         onPressed: () async {
-                          await FirestoreService.instance.restoreNote(uid: _uid, noteId: n['id'].toString());
+                          await FirestoreService.instance.restoreNote(
+                            uid: _uid,
+                            noteId: n['id'].toString(),
+                          );
                           await _load();
                         },
                         child: const Text('Restaurar'),
@@ -85,7 +106,10 @@ class _TrashPageState extends State<TrashPage> {
                       const SizedBox(width: 8),
                       TextButton(
                         onPressed: () async {
-                          await FirestoreService.instance.purgeNote(uid: _uid, noteId: n['id'].toString());
+                          await FirestoreService.instance.purgeNote(
+                            uid: _uid,
+                            noteId: n['id'].toString(),
+                          );
                           await _load();
                         },
                         child: const Text('Eliminar'),

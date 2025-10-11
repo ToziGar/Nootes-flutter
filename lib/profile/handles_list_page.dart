@@ -38,7 +38,9 @@ class _HandlesListPageState extends State<HandlesListPage> {
                 final user = (h['username'] ?? '').toString();
                 final uid = (h['uid'] ?? '').toString();
                 return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.alternate_email_rounded)),
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.alternate_email_rounded),
+                  ),
                   title: Text('@$user'),
                   subtitle: Text(uid),
                 );
@@ -52,4 +54,3 @@ class _HandlesListPageState extends State<HandlesListPage> {
     );
   }
 }
-

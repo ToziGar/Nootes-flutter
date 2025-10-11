@@ -13,13 +13,10 @@ class AudioService {
     final tmp = Directory.systemTemp;
     final filename = 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
     final path = p.join(tmp.path, filename);
-    
+
     // Nueva API de record 5.x
     await _rec.start(
-      RecordConfig(
-        encoder: AudioEncoder.aacLc,
-        bitRate: 128000,
-      ),
+      RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000),
       path: path,
     );
     return path;
@@ -32,7 +29,12 @@ class AudioService {
       if (path == null) return null;
       final file = File(path);
       final bytes = await file.readAsBytes();
-      final url = await StorageService.uploadBytes(uid: uid, bytes: bytes, filename: p.basename(path), contentType: 'audio/m4a');
+      final url = await StorageService.uploadBytes(
+        uid: uid,
+        bytes: bytes,
+        filename: p.basename(path),
+        contentType: 'audio/m4a',
+      );
       return url;
     } catch (e) {
       return null;

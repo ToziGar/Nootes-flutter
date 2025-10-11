@@ -8,7 +8,7 @@ import '../theme/color_utils.dart';
 class ReminderDialog extends StatefulWidget {
   final String noteId;
   final String noteTitle;
-  
+
   const ReminderDialog({
     super.key,
     required this.noteId,
@@ -73,7 +73,7 @@ class _ReminderDialogState extends State<ReminderDialog> {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Presets de tiempo
             const Text(
               'Cuándo recordar:',
@@ -103,14 +103,14 @@ class _ReminderDialogState extends State<ReminderDialog> {
                   },
                   selectedColor: AppColors.primary.withOpacityCompat(0.3),
                   labelStyle: TextStyle(
-                    color: _selectedPreset == preset 
-                        ? AppColors.primary 
+                    color: _selectedPreset == preset
+                        ? AppColors.primary
                         : AppColors.textSecondary,
                   ),
                 );
               }).toList(),
             ),
-            
+
             // Fecha y hora personalizada (solo si es custom)
             if (_selectedPreset == 'custom') ...[
               const SizedBox(height: 16),
@@ -123,7 +123,9 @@ class _ReminderDialogState extends State<ReminderDialog> {
                           context: context,
                           initialDate: _selectedDate,
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 365),
+                          ),
                         );
                         if (date != null) {
                           setState(() {
@@ -145,11 +147,17 @@ class _ReminderDialogState extends State<ReminderDialog> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.calendar_today, size: 16, color: AppColors.textSecondary),
+                            const Icon(
+                              Icons.calendar_today,
+                              size: 16,
+                              color: AppColors.textSecondary,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                              style: const TextStyle(color: AppColors.textPrimary),
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ],
                         ),
@@ -185,11 +193,17 @@ class _ReminderDialogState extends State<ReminderDialog> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
+                            const Icon(
+                              Icons.access_time,
+                              size: 16,
+                              color: AppColors.textSecondary,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               _selectedTime.format(context),
-                              style: const TextStyle(color: AppColors.textPrimary),
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ],
                         ),
@@ -199,9 +213,9 @@ class _ReminderDialogState extends State<ReminderDialog> {
                 ],
               ),
             ],
-            
+
             const SizedBox(height: 16),
-            
+
             // Mensaje personalizado
             const Text(
               'Mensaje del recordatorio:',
@@ -241,9 +255,7 @@ class _ReminderDialogState extends State<ReminderDialog> {
         ),
         FilledButton(
           onPressed: _scheduleReminder,
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.primary,
-          ),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
           child: const Text('Programar'),
         ),
       ],
@@ -256,11 +268,11 @@ class _ReminderDialogState extends State<ReminderDialog> {
         noteId: widget.noteId,
         noteTitle: widget.noteTitle,
         reminderTime: _selectedDate,
-        message: _messageController.text.trim().isNotEmpty 
-            ? _messageController.text.trim() 
+        message: _messageController.text.trim().isNotEmpty
+            ? _messageController.text.trim()
             : null,
       );
-      
+
       if (mounted) {
         Navigator.of(context).pop();
         ToastService.success('✓ Recordatorio programado');

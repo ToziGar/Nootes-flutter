@@ -37,73 +37,157 @@ class MarkdownToolbar extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-        _btn(context, Icons.format_bold, 'Negrita', () => onWrapSelection('**', '**')),
-        _btn(context, Icons.format_italic, 'Itálica', () => onWrapSelection('*', '*')),
-        _btn(context, Icons.code, 'Código', () => onWrapSelection('`', '`')),
-        _btn(context, Icons.code_off, 'Bloque código', () => onInsertBlock('```\n', '\n```')),
-        _btn(context, Icons.format_quote, 'Cita', () => onInsertAtLineStart('> ')),
-        _btn(context, Icons.format_list_bulleted, 'Lista', () => onInsertAtLineStart('- ')),
-        _btn(context, Icons.format_list_numbered, 'Lista num.', () => onInsertAtLineStart('1. ')),
-        _btn(context, Icons.checklist, 'Tareas', () => onInsertAtLineStart('- [ ] ')),
-        _btn(context, Icons.horizontal_rule, 'Separador', () => onInsertBlock('\n---\n')),
-        _btn(context, Icons.link, 'Enlace', () => onInsertBlock('[', '](https://)')),
-        _btn(context, Icons.image, 'Imagen', () async {
-          if (onPickImage != null) {
-            final url = await onPickImage!(context);
-            if (url != null && url.isNotEmpty) {
-              onInsertBlock('![', ']($url)');
-            }
-          } else {
-            onInsertBlock('![', '](https://)');
-          }
-        }),
-        _btn(context, Icons.bookmarks, 'Enlace interno', () async {
-          if (onPickWiki != null) {
-            final title = await onPickWiki!(context);
-            if (title != null && title.isNotEmpty) {
-              onInsertBlock('[[', '$title]]');
-            }
-          }
-        }),
-        const SizedBox(width: 8),
-        _headerMenu(context),
-        const SizedBox(width: 8),
-        _btn(context, Icons.table_chart, 'Tabla', () => _insertTable(context)),
-        _btn(context, Icons.table_rows, 'Añadir fila debajo', () => _addRowBelow(context)),
-        _btn(context, Icons.keyboard_arrow_up, 'Añadir fila arriba', () => _addRowAbove(context)),
-        _btn(context, Icons.view_column, 'Añadir columna derecha', () => _addColumnRight(context)),
-        _btn(context, Icons.keyboard_arrow_left, 'Añadir columna izquierda', () => _addColumnLeft(context)),
-        _btn(context, Icons.delete_outline, 'Eliminar fila', () => _deleteRow(context)),
-        const SizedBox(width: 8),
-        if (showSplitToggle)
-          IconButton(
-            tooltip: isSplit ? 'Vista editor' : 'Vista dividida',
-            onPressed: onToggleSplit,
-            icon: Icon(isSplit ? Icons.view_compact_alt_rounded : Icons.vertical_split_rounded),
+          _btn(
+            context,
+            Icons.format_bold,
+            'Negrita',
+            () => onWrapSelection('**', '**'),
           ),
+          _btn(
+            context,
+            Icons.format_italic,
+            'Itálica',
+            () => onWrapSelection('*', '*'),
+          ),
+          _btn(context, Icons.code, 'Código', () => onWrapSelection('`', '`')),
+          _btn(
+            context,
+            Icons.code_off,
+            'Bloque código',
+            () => onInsertBlock('```\n', '\n```'),
+          ),
+          _btn(
+            context,
+            Icons.format_quote,
+            'Cita',
+            () => onInsertAtLineStart('> '),
+          ),
+          _btn(
+            context,
+            Icons.format_list_bulleted,
+            'Lista',
+            () => onInsertAtLineStart('- '),
+          ),
+          _btn(
+            context,
+            Icons.format_list_numbered,
+            'Lista num.',
+            () => onInsertAtLineStart('1. '),
+          ),
+          _btn(
+            context,
+            Icons.checklist,
+            'Tareas',
+            () => onInsertAtLineStart('- [ ] '),
+          ),
+          _btn(
+            context,
+            Icons.horizontal_rule,
+            'Separador',
+            () => onInsertBlock('\n---\n'),
+          ),
+          _btn(
+            context,
+            Icons.link,
+            'Enlace',
+            () => onInsertBlock('[', '](https://)'),
+          ),
+          _btn(context, Icons.image, 'Imagen', () async {
+            if (onPickImage != null) {
+              final url = await onPickImage!(context);
+              if (url != null && url.isNotEmpty) {
+                onInsertBlock('![', ']($url)');
+              }
+            } else {
+              onInsertBlock('![', '](https://)');
+            }
+          }),
+          _btn(context, Icons.bookmarks, 'Enlace interno', () async {
+            if (onPickWiki != null) {
+              final title = await onPickWiki!(context);
+              if (title != null && title.isNotEmpty) {
+                onInsertBlock('[[', '$title]]');
+              }
+            }
+          }),
+          const SizedBox(width: 8),
+          _headerMenu(context),
+          const SizedBox(width: 8),
+          _btn(
+            context,
+            Icons.table_chart,
+            'Tabla',
+            () => _insertTable(context),
+          ),
+          _btn(
+            context,
+            Icons.table_rows,
+            'Añadir fila debajo',
+            () => _addRowBelow(context),
+          ),
+          _btn(
+            context,
+            Icons.keyboard_arrow_up,
+            'Añadir fila arriba',
+            () => _addRowAbove(context),
+          ),
+          _btn(
+            context,
+            Icons.view_column,
+            'Añadir columna derecha',
+            () => _addColumnRight(context),
+          ),
+          _btn(
+            context,
+            Icons.keyboard_arrow_left,
+            'Añadir columna izquierda',
+            () => _addColumnLeft(context),
+          ),
+          _btn(
+            context,
+            Icons.delete_outline,
+            'Eliminar fila',
+            () => _deleteRow(context),
+          ),
+          const SizedBox(width: 8),
+          if (showSplitToggle)
+            IconButton(
+              tooltip: isSplit ? 'Vista editor' : 'Vista dividida',
+              onPressed: onToggleSplit,
+              icon: Icon(
+                isSplit
+                    ? Icons.view_compact_alt_rounded
+                    : Icons.vertical_split_rounded,
+              ),
+            ),
         ],
-        ),
-      );
+      ),
+    );
   }
 
-  Widget _btn(BuildContext context, IconData icon, String tip, VoidCallback? onPressed) {
+  Widget _btn(
+    BuildContext context,
+    IconData icon,
+    String tip,
+    VoidCallback? onPressed,
+  ) {
     final isEnabled = !readOnly && onPressed != null;
     return IconButton(
       onPressed: isEnabled ? onPressed : null,
       tooltip: tip,
       icon: Icon(
-        icon, 
-        color: isEnabled 
-          ? Theme.of(context).iconTheme.color 
-          : Theme.of(context).disabledColor,
+        icon,
+        color: isEnabled
+            ? Theme.of(context).iconTheme.color
+            : Theme.of(context).disabledColor,
       ),
       style: IconButton.styleFrom(
-        backgroundColor: isEnabled 
-          ? Theme.of(context).cardColor.withValues(alpha: 0.5)
-          : Colors.transparent,
-        foregroundColor: isEnabled 
-          ? Theme.of(context).iconTheme.color 
-          : Theme.of(context).disabledColor,
+        backgroundColor: isEnabled
+            ? Theme.of(context).cardColor.withValues(alpha: 0.5)
+            : Colors.transparent,
+        foregroundColor: isEnabled
+            ? Theme.of(context).iconTheme.color
+            : Theme.of(context).disabledColor,
       ),
       constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
     );
@@ -173,8 +257,14 @@ class MarkdownToolbar extends StatelessWidget {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(context, (rows, cols)), child: const Text('Insertar')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, (rows, cols)),
+              child: const Text('Insertar'),
+            ),
           ],
         );
       },
@@ -184,25 +274,33 @@ class MarkdownToolbar extends StatelessWidget {
     final cols = dims.$2;
     final header = List.generate(cols, (i) => 'Col ${i + 1}').join(' | ');
     final separator = List.generate(cols, (i) => '---').join(' | ');
-    final body = List.generate(rows - 1, (_) => List.generate(cols, (i) => ' ').join(' | ')).join('\n');
+    final body = List.generate(
+      rows - 1,
+      (_) => List.generate(cols, (i) => ' ').join(' | '),
+    ).join('\n');
     final table = '| $header |\n| $separator |\n$body\n';
     onInsertBlock(table);
   }
 
   // === Table manipulation methods ===
-  void _addRowBelow(BuildContext context) => _manipulateTable(context, 'addRowBelow');
-  void _addRowAbove(BuildContext context) => _manipulateTable(context, 'addRowAbove');
-  void _addColumnRight(BuildContext context) => _manipulateTable(context, 'addColumnRight');
-  void _addColumnLeft(BuildContext context) => _manipulateTable(context, 'addColumnLeft');
-  void _deleteRow(BuildContext context) => _manipulateTable(context, 'deleteRow');
+  void _addRowBelow(BuildContext context) =>
+      _manipulateTable(context, 'addRowBelow');
+  void _addRowAbove(BuildContext context) =>
+      _manipulateTable(context, 'addRowAbove');
+  void _addColumnRight(BuildContext context) =>
+      _manipulateTable(context, 'addColumnRight');
+  void _addColumnLeft(BuildContext context) =>
+      _manipulateTable(context, 'addColumnLeft');
+  void _deleteRow(BuildContext context) =>
+      _manipulateTable(context, 'deleteRow');
 
   void _manipulateTable(BuildContext context, String operation) {
     if (controller == null) return;
-    
+
     final text = controller!.text;
     final cursor = controller!.selection.baseOffset;
     final table = MarkdownTableParser.parseTableAt(text, cursor);
-    
+
     if (table == null) {
       // No hay tabla en el cursor, insertar mensaje
       onInsertBlock('<!-- No hay tabla en el cursor -->');
@@ -236,10 +334,12 @@ class MarkdownToolbar extends StatelessWidget {
       final beforeTable = text.substring(0, table.startIndex);
       final afterTable = text.substring(table.endIndex + 1);
       final newText = beforeTable + newTableText + afterTable;
-      
+
       controller!.value = controller!.value.copyWith(
         text: newText,
-        selection: TextSelection.collapsed(offset: table.startIndex + newTableText.length ~/ 2),
+        selection: TextSelection.collapsed(
+          offset: table.startIndex + newTableText.length ~/ 2,
+        ),
       );
     }
   }

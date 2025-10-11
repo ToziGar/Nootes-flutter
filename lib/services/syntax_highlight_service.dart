@@ -2,17 +2,18 @@ import 'package:flutter/material.dart';
 
 /// Servicio de resaltado de sintaxis para el editor
 class SyntaxHighlightService {
-  static final SyntaxHighlightService _instance = SyntaxHighlightService._internal();
+  static final SyntaxHighlightService _instance =
+      SyntaxHighlightService._internal();
   factory SyntaxHighlightService() => _instance;
   SyntaxHighlightService._internal();
 
   /// Aplica resaltado de sintaxis a un texto
   TextSpan highlightText(String text, {SyntaxTheme? theme}) {
     final effectiveTheme = theme ?? SyntaxTheme.defaultTheme();
-    
+
     // Detectar el tipo de contenido
     final contentType = _detectContentType(text);
-    
+
     switch (contentType) {
       case ContentType.markdown:
         return _highlightMarkdown(text, effectiveTheme);
@@ -33,22 +34,22 @@ class SyntaxHighlightService {
     if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
       return ContentType.json;
     }
-    
+
     // Verificar si es YAML
     if (text.contains('---') || RegExp(r'^\w+:\s*[\w\[\{]').hasMatch(text)) {
       return ContentType.yaml;
     }
-    
+
     // Verificar si es código
     if (_hasCodePatterns(text)) {
       return ContentType.code;
     }
-    
+
     // Verificar si es Markdown
     if (_hasMarkdownPatterns(text)) {
       return ContentType.markdown;
     }
-    
+
     return ContentType.plainText;
   }
 
@@ -75,108 +76,103 @@ class SyntaxHighlightService {
       r'=>',
       r'\{[\s\S]*\}',
     ];
-    
+
     return codePatterns.any((pattern) => RegExp(pattern).hasMatch(text));
   }
 
   /// Verifica si el texto tiene patrones de Markdown
   bool _hasMarkdownPatterns(String text) {
     final markdownPatterns = [
-      r'^#+\s+',  // Headers
-      r'\*\*.*\*\*',  // Bold
-      r'\*.*\*',  // Italic
-      r'`.*`',  // Inline code
-      r'```',  // Code blocks
-      r'^\s*[-\*\+]\s+',  // Lists
-      r'^\s*\d+\.\s+',  // Numbered lists
-      r'\[.*\]\(.*\)',  // Links
-      r'!\[.*\]\(.*\)',  // Images
-      r'^\s*>',  // Blockquotes
-      r'^\s*\|.*\|',  // Tables
+      r'^#+\s+', // Headers
+      r'\*\*.*\*\*', // Bold
+      r'\*.*\*', // Italic
+      r'`.*`', // Inline code
+      r'```', // Code blocks
+      r'^\s*[-\*\+]\s+', // Lists
+      r'^\s*\d+\.\s+', // Numbered lists
+      r'\[.*\]\(.*\)', // Links
+      r'!\[.*\]\(.*\)', // Images
+      r'^\s*>', // Blockquotes
+      r'^\s*\|.*\|', // Tables
     ];
-    
-    return markdownPatterns.any((pattern) => RegExp(pattern, multiLine: true).hasMatch(text));
+
+    return markdownPatterns.any(
+      (pattern) => RegExp(pattern, multiLine: true).hasMatch(text),
+    );
   }
 
   /// Resalta texto Markdown
   TextSpan _highlightMarkdown(String text, SyntaxTheme theme) {
     final spans = <TextSpan>[];
     final lines = text.split('\n');
-    
+
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];
-      
+
       // Headers
       if (RegExp(r'^(#{1,6})\s+(.*)').hasMatch(line)) {
         final match = RegExp(r'^(#{1,6})\s+(.*)').firstMatch(line)!;
         final level = match.group(1)!.length;
         final content = match.group(2)!;
-        
-        spans.add(TextSpan(
-          text: '${match.group(1)!} ',
-          style: theme.markdown.header.copyWith(
-            fontSize: theme.markdown.header.fontSize! * (1.5 - (level * 0.1)),
-            fontWeight: FontWeight.bold,
+
+        spans.add(
+          TextSpan(
+            text: '${match.group(1)!} ',
+            style: theme.markdown.header.copyWith(
+              fontSize: theme.markdown.header.fontSize! * (1.5 - (level * 0.1)),
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ));
-        spans.add(TextSpan(
-          text: content,
-          style: theme.markdown.header.copyWith(
-            fontSize: theme.markdown.header.fontSize! * (1.5 - (level * 0.1)),
-            fontWeight: FontWeight.bold,
+        );
+        spans.add(
+          TextSpan(
+            text: content,
+            style: theme.markdown.header.copyWith(
+              fontSize: theme.markdown.header.fontSize! * (1.5 - (level * 0.1)),
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ));
+        );
       }
       // Code blocks
       else if (line.trim().startsWith('```')) {
-        spans.add(TextSpan(
-          text: line,
-          style: theme.markdown.codeBlock,
-        ));
+        spans.add(TextSpan(text: line, style: theme.markdown.codeBlock));
       }
       // Lists
       else if (RegExp(r'^\s*[-\*\+]\s+').hasMatch(line)) {
         final match = RegExp(r'^(\s*[-\*\+]\s+)(.*)').firstMatch(line)!;
-        spans.add(TextSpan(
-          text: match.group(1)!,
-          style: theme.markdown.listMarker,
-        ));
+        spans.add(
+          TextSpan(text: match.group(1)!, style: theme.markdown.listMarker),
+        );
         spans.add(_highlightInlineMarkdown(match.group(2)!, theme));
       }
       // Numbered lists
       else if (RegExp(r'^\s*\d+\.\s+').hasMatch(line)) {
         final match = RegExp(r'^(\s*\d+\.\s+)(.*)').firstMatch(line)!;
-        spans.add(TextSpan(
-          text: match.group(1)!,
-          style: theme.markdown.listMarker,
-        ));
+        spans.add(
+          TextSpan(text: match.group(1)!, style: theme.markdown.listMarker),
+        );
         spans.add(_highlightInlineMarkdown(match.group(2)!, theme));
       }
       // Blockquotes
       else if (RegExp(r'^\s*>').hasMatch(line)) {
-        spans.add(TextSpan(
-          text: line,
-          style: theme.markdown.blockquote,
-        ));
+        spans.add(TextSpan(text: line, style: theme.markdown.blockquote));
       }
       // Tables
       else if (RegExp(r'^\s*\|.*\|').hasMatch(line)) {
-        spans.add(TextSpan(
-          text: line,
-          style: theme.markdown.table,
-        ));
+        spans.add(TextSpan(text: line, style: theme.markdown.table));
       }
       // Normal text with inline formatting
       else {
         spans.add(_highlightInlineMarkdown(line, theme));
       }
-      
+
       // Add newline except for last line
       if (i < lines.length - 1) {
         spans.add(const TextSpan(text: '\n'));
       }
     }
-    
+
     return TextSpan(children: spans);
   }
 
@@ -184,7 +180,7 @@ class SyntaxHighlightService {
   TextSpan _highlightInlineMarkdown(String text, SyntaxTheme theme) {
     final spans = <TextSpan>[];
     int lastIndex = 0;
-    
+
     // Patterns for inline formatting
     final patterns = [
       // Bold
@@ -198,29 +194,31 @@ class SyntaxHighlightService {
       // Images
       RegExp(r'!\[(.*?)\]\((.*?)\)'),
     ];
-    
+
     final allMatches = <RegExpMatch>[];
-    
+
     for (final pattern in patterns) {
       allMatches.addAll(pattern.allMatches(text));
     }
-    
+
     // Sort matches by start position
     allMatches.sort((a, b) => a.start.compareTo(b.start));
-    
+
     for (final match in allMatches) {
       // Add text before match
       if (match.start > lastIndex) {
-        spans.add(TextSpan(
-          text: text.substring(lastIndex, match.start),
-          style: theme.plainText,
-        ));
+        spans.add(
+          TextSpan(
+            text: text.substring(lastIndex, match.start),
+            style: theme.plainText,
+          ),
+        );
       }
-      
+
       // Add formatted match
       final matchText = match.group(0)!;
       TextStyle style = theme.plainText;
-      
+
       if (matchText.startsWith('**')) {
         style = theme.markdown.bold;
       } else if (matchText.startsWith('*')) {
@@ -232,40 +230,40 @@ class SyntaxHighlightService {
       } else if (matchText.startsWith('[')) {
         style = theme.markdown.link;
       }
-      
-      spans.add(TextSpan(
-        text: matchText,
-        style: style,
-      ));
-      
+
+      spans.add(TextSpan(text: matchText, style: style));
+
       lastIndex = match.end;
     }
-    
+
     // Add remaining text
     if (lastIndex < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(lastIndex),
-        style: theme.plainText,
-      ));
+      spans.add(
+        TextSpan(text: text.substring(lastIndex), style: theme.plainText),
+      );
     }
-    
-    return TextSpan(children: spans.isEmpty ? [TextSpan(text: text, style: theme.plainText)] : spans);
+
+    return TextSpan(
+      children: spans.isEmpty
+          ? [TextSpan(text: text, style: theme.plainText)]
+          : spans,
+    );
   }
 
   /// Resalta código genérico
   TextSpan _highlightCode(String text, SyntaxTheme theme) {
     final spans = <TextSpan>[];
     final lines = text.split('\n');
-    
+
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];
       spans.add(_highlightCodeLine(line, theme));
-      
+
       if (i < lines.length - 1) {
         spans.add(const TextSpan(text: '\n'));
       }
     }
-    
+
     return TextSpan(children: spans);
   }
 
@@ -273,35 +271,76 @@ class SyntaxHighlightService {
   TextSpan _highlightCodeLine(String line, SyntaxTheme theme) {
     final spans = <TextSpan>[];
     int lastIndex = 0;
-    
+
     // Keywords
     final keywords = [
-      'function', 'class', 'import', 'export', 'const', 'let', 'var',
-      'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'default',
-      'try', 'catch', 'finally', 'throw', 'return', 'break', 'continue',
-      'async', 'await', 'yield', 'new', 'delete', 'typeof', 'instanceof',
-      'public', 'private', 'protected', 'static', 'final', 'abstract',
-      'interface', 'extends', 'implements', 'super', 'this', 'null',
-      'true', 'false', 'undefined', 'void', 'def', 'lambda', 'pass',
+      'function',
+      'class',
+      'import',
+      'export',
+      'const',
+      'let',
+      'var',
+      'if',
+      'else',
+      'for',
+      'while',
+      'do',
+      'switch',
+      'case',
+      'default',
+      'try',
+      'catch',
+      'finally',
+      'throw',
+      'return',
+      'break',
+      'continue',
+      'async',
+      'await',
+      'yield',
+      'new',
+      'delete',
+      'typeof',
+      'instanceof',
+      'public',
+      'private',
+      'protected',
+      'static',
+      'final',
+      'abstract',
+      'interface',
+      'extends',
+      'implements',
+      'super',
+      'this',
+      'null',
+      'true',
+      'false',
+      'undefined',
+      'void',
+      'def',
+      'lambda',
+      'pass',
     ];
-    
+
     // Find all keyword matches
     final keywordAlternation = keywords.join('|');
     final keywordPattern = RegExp('\\b($keywordAlternation)\\b');
     final keywordMatches = keywordPattern.allMatches(line).toList();
-    
+
     // Find string matches
-  final stringPattern = RegExp("\"[^\"]*\"|'[^']*'");
+    final stringPattern = RegExp("\"[^\"]*\"|'[^']*'");
     final stringMatches = stringPattern.allMatches(line).toList();
-    
+
     // Find comment matches
     final commentPattern = RegExp(r'//.*$|/\*.*?\*/|#.*$');
     final commentMatches = commentPattern.allMatches(line).toList();
-    
+
     // Find number matches
     final numberPattern = RegExp(r'\b\d+(\.\d+)?\b');
     final numberMatches = numberPattern.allMatches(line).toList();
-    
+
     // Combine all matches and sort by position
     final allMatches = <RegExpMatch>[];
     allMatches.addAll(keywordMatches);
@@ -309,20 +348,22 @@ class SyntaxHighlightService {
     allMatches.addAll(commentMatches);
     allMatches.addAll(numberMatches);
     allMatches.sort((a, b) => a.start.compareTo(b.start));
-    
+
     for (final match in allMatches) {
       // Add text before match
       if (match.start > lastIndex) {
-        spans.add(TextSpan(
-          text: line.substring(lastIndex, match.start),
-          style: theme.code.text,
-        ));
+        spans.add(
+          TextSpan(
+            text: line.substring(lastIndex, match.start),
+            style: theme.code.text,
+          ),
+        );
       }
-      
+
       // Add formatted match
       final matchText = match.group(0)!;
       TextStyle style = theme.code.text;
-      
+
       if (keywordMatches.contains(match)) {
         style = theme.code.keyword;
       } else if (stringMatches.contains(match)) {
@@ -332,61 +373,46 @@ class SyntaxHighlightService {
       } else if (numberMatches.contains(match)) {
         style = theme.code.number;
       }
-      
-      spans.add(TextSpan(
-        text: matchText,
-        style: style,
-      ));
-      
+
+      spans.add(TextSpan(text: matchText, style: style));
+
       lastIndex = match.end;
     }
-    
+
     // Add remaining text
     if (lastIndex < line.length) {
-      spans.add(TextSpan(
-        text: line.substring(lastIndex),
-        style: theme.code.text,
-      ));
+      spans.add(
+        TextSpan(text: line.substring(lastIndex), style: theme.code.text),
+      );
     }
-    
-    return TextSpan(children: spans.isEmpty ? [TextSpan(text: line, style: theme.code.text)] : spans);
+
+    return TextSpan(
+      children: spans.isEmpty
+          ? [TextSpan(text: line, style: theme.code.text)]
+          : spans,
+    );
   }
 
   /// Resalta JSON
   TextSpan _highlightJson(String text, SyntaxTheme theme) {
     // Simple JSON highlighting
-    return TextSpan(
-      text: text,
-      style: theme.json.text,
-    );
+    return TextSpan(text: text, style: theme.json.text);
   }
 
   /// Resalta YAML
   TextSpan _highlightYaml(String text, SyntaxTheme theme) {
     // Simple YAML highlighting
-    return TextSpan(
-      text: text,
-      style: theme.yaml.text,
-    );
+    return TextSpan(text: text, style: theme.yaml.text);
   }
 
   /// Resalta texto plano
   TextSpan _highlightPlainText(String text, SyntaxTheme theme) {
-    return TextSpan(
-      text: text,
-      style: theme.plainText,
-    );
+    return TextSpan(text: text, style: theme.plainText);
   }
 }
 
 /// Tipos de contenido soportados
-enum ContentType {
-  plainText,
-  markdown,
-  code,
-  json,
-  yaml,
-}
+enum ContentType { plainText, markdown, code, json, yaml }
 
 /// Tema de resaltado de sintaxis
 class SyntaxTheme {
@@ -466,10 +492,7 @@ class MarkdownTheme {
         fontSize: 18,
         fontWeight: FontWeight.bold,
       ),
-      bold: const TextStyle(
-        fontWeight: FontWeight.bold,
-        color: Colors.black87,
-      ),
+      bold: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
       italic: const TextStyle(
         fontStyle: FontStyle.italic,
         color: Colors.black87,
@@ -488,9 +511,7 @@ class MarkdownTheme {
         color: Colors.blue,
         decoration: TextDecoration.underline,
       ),
-      image: const TextStyle(
-        color: Colors.green,
-      ),
+      image: const TextStyle(color: Colors.green),
       blockquote: const TextStyle(
         color: Colors.grey,
         fontStyle: FontStyle.italic,
@@ -499,10 +520,7 @@ class MarkdownTheme {
         color: Colors.orange,
         fontWeight: FontWeight.bold,
       ),
-      table: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.purple,
-      ),
+      table: const TextStyle(fontFamily: 'monospace', color: Colors.purple),
     );
   }
 
@@ -513,14 +531,8 @@ class MarkdownTheme {
         fontSize: 18,
         fontWeight: FontWeight.bold,
       ),
-      bold: const TextStyle(
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
-      ),
-      italic: const TextStyle(
-        fontStyle: FontStyle.italic,
-        color: Colors.white,
-      ),
+      bold: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+      italic: const TextStyle(fontStyle: FontStyle.italic, color: Colors.white),
       inlineCode: const TextStyle(
         fontFamily: 'monospace',
         backgroundColor: Colors.grey,
@@ -535,9 +547,7 @@ class MarkdownTheme {
         color: Colors.lightBlue,
         decoration: TextDecoration.underline,
       ),
-      image: const TextStyle(
-        color: Colors.lightGreen,
-      ),
+      image: const TextStyle(color: Colors.lightGreen),
       blockquote: const TextStyle(
         color: Colors.grey,
         fontStyle: FontStyle.italic,
@@ -574,41 +584,26 @@ class CodeTheme {
 
   static CodeTheme defaultTheme() {
     return CodeTheme(
-      text: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.black87,
-      ),
+      text: const TextStyle(fontFamily: 'monospace', color: Colors.black87),
       keyword: const TextStyle(
         fontFamily: 'monospace',
         color: Colors.blue,
         fontWeight: FontWeight.bold,
       ),
-      string: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.green,
-      ),
+      string: const TextStyle(fontFamily: 'monospace', color: Colors.green),
       comment: const TextStyle(
         fontFamily: 'monospace',
         color: Colors.grey,
         fontStyle: FontStyle.italic,
       ),
-      number: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.orange,
-      ),
-      operator: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.red,
-      ),
+      number: const TextStyle(fontFamily: 'monospace', color: Colors.orange),
+      operator: const TextStyle(fontFamily: 'monospace', color: Colors.red),
     );
   }
 
   static CodeTheme darkTheme() {
     return CodeTheme(
-      text: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.white,
-      ),
+      text: const TextStyle(fontFamily: 'monospace', color: Colors.white),
       keyword: const TextStyle(
         fontFamily: 'monospace',
         color: Colors.lightBlue,
@@ -655,47 +650,20 @@ class JsonTheme {
 
   static JsonTheme defaultTheme() {
     return JsonTheme(
-      text: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.black87,
-      ),
-      key: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.blue,
-      ),
-      value: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.black87,
-      ),
-      string: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.green,
-      ),
-      number: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.orange,
-      ),
-      boolean: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.purple,
-      ),
+      text: const TextStyle(fontFamily: 'monospace', color: Colors.black87),
+      key: const TextStyle(fontFamily: 'monospace', color: Colors.blue),
+      value: const TextStyle(fontFamily: 'monospace', color: Colors.black87),
+      string: const TextStyle(fontFamily: 'monospace', color: Colors.green),
+      number: const TextStyle(fontFamily: 'monospace', color: Colors.orange),
+      boolean: const TextStyle(fontFamily: 'monospace', color: Colors.purple),
     );
   }
 
   static JsonTheme darkTheme() {
     return JsonTheme(
-      text: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.white,
-      ),
-      key: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.lightBlue,
-      ),
-      value: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.white,
-      ),
+      text: const TextStyle(fontFamily: 'monospace', color: Colors.white),
+      key: const TextStyle(fontFamily: 'monospace', color: Colors.lightBlue),
+      value: const TextStyle(fontFamily: 'monospace', color: Colors.white),
       string: const TextStyle(
         fontFamily: 'monospace',
         color: Colors.lightGreen,
@@ -728,18 +696,9 @@ class YamlTheme {
 
   static YamlTheme defaultTheme() {
     return YamlTheme(
-      text: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.black87,
-      ),
-      key: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.blue,
-      ),
-      value: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.green,
-      ),
+      text: const TextStyle(fontFamily: 'monospace', color: Colors.black87),
+      key: const TextStyle(fontFamily: 'monospace', color: Colors.blue),
+      value: const TextStyle(fontFamily: 'monospace', color: Colors.green),
       comment: const TextStyle(
         fontFamily: 'monospace',
         color: Colors.grey,
@@ -750,18 +709,9 @@ class YamlTheme {
 
   static YamlTheme darkTheme() {
     return YamlTheme(
-      text: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.white,
-      ),
-      key: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.lightBlue,
-      ),
-      value: const TextStyle(
-        fontFamily: 'monospace',
-        color: Colors.lightGreen,
-      ),
+      text: const TextStyle(fontFamily: 'monospace', color: Colors.white),
+      key: const TextStyle(fontFamily: 'monospace', color: Colors.lightBlue),
+      value: const TextStyle(fontFamily: 'monospace', color: Colors.lightGreen),
       comment: const TextStyle(
         fontFamily: 'monospace',
         color: Colors.grey,

@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 // methods by using a lightweight fake. It doesn't touch real Firebase.
 
 class FakeFirestoreService {
-  Future<List<Map<String, dynamic>>> listNotesSummary({required String uid}) async {
+  Future<List<Map<String, dynamic>>> listNotesSummary({
+    required String uid,
+  }) async {
     // return a deterministic small dataset for tests
     return [
       {'id': '1', 'title': 'Nota 1', 'pinned': false},

@@ -19,10 +19,7 @@ class ToastDemoPage extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF8F9FA),
-              Color(0xFFE9ECEF),
-            ],
+            colors: [Color(0xFFF8F9FA), Color(0xFFE9ECEF)],
           ),
         ),
         child: SingleChildScrollView(
@@ -79,7 +76,8 @@ class ToastDemoPage extends StatelessWidget {
                 'Éxito',
                 Icons.check_circle,
                 AppColors.success,
-                () => ToastService.success('¡Operación completada exitosamente!'),
+                () =>
+                    ToastService.success('¡Operación completada exitosamente!'),
               ),
               _buildToastButton(
                 'Error',
@@ -200,9 +198,7 @@ class ToastDemoPage extends StatelessWidget {
         backgroundColor: color,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         elevation: 2,
       ),
     );

@@ -49,7 +49,10 @@ class _RecordingOverlayState extends State<RecordingOverlay>
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.danger, AppColors.danger.withValues(alpha: 0.8)],
+              colors: [
+                AppColors.danger,
+                AppColors.danger.withValues(alpha: 0.8),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -86,7 +89,7 @@ class _RecordingOverlayState extends State<RecordingOverlay>
                     ),
                   ),
                   const SizedBox(width: AppColors.space16),
-                  
+
                   // Texto "Grabando..."
                   const Text(
                     'Grabando...',
@@ -98,7 +101,7 @@ class _RecordingOverlayState extends State<RecordingOverlay>
                     ),
                   ),
                   const SizedBox(width: AppColors.space24),
-                  
+
                   // Botón detener
                   ElevatedButton.icon(
                     onPressed: widget.onStop,
@@ -114,10 +117,13 @@ class _RecordingOverlayState extends State<RecordingOverlay>
                       ),
                     ),
                     icon: const Icon(Icons.stop_rounded, size: 18),
-                    label: const Text('Detener', style: TextStyle(fontWeight: FontWeight.w600)),
+                    label: const Text(
+                      'Detener',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
                   const SizedBox(width: AppColors.space12),
-                  
+
                   // Botón cancelar
                   TextButton(
                     onPressed: widget.onCancel,
@@ -131,7 +137,10 @@ class _RecordingOverlayState extends State<RecordingOverlay>
                         borderRadius: BorderRadius.circular(AppColors.radiusMd),
                       ),
                     ),
-                    child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.w600)),
+                    child: const Text(
+                      'Cancelar',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ],
               ),

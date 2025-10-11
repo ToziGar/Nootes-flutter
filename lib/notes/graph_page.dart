@@ -36,10 +36,15 @@ class _GraphPageState extends State<GraphPage> {
 
   @override
   Widget build(BuildContext context) {
-    final idToRawTitle = {for (final n in _notes) n['id'].toString(): (n['title']?.toString() ?? '')};
+    final idToRawTitle = {
+      for (final n in _notes)
+        n['id'].toString(): (n['title']?.toString() ?? ''),
+    };
     final filteredEdges = _selected == null
         ? _edges
-        : _edges.where((e) => e['from'] == _selected || e['to'] == _selected).toList();
+        : _edges
+              .where((e) => e['from'] == _selected || e['to'] == _selected)
+              .toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Grafo de notas')),
@@ -55,18 +60,23 @@ class _GraphPageState extends State<GraphPage> {
               child: Column(
                 children: [
                   DropdownButtonFormField<String?>(
-                        initialValue: _selected,
+                    initialValue: _selected,
                     decoration: const InputDecoration(
                       labelText: 'Filtrar por nota',
                       prefixIcon: Icon(Icons.filter_alt_outlined),
                     ),
                     items: [
-                      DropdownMenuItem<String?>(value: null, child: Text('Todas')),
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Todas'),
+                      ),
                       ..._notes.map((n) {
                         final id = n['id'].toString();
                         final rawTitle = (idToRawTitle[id]?.trim() ?? '');
                         final short = id.length <= 8 ? id : id.substring(0, 8);
-                        final label = rawTitle.isEmpty ? id : '$rawTitle ($short)';
+                        final label = rawTitle.isEmpty
+                            ? id
+                            : '$rawTitle ($short)';
                         return DropdownMenuItem<String?>(
                           value: id,
                           child: Text(label),
@@ -81,17 +91,26 @@ class _GraphPageState extends State<GraphPage> {
                         ? const Center(child: Text('Sin enlaces'))
                         : ListView.separated(
                             itemCount: filteredEdges.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
                             itemBuilder: (context, i) {
                               final e = filteredEdges[i];
-                              final fromTitle = (idToRawTitle[e['from']]?.trim() ?? '');
-                              final toTitle = (idToRawTitle[e['to']]?.trim() ?? '');
-                              final from = fromTitle.isEmpty ? (e['from'] ?? '') : fromTitle;
-                              final to = toTitle.isEmpty ? (e['to'] ?? '') : toTitle;
+                              final fromTitle =
+                                  (idToRawTitle[e['from']]?.trim() ?? '');
+                              final toTitle =
+                                  (idToRawTitle[e['to']]?.trim() ?? '');
+                              final from = fromTitle.isEmpty
+                                  ? (e['from'] ?? '')
+                                  : fromTitle;
+                              final to = toTitle.isEmpty
+                                  ? (e['to'] ?? '')
+                                  : toTitle;
                               return ListTile(
                                 leading: const Icon(Icons.linear_scale_rounded),
                                 title: Text('$from -> $to'),
-                                subtitle: Text('(${e['from']}) -> (${e['to']})'),
+                                subtitle: Text(
+                                  '(${e['from']}) -> (${e['to']})',
+                                ),
                               );
                             },
                           ),
@@ -105,7 +124,3 @@ class _GraphPageState extends State<GraphPage> {
     );
   }
 }
-
-
-
-

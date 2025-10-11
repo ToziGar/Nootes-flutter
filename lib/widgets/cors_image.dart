@@ -58,9 +58,11 @@ class _CorsImageState extends State<CorsImage> {
                           strokeWidth: 2,
                           value: loadingProgress.expectedTotalBytes != null
                               ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
+                                    loadingProgress.expectedTotalBytes!
                               : null,
-                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
+                          ),
                         ),
                       ),
                       if (widget.placeholder != null) ...[
@@ -103,10 +105,7 @@ class _CorsImageState extends State<CorsImage> {
                     const SizedBox(height: 4),
                     const Text(
                       'Verifica CORS en Firebase',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 10,
-                      ),
+                      style: TextStyle(color: AppColors.primary, fontSize: 10),
                       textAlign: TextAlign.center,
                     ),
                   ],

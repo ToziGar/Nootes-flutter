@@ -12,7 +12,7 @@ class PlatformExportImport {
       ..click();
     html.Url.revokeObjectUrl(url);
   }
-  
+
   static Future<String?> pickAndReadFile() async {
     final uploadInput = html.FileUploadInputElement()..accept = '.json';
     uploadInput.click();

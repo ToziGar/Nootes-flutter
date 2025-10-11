@@ -12,10 +12,11 @@ class SharedNotesPage extends StatefulWidget {
   State<SharedNotesPage> createState() => _SharedNotesPageState();
 }
 
-class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderStateMixin {
+class _SharedNotesPageState extends State<SharedNotesPage>
+    with TickerProviderStateMixin {
   late TabController _tabController;
   late Future<void> _initFuture;
-  
+
   List<SharedItem> _sharedByMe = [];
   List<SharedItem> _sharedWithMe = [];
   bool _isLoading = false;
@@ -35,14 +36,14 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final sharingService = SharingService();
       final results = await Future.wait([
         sharingService.getSharedByMe(),
         sharingService.getSharedWithMe(),
       ]);
-      
+
       setState(() {
         _sharedByMe = results[0];
         _sharedWithMe = results[1];
@@ -160,10 +161,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
 
                   return TabBarView(
                     controller: _tabController,
-                    children: [
-                      _buildSharedByMeTab(),
-                      _buildSharedWithMeTab(),
-                    ],
+                    children: [_buildSharedByMeTab(), _buildSharedWithMeTab()],
                   );
                 },
               ),
@@ -177,25 +175,16 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.share_outlined,
-              size: 64,
-              color: Color(0xFF636E72),
-            ),
+            Icon(Icons.share_outlined, size: 64, color: Color(0xFF636E72)),
             SizedBox(height: 16),
             Text(
               'No has compartido nada aún',
-              style: TextStyle(
-                fontSize: 18,
-                color: Color(0xFF636E72),
-              ),
+              style: TextStyle(fontSize: 18, color: Color(0xFF636E72)),
             ),
             SizedBox(height: 8),
             Text(
               'Comparte notas o carpetas desde el menú contextual',
-              style: TextStyle(
-                color: Color(0xFF636E72),
-              ),
+              style: TextStyle(color: Color(0xFF636E72)),
               textAlign: TextAlign.center,
             ),
           ],
@@ -222,25 +211,16 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 64,
-              color: Color(0xFF636E72),
-            ),
+            Icon(Icons.inbox_outlined, size: 64, color: Color(0xFF636E72)),
             SizedBox(height: 16),
             Text(
               'No tienes notas compartidas',
-              style: TextStyle(
-                fontSize: 18,
-                color: Color(0xFF636E72),
-              ),
+              style: TextStyle(fontSize: 18, color: Color(0xFF636E72)),
             ),
             SizedBox(height: 8),
             Text(
               'Cuando alguien comparta contenido contigo aparecerá aquí',
-              style: TextStyle(
-                color: Color(0xFF636E72),
-              ),
+              style: TextStyle(color: Color(0xFF636E72)),
               textAlign: TextAlign.center,
             ),
           ],
@@ -274,10 +254,14 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: _getStatusColor(item.status).withValues(alpha: 0.2),
+                  backgroundColor: _getStatusColor(
+                    item.status,
+                  ).withValues(alpha: 0.2),
                   radius: 20,
                   child: Icon(
-                    item.type == SharedItemType.note ? Icons.note_alt : Icons.folder,
+                    item.type == SharedItemType.note
+                        ? Icons.note_alt
+                        : Icons.folder,
                     color: _getStatusColor(item.status),
                     size: 20,
                   ),
@@ -288,7 +272,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item.metadata?['noteTitle'] ?? item.metadata?['folderName'] ?? 'Sin título',
+                        item.metadata?['noteTitle'] ??
+                            item.metadata?['folderName'] ??
+                            'Sin título',
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
@@ -320,12 +306,17 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _getStatusColor(item.status).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _getStatusColor(item.status).withValues(alpha: 0.3),
+                      color: _getStatusColor(
+                        item.status,
+                      ).withValues(alpha: 0.3),
                     ),
                   ),
                   child: Text(
@@ -339,9 +330,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // Información adicional
             Row(
               children: [
@@ -368,7 +359,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                 ),
               ],
             ),
-            
+
             // Mensaje si existe
             if (item.message != null && item.message!.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -401,7 +392,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                 ),
               ),
             ],
-            
+
             // Acciones
             if (item.status != SharingStatus.revoked) ...[
               const SizedBox(height: 12),
@@ -438,10 +429,14 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: _getStatusColor(item.status).withValues(alpha: 0.2),
+                  backgroundColor: _getStatusColor(
+                    item.status,
+                  ).withValues(alpha: 0.2),
                   radius: 20,
                   child: Icon(
-                    item.type == SharedItemType.note ? Icons.note_alt : Icons.folder,
+                    item.type == SharedItemType.note
+                        ? Icons.note_alt
+                        : Icons.folder,
                     color: _getStatusColor(item.status),
                     size: 20,
                   ),
@@ -452,7 +447,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item.metadata?['noteTitle'] ?? item.metadata?['folderName'] ?? 'Sin título',
+                        item.metadata?['noteTitle'] ??
+                            item.metadata?['folderName'] ??
+                            'Sin título',
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
@@ -484,12 +481,17 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _getStatusColor(item.status).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _getStatusColor(item.status).withValues(alpha: 0.3),
+                      color: _getStatusColor(
+                        item.status,
+                      ).withValues(alpha: 0.3),
                     ),
                   ),
                   child: Text(
@@ -503,9 +505,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // Información adicional
             Row(
               children: [
@@ -532,7 +534,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                 ),
               ],
             ),
-            
+
             // Mensaje si existe
             if (item.message != null && item.message!.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -565,7 +567,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                 ),
               ),
             ],
-            
+
             // Acciones para comparticiones pendientes
             if (item.status == SharingStatus.pending) ...[
               const SizedBox(height: 16),

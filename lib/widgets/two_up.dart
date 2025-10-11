@@ -8,9 +8,9 @@ class TwoUp extends StatelessWidget {
     this.breakpoint = 560,
   });
 
-    final Widget first;
-    final Widget second;
-    final double breakpoint;
+  final Widget first;
+  final Widget second;
+  final double breakpoint;
 
   @override
   Widget build(BuildContext context) {
@@ -18,11 +18,15 @@ class TwoUp extends StatelessWidget {
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > breakpoint;
         if (isWide) {
-          return Row(children: [Expanded(child: first), Expanded(child: second)]);
+          return Row(
+            children: [
+              Expanded(child: first),
+              Expanded(child: second),
+            ],
+          );
         }
         return Column(children: [first, second]);
       },
     );
   }
 }
-

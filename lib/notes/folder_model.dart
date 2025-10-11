@@ -13,7 +13,7 @@ class Folder {
   final DateTime createdAt;
   final DateTime updatedAt;
   final int order;
-  
+
   Folder({
     required this.id,
     required this.name,
@@ -26,7 +26,7 @@ class Folder {
     required this.updatedAt,
     this.order = 0,
   });
-  
+
   /// Crear carpeta desde JSON de Firestore
   factory Folder.fromJson(Map<String, dynamic> json) {
     // Helper para convertir tanto Timestamp como String a DateTime
@@ -40,7 +40,7 @@ class Folder {
       }
       return DateTime.now();
     }
-    
+
     return Folder(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -70,7 +70,7 @@ class Folder {
     }
     return const Color(0xFFF59E0B);
   }
-  
+
   /// Convertir carpeta a JSON para Firestore
   Map<String, dynamic> toJson() {
     final result = {
@@ -84,14 +84,14 @@ class Folder {
       'updatedAt': updatedAt.toIso8601String(),
       'order': order,
     };
-    
+
     if (emoji != null) {
       result['emoji'] = emoji!;
     }
-    
+
     return result;
   }
-  
+
   /// Copiar carpeta con cambios
   Folder copyWith({
     String? id,
@@ -116,16 +116,13 @@ class Folder {
       order: order ?? this.order,
     );
   }
-  
+
   /// Agregar nota a la carpeta
   Folder addNote(String noteId) {
     if (noteIds.contains(noteId)) return this;
-    return copyWith(
-      noteIds: [...noteIds, noteId],
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(noteIds: [...noteIds, noteId], updatedAt: DateTime.now());
   }
-  
+
   /// Remover nota de la carpeta
   Folder removeNote(String noteId) {
     return copyWith(
@@ -133,16 +130,16 @@ class Folder {
       updatedAt: DateTime.now(),
     );
   }
-  
+
   // Mapeo de strings a IconData - ahora usa NoteIconRegistry
   static IconData _iconFromString(String iconName) {
     return NoteIconRegistry.iconFromName(iconName) ?? Icons.folder_rounded;
   }
-  
+
   static String _iconToString(IconData icon) {
     return NoteIconRegistry.nameFromIcon(icon);
   }
-  
+
   /// Colores predefinidos para carpetas
   static const List<Color> availableColors = [
     Color(0xFFF59E0B), // Amber
@@ -154,7 +151,8 @@ class Folder {
     Color(0xFFEC4899), // Pink
     Color(0xFFF97316), // Orange
   ];
-  
+
   /// Iconos disponibles para carpetas - ahora usa todo el NoteIconRegistry
-  static List<IconData> get availableIcons => NoteIconRegistry.icons.values.toList();
+  static List<IconData> get availableIcons =>
+      NoteIconRegistry.icons.values.toList();
 }

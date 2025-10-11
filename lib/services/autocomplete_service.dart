@@ -27,23 +27,164 @@ class AutoCompleteService {
   Future<void> _loadCommonWords() async {
     _commonWords = [
       // Palabras comunes en español
-      'el', 'la', 'de', 'que', 'y', 'a', 'en', 'un', 'es', 'se', 'no', 'te', 'lo', 'le', 'da', 'su', 'por', 'son', 'con', 'para',
-      'también', 'todo', 'muy', 'cuando', 'donde', 'como', 'porque', 'entonces', 'después', 'antes', 'ahora', 'siempre', 'nunca',
-      'proyecto', 'trabajo', 'reunión', 'tarea', 'objetivo', 'importante', 'necesario', 'desarrollar', 'implementar', 'crear',
-      'análisis', 'resultado', 'proceso', 'sistema', 'aplicación', 'usuario', 'interfaz', 'función', 'método', 'clase',
-      
+      'el',
+      'la',
+      'de',
+      'que',
+      'y',
+      'a',
+      'en',
+      'un',
+      'es',
+      'se',
+      'no',
+      'te',
+      'lo',
+      'le',
+      'da',
+      'su',
+      'por',
+      'son',
+      'con',
+      'para',
+      'también',
+      'todo',
+      'muy',
+      'cuando',
+      'donde',
+      'como',
+      'porque',
+      'entonces',
+      'después',
+      'antes',
+      'ahora',
+      'siempre',
+      'nunca',
+      'proyecto',
+      'trabajo',
+      'reunión',
+      'tarea',
+      'objetivo',
+      'importante',
+      'necesario',
+      'desarrollar',
+      'implementar',
+      'crear',
+      'análisis',
+      'resultado',
+      'proceso',
+      'sistema',
+      'aplicación',
+      'usuario',
+      'interfaz',
+      'función',
+      'método',
+      'clase',
+
       // Palabras comunes en inglés
-      'the', 'of', 'and', 'to', 'in', 'is', 'you', 'that', 'it', 'he', 'was', 'for', 'on', 'are', 'as', 'with', 'his', 'they',
-      'also', 'all', 'very', 'when', 'where', 'how', 'because', 'then', 'after', 'before', 'now', 'always', 'never',
-      'project', 'work', 'meeting', 'task', 'goal', 'important', 'necessary', 'develop', 'implement', 'create',
-      'analysis', 'result', 'process', 'system', 'application', 'user', 'interface', 'function', 'method', 'class',
-      
+      'the',
+      'of',
+      'and',
+      'to',
+      'in',
+      'is',
+      'you',
+      'that',
+      'it',
+      'he',
+      'was',
+      'for',
+      'on',
+      'are',
+      'as',
+      'with',
+      'his',
+      'they',
+      'also',
+      'all',
+      'very',
+      'when',
+      'where',
+      'how',
+      'because',
+      'then',
+      'after',
+      'before',
+      'now',
+      'always',
+      'never',
+      'project',
+      'work',
+      'meeting',
+      'task',
+      'goal',
+      'important',
+      'necessary',
+      'develop',
+      'implement',
+      'create',
+      'analysis',
+      'result',
+      'process',
+      'system',
+      'application',
+      'user',
+      'interface',
+      'function',
+      'method',
+      'class',
+
       // Palabras técnicas comunes
-      'flutter', 'dart', 'widget', 'stateful', 'stateless', 'build', 'context', 'scaffold', 'container', 'column', 'row',
-      'firebase', 'firestore', 'authentication', 'database', 'collection', 'document', 'query', 'snapshot', 'stream',
-      'javascript', 'typescript', 'react', 'vue', 'angular', 'nodejs', 'express', 'mongodb', 'mysql', 'postgresql',
-      'python', 'django', 'flask', 'fastapi', 'pandas', 'numpy', 'tensorflow', 'pytorch', 'scikit', 'jupyter',
-      'github', 'gitlab', 'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'terraform', 'ansible', 'jenkins',
+      'flutter',
+      'dart',
+      'widget',
+      'stateful',
+      'stateless',
+      'build',
+      'context',
+      'scaffold',
+      'container',
+      'column',
+      'row',
+      'firebase',
+      'firestore',
+      'authentication',
+      'database',
+      'collection',
+      'document',
+      'query',
+      'snapshot',
+      'stream',
+      'javascript',
+      'typescript',
+      'react',
+      'vue',
+      'angular',
+      'nodejs',
+      'express',
+      'mongodb',
+      'mysql',
+      'postgresql',
+      'python',
+      'django',
+      'flask',
+      'fastapi',
+      'pandas',
+      'numpy',
+      'tensorflow',
+      'pytorch',
+      'scikit',
+      'jupyter',
+      'github',
+      'gitlab',
+      'docker',
+      'kubernetes',
+      'aws',
+      'azure',
+      'gcp',
+      'terraform',
+      'ansible',
+      'jenkins',
     ];
   }
 
@@ -65,7 +206,7 @@ class AutoCompleteService {
       for (final doc in notesSnapshot.docs) {
         final content = doc.data()['content'] as String? ?? '';
         final words = _extractWords(content);
-        
+
         for (final word in words) {
           if (word.length >= 3) {
             userWordsSet.add(word);
@@ -93,7 +234,10 @@ class AutoCompleteService {
   }
 
   /// Obtiene sugerencias de autocompletado
-  Future<List<AutoCompleteSuggestion>> getSuggestions(String input, {int maxSuggestions = 10}) async {
+  Future<List<AutoCompleteSuggestion>> getSuggestions(
+    String input, {
+    int maxSuggestions = 10,
+  }) async {
     if (input.length < 2) return [];
 
     final lowercaseInput = input.toLowerCase();
@@ -103,44 +247,52 @@ class AutoCompleteService {
     final cacheKey = lowercaseInput;
     if (_suggestionsCache.containsKey(cacheKey)) {
       return _suggestionsCache[cacheKey]!
-          .map((word) => AutoCompleteSuggestion(
-                text: word,
-                type: SuggestionType.cached,
-                frequency: _wordFrequency[word] ?? 0,
-              ))
+          .map(
+            (word) => AutoCompleteSuggestion(
+              text: word,
+              type: SuggestionType.cached,
+              frequency: _wordFrequency[word] ?? 0,
+            ),
+          )
           .toList();
     }
 
     // Buscar en palabras del usuario (mayor prioridad)
     for (final word in _userWords) {
       if (word.startsWith(lowercaseInput) && word != lowercaseInput) {
-        suggestions.add(AutoCompleteSuggestion(
-          text: word,
-          type: SuggestionType.userWord,
-          frequency: _wordFrequency[word] ?? 0,
-        ));
+        suggestions.add(
+          AutoCompleteSuggestion(
+            text: word,
+            type: SuggestionType.userWord,
+            frequency: _wordFrequency[word] ?? 0,
+          ),
+        );
       }
     }
 
     // Buscar en palabras comunes
     for (final word in _commonWords) {
       if (word.startsWith(lowercaseInput) && word != lowercaseInput) {
-        suggestions.add(AutoCompleteSuggestion(
-          text: word,
-          type: SuggestionType.commonWord,
-          frequency: 1,
-        ));
+        suggestions.add(
+          AutoCompleteSuggestion(
+            text: word,
+            type: SuggestionType.commonWord,
+            frequency: 1,
+          ),
+        );
       }
     }
 
     // Buscar coincidencias parciales en palabras del usuario
     for (final word in _userWords) {
       if (word.contains(lowercaseInput) && !word.startsWith(lowercaseInput)) {
-        suggestions.add(AutoCompleteSuggestion(
-          text: word,
-          type: SuggestionType.partialMatch,
-          frequency: _wordFrequency[word] ?? 0,
-        ));
+        suggestions.add(
+          AutoCompleteSuggestion(
+            text: word,
+            type: SuggestionType.partialMatch,
+            frequency: _wordFrequency[word] ?? 0,
+          ),
+        );
       }
     }
 
@@ -156,7 +308,9 @@ class AutoCompleteService {
 
     // Limitar resultados y cachear
     final limitedSuggestions = suggestions.take(maxSuggestions).toList();
-    _suggestionsCache[cacheKey] = limitedSuggestions.map((s) => s.text).toList();
+    _suggestionsCache[cacheKey] = limitedSuggestions
+        .map((s) => s.text)
+        .toList();
 
     return limitedSuggestions;
   }
@@ -168,69 +322,83 @@ class AutoCompleteService {
 
     // Snippets de Markdown
     if (lowercaseInput.contains('table') || lowercaseInput.contains('tabla')) {
-      snippets.add(CodeSnippet(
-        trigger: 'table',
-        description: 'Tabla básica',
-        template: '''| Columna 1 | Columna 2 | Columna 3 |
+      snippets.add(
+        CodeSnippet(
+          trigger: 'table',
+          description: 'Tabla básica',
+          template: '''| Columna 1 | Columna 2 | Columna 3 |
 |-----------|-----------|-----------|
 | Fila 1    | Dato 1    | Dato 2    |
 | Fila 2    | Dato 3    | Dato 4    |''',
-      ));
+        ),
+      );
     }
 
     if (lowercaseInput.contains('code') || lowercaseInput.contains('código')) {
-      snippets.add(CodeSnippet(
-        trigger: 'code',
-        description: 'Bloque de código',
-        template: '''```\${1:language}
+      snippets.add(
+        CodeSnippet(
+          trigger: 'code',
+          description: 'Bloque de código',
+          template: '''```\${1:language}
 \${2:// Tu código aquí}
 ```''',
-      ));
+        ),
+      );
     }
 
     if (lowercaseInput.contains('task') || lowercaseInput.contains('tarea')) {
-      snippets.add(CodeSnippet(
-        trigger: 'task',
-        description: 'Lista de tareas',
-        template: '''- [ ] \${1:Tarea pendiente}
+      snippets.add(
+        CodeSnippet(
+          trigger: 'task',
+          description: 'Lista de tareas',
+          template: '''- [ ] \${1:Tarea pendiente}
 - [x] \${2:Tarea completada}
 - [ ] \${3:Otra tarea}''',
-      ));
+        ),
+      );
     }
 
     if (lowercaseInput.contains('link') || lowercaseInput.contains('enlace')) {
-      snippets.add(CodeSnippet(
-        trigger: 'link',
-        description: 'Enlace',
-        template: '[\${1:texto del enlace}](\${2:https://ejemplo.com})',
-      ));
+      snippets.add(
+        CodeSnippet(
+          trigger: 'link',
+          description: 'Enlace',
+          template: '[\${1:texto del enlace}](\${2:https://ejemplo.com})',
+        ),
+      );
     }
 
     if (lowercaseInput.contains('image') || lowercaseInput.contains('imagen')) {
-      snippets.add(CodeSnippet(
-        trigger: 'image',
-        description: 'Imagen',
-        template: '![\${1:alt text}](\${2:ruta/a/imagen.jpg})',
-      ));
+      snippets.add(
+        CodeSnippet(
+          trigger: 'image',
+          description: 'Imagen',
+          template: '![\${1:alt text}](\${2:ruta/a/imagen.jpg})',
+        ),
+      );
     }
 
     // Snippets de programación
-    if (lowercaseInput.contains('function') || lowercaseInput.contains('función')) {
-      snippets.add(CodeSnippet(
-        trigger: 'function',
-        description: 'Función',
-        template: '''function \${1:nombreFuncion}(\${2:parametros}) {
+    if (lowercaseInput.contains('function') ||
+        lowercaseInput.contains('función')) {
+      snippets.add(
+        CodeSnippet(
+          trigger: 'function',
+          description: 'Función',
+          template: '''function \${1:nombreFuncion}(\${2:parametros}) {
   \${3:// código}
   return \${4:resultado};
 }''',
-      ));
+        ),
+      );
     }
 
     if (lowercaseInput.contains('class') || lowercaseInput.contains('clase')) {
-      snippets.add(CodeSnippet(
-        trigger: 'class',
-        description: 'Clase',
-        template: '''class \${1:NombreClase} {
+      snippets.add(
+        CodeSnippet(
+          trigger: 'class',
+          description: 'Clase',
+          template: '''class \${1:NombreClase} {
   constructor(\${2:parametros}) {
     \${3:// inicialización}
   }
@@ -239,7 +407,8 @@ class AutoCompleteService {
     \${5:// implementación}
   }
 }''',
-      ));
+        ),
+      );
     }
 
     return snippets;

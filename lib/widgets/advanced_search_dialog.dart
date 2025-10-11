@@ -44,7 +44,9 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController(text: widget.initialSearchQuery ?? '');
+    _searchController = TextEditingController(
+      text: widget.initialSearchQuery ?? '',
+    );
     _selectedTags = Set.from(widget.initialSelectedTags ?? []);
     _dateRange = widget.initialDateRange;
     _sortOption = widget.initialSortOption ?? SortOption.dateDesc;
@@ -120,7 +122,11 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                     gradient: AppTheme.gradientPrimary,
                     borderRadius: BorderRadius.circular(AppColors.radiusMd),
                   ),
-                  child: const Icon(Icons.filter_list_rounded, color: Colors.white, size: 24),
+                  child: const Icon(
+                    Icons.filter_list_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: AppColors.space16),
                 const Expanded(
@@ -135,7 +141,10 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -155,10 +164,16 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                       decoration: InputDecoration(
                         hintText: 'Buscar en título y contenido...',
                         hintStyle: const TextStyle(color: AppColors.textMuted),
-                        prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: AppColors.primary,
+                        ),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear_rounded, color: AppColors.textMuted),
+                                icon: const Icon(
+                                  Icons.clear_rounded,
+                                  color: AppColors.textMuted,
+                                ),
                                 onPressed: () {
                                   setState(() => _searchController.clear());
                                 },
@@ -167,12 +182,19 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                         filled: true,
                         fillColor: AppColors.surfaceLight,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                          borderRadius: BorderRadius.circular(
+                            AppColors.radiusMd,
+                          ),
                           borderSide: BorderSide.none,
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppColors.radiusMd),
-                          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                          borderRadius: BorderRadius.circular(
+                            AppColors.radiusMd,
+                          ),
+                          borderSide: const BorderSide(
+                            color: AppColors.primary,
+                            width: 2,
+                          ),
                         ),
                       ),
                       onChanged: (_) => setState(() {}),
@@ -180,23 +202,35 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                     const SizedBox(height: AppColors.space24),
 
                     // Tags filter
-                    _buildSectionTitle('Filtrar por etiquetas', Icons.label_rounded),
+                    _buildSectionTitle(
+                      'Filtrar por etiquetas',
+                      Icons.label_rounded,
+                    ),
                     const SizedBox(height: AppColors.space12),
                     if (widget.availableTags.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(AppColors.space16),
                         decoration: BoxDecoration(
                           color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                          borderRadius: BorderRadius.circular(
+                            AppColors.radiusMd,
+                          ),
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.info_outline_rounded, color: AppColors.textMuted, size: 20),
+                            Icon(
+                              Icons.info_outline_rounded,
+                              color: AppColors.textMuted,
+                              size: 20,
+                            ),
                             SizedBox(width: AppColors.space12),
                             Expanded(
                               child: Text(
                                 'No hay etiquetas disponibles',
-                                style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           ],
@@ -207,7 +241,9 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                         padding: const EdgeInsets.all(AppColors.space16),
                         decoration: BoxDecoration(
                           color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                          borderRadius: BorderRadius.circular(
+                            AppColors.radiusMd,
+                          ),
                         ),
                         child: Wrap(
                           spacing: AppColors.space8,
@@ -227,14 +263,22 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                                 });
                               },
                               backgroundColor: AppColors.surface,
-                              selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                              selectedColor: AppColors.primary.withValues(
+                                alpha: 0.2,
+                              ),
                               checkmarkColor: AppColors.primary,
                               labelStyle: TextStyle(
-                                color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
                               ),
                               side: BorderSide(
-                                color: isSelected ? AppColors.primary : AppColors.borderColor,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.borderColor,
                               ),
                             );
                           }).toList(),
@@ -243,7 +287,10 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                     const SizedBox(height: AppColors.space24),
 
                     // Date range
-                    _buildSectionTitle('Filtrar por fecha', Icons.calendar_today_rounded),
+                    _buildSectionTitle(
+                      'Filtrar por fecha',
+                      Icons.calendar_today_rounded,
+                    ),
                     const SizedBox(height: AppColors.space12),
                     InkWell(
                       onTap: _selectDateRange,
@@ -252,16 +299,22 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                         padding: const EdgeInsets.all(AppColors.space16),
                         decoration: BoxDecoration(
                           color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                          borderRadius: BorderRadius.circular(
+                            AppColors.radiusMd,
+                          ),
                           border: Border.all(
-                            color: _dateRange != null ? AppColors.primary : AppColors.borderColor,
+                            color: _dateRange != null
+                                ? AppColors.primary
+                                : AppColors.borderColor,
                           ),
                         ),
                         child: Row(
                           children: [
                             Icon(
                               Icons.date_range_rounded,
-                              color: _dateRange != null ? AppColors.primary : AppColors.textMuted,
+                              color: _dateRange != null
+                                  ? AppColors.primary
+                                  : AppColors.textMuted,
                             ),
                             const SizedBox(width: AppColors.space12),
                             Expanded(
@@ -270,15 +323,24 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                                     ? '${_formatDate(_dateRange!.start)} - ${_formatDate(_dateRange!.end)}'
                                     : 'Seleccionar rango de fechas',
                                 style: TextStyle(
-                                  color: _dateRange != null ? AppColors.textPrimary : AppColors.textMuted,
-                                  fontWeight: _dateRange != null ? FontWeight.w600 : FontWeight.normal,
+                                  color: _dateRange != null
+                                      ? AppColors.textPrimary
+                                      : AppColors.textMuted,
+                                  fontWeight: _dateRange != null
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
                                 ),
                               ),
                             ),
                             if (_dateRange != null)
                               IconButton(
-                                icon: const Icon(Icons.clear_rounded, color: AppColors.textMuted, size: 20),
-                                onPressed: () => setState(() => _dateRange = null),
+                                icon: const Icon(
+                                  Icons.clear_rounded,
+                                  color: AppColors.textMuted,
+                                  size: 20,
+                                ),
+                                onPressed: () =>
+                                    setState(() => _dateRange = null),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
                               ),
@@ -304,14 +366,20 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                             child: Container(
                               padding: const EdgeInsets.all(AppColors.space16),
                               decoration: BoxDecoration(
-                                color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
-                                borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                                color: isSelected
+                                    ? AppColors.primary.withValues(alpha: 0.15)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(
+                                  AppColors.radiusMd,
+                                ),
                               ),
                               child: Row(
                                 children: [
                                   Icon(
                                     option.icon,
-                                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.textSecondary,
                                     size: 20,
                                   ),
                                   const SizedBox(width: AppColors.space12),
@@ -319,13 +387,21 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                                     child: Text(
                                       option.label,
                                       style: TextStyle(
-                                        color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                        color: isSelected
+                                            ? AppColors.primary
+                                            : AppColors.textPrimary,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
                                       ),
                                     ),
                                   ),
                                   if (isSelected)
-                                    const Icon(Icons.check_rounded, color: AppColors.primary, size: 20),
+                                    const Icon(
+                                      Icons.check_rounded,
+                                      color: AppColors.primary,
+                                      size: 20,
+                                    ),
                                 ],
                               ),
                             ),
@@ -347,7 +423,9 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                   child: OutlinedButton(
                     onPressed: _clearFilters,
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: AppColors.space16),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppColors.space16,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppColors.radiusMd),
                       ),
@@ -363,7 +441,9 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                     onPressed: _applyFilters,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(vertical: AppColors.space16),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppColors.space16,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppColors.radiusMd),
                       ),

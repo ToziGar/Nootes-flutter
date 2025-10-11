@@ -9,7 +9,8 @@ class NoteTemplate {
   final Color color;
   final String content;
   final List<String> tags;
-  final Map<String, String> variables; // Variables que se reemplazan en el contenido
+  final Map<String, String>
+  variables; // Variables que se reemplazan en el contenido
 
   const NoteTemplate({
     required this.id,
@@ -30,9 +31,18 @@ class NoteTemplate {
     });
     // Reemplazar variables de fecha/hora
     final now = DateTime.now();
-    result = result.replaceAll('{{date}}', '${now.day}/${now.month}/${now.year}');
-    result = result.replaceAll('{{time}}', '${now.hour}:${now.minute.toString().padLeft(2, '0')}');
-    result = result.replaceAll('{{datetime}}', '${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}');
+    result = result.replaceAll(
+      '{{date}}',
+      '${now.day}/${now.month}/${now.year}',
+    );
+    result = result.replaceAll(
+      '{{time}}',
+      '${now.hour}:${now.minute.toString().padLeft(2, '0')}',
+    );
+    result = result.replaceAll(
+      '{{datetime}}',
+      '${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}',
+    );
     result = result.replaceAll('{{year}}', '${now.year}');
     result = result.replaceAll('{{month}}', '${now.month}');
     result = result.replaceAll('{{day}}', '${now.day}');
@@ -41,7 +51,15 @@ class NoteTemplate {
   }
 
   String _weekdayName(int weekday) {
-    const names = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    const names = [
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+      'Domingo',
+    ];
     return names[weekday - 1];
   }
 }
@@ -55,10 +73,7 @@ class BuiltInTemplates {
     icon: Icons.calendar_today_rounded,
     color: Color(0xFF3B82F6),
     tags: ['diario', 'personal'],
-    variables: {
-      'mood': 'Estado de ánimo',
-      'weather': 'Clima',
-    },
+    variables: {'mood': 'Estado de ánimo', 'weather': 'Clima'},
     content: '''# Diario - {{date}}
 
 **Estado de ánimo:** {{mood}}
@@ -88,10 +103,7 @@ class BuiltInTemplates {
     icon: Icons.groups_rounded,
     color: Color(0xFF8B5CF6),
     tags: ['reunión', 'trabajo'],
-    variables: {
-      'project': 'Proyecto',
-      'organizer': 'Organizador',
-    },
+    variables: {'project': 'Proyecto', 'organizer': 'Organizador'},
     content: '''# Reunión: {{project}}
 
 **Fecha:** {{date}} {{time}}
@@ -128,9 +140,7 @@ class BuiltInTemplates {
     icon: Icons.checklist_rounded,
     color: Color(0xFF10B981),
     tags: ['tareas', 'productividad'],
-    variables: {
-      'context': 'Contexto',
-    },
+    variables: {'context': 'Contexto'},
     content: '''# Tareas - {{context}}
 
 **Fecha:** {{date}}
@@ -159,10 +169,7 @@ class BuiltInTemplates {
     icon: Icons.restaurant_rounded,
     color: Color(0xFFEF4444),
     tags: ['receta', 'cocina'],
-    variables: {
-      'recipeName': 'Nombre de la receta',
-      'servings': 'Porciones',
-    },
+    variables: {'recipeName': 'Nombre de la receta', 'servings': 'Porciones'},
     content: '''# 🍳 {{recipeName}}
 
 **Porciones:** {{servings}}
@@ -244,10 +251,7 @@ class BuiltInTemplates {
     icon: Icons.school_rounded,
     color: Color(0xFF06B6D4),
     tags: ['aprendizaje', 'estudio'],
-    variables: {
-      'topic': 'Tema',
-      'source': 'Fuente',
-    },
+    variables: {'topic': 'Tema', 'source': 'Fuente'},
     content: '''# 📚 {{topic}}
 
 **Fecha:** {{date}}
@@ -285,9 +289,7 @@ class BuiltInTemplates {
     icon: Icons.lightbulb_rounded,
     color: Color(0xFFF43F5E),
     tags: ['ideas', 'creatividad'],
-    variables: {
-      'challenge': 'Desafío o pregunta',
-    },
+    variables: {'challenge': 'Desafío o pregunta'},
     content: '''# 💡 Lluvia de Ideas
 
 **Fecha:** {{date}}
@@ -321,9 +323,7 @@ class BuiltInTemplates {
     icon: Icons.event_note_rounded,
     color: Color(0xFF6366F1),
     tags: ['revisión', 'planificación'],
-    variables: {
-      'weekNumber': 'Número de semana',
-    },
+    variables: {'weekNumber': 'Número de semana'},
     content: '''# 📅 Semana {{weekNumber}} - {{year}}
 
 **Del:** 
@@ -373,10 +373,7 @@ class BuiltInTemplates {
     icon: Icons.bug_report_rounded,
     color: Color(0xFFDC2626),
     tags: ['bug', 'desarrollo'],
-    variables: {
-      'bugTitle': 'Título del bug',
-      'severity': 'Severidad',
-    },
+    variables: {'bugTitle': 'Título del bug', 'severity': 'Severidad'},
     content: '''# 🐛 Bug: {{bugTitle}}
 
 **Fecha:** {{date}}
@@ -425,10 +422,7 @@ Qué está pasando en realidad.
     icon: Icons.code_rounded,
     color: Color(0xFF059669),
     tags: ['código', 'desarrollo'],
-    variables: {
-      'snippetName': 'Nombre del snippet',
-      'language': 'Lenguaje',
-    },
+    variables: {'snippetName': 'Nombre del snippet', 'language': 'Lenguaje'},
     content: '''# 💻 {{snippetName}}
 
 **Lenguaje:** {{language}}
@@ -515,9 +509,7 @@ Para qué sirve este código.
     icon: Icons.history_rounded,
     color: Color(0xFFEA580C),
     tags: ['agile', 'retrospectiva'],
-    variables: {
-      'sprintName': 'Sprint o proyecto',
-    },
+    variables: {'sprintName': 'Sprint o proyecto'},
     content: '''# 🔄 Retrospectiva: {{sprintName}}
 
 **Fecha:** {{date}}
@@ -560,10 +552,7 @@ Para qué sirve este código.
     icon: Icons.article_rounded,
     color: Color(0xFF0891B2),
     tags: ['producto', 'especificación'],
-    variables: {
-      'featureName': 'Nombre de la feature',
-      'pm': 'Product Manager',
-    },
+    variables: {'featureName': 'Nombre de la feature', 'pm': 'Product Manager'},
     content: '''# 📱 Spec: {{featureName}}
 
 **PM:** {{pm}}
@@ -625,10 +614,7 @@ Para qué sirve este código.
     icon: Icons.flight_takeoff_rounded,
     color: Color(0xFF0EA5E9),
     tags: ['viaje', 'personal'],
-    variables: {
-      'destination': 'Destino',
-      'dates': 'Fechas del viaje',
-    },
+    variables: {'destination': 'Destino', 'dates': 'Fechas del viaje'},
     content: '''# ✈️ Viaje a {{destination}}
 
 **Fechas:** {{dates}}
@@ -691,9 +677,7 @@ Para qué sirve este código.
     icon: Icons.fitness_center_rounded,
     color: Color(0xFFEC4899),
     tags: ['fitness', 'salud'],
-    variables: {
-      'workoutName': 'Nombre del workout',
-    },
+    variables: {'workoutName': 'Nombre del workout'},
     content: '''# 💪 {{workoutName}}
 
 **Fecha:** {{date}}
@@ -740,10 +724,7 @@ Para qué sirve este código.
     icon: Icons.menu_book_rounded,
     color: Color(0xFF8B5CF6),
     tags: ['lectura', 'aprendizaje'],
-    variables: {
-      'bookTitle': 'Título del libro',
-      'author': 'Autor',
-    },
+    variables: {'bookTitle': 'Título del libro', 'author': 'Autor'},
     content: '''# 📖 {{bookTitle}}
 
 **Autor:** {{author}}

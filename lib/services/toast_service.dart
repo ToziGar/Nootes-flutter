@@ -3,13 +3,7 @@ import 'dart:async';
 import '../theme/app_colors.dart';
 
 /// Enum para tipos de toast
-enum ToastType {
-  success,
-  error,
-  warning,
-  info,
-  loading,
-}
+enum ToastType { success, error, warning, info, loading }
 
 /// Clase para configuración de toast
 class ToastConfig {
@@ -49,53 +43,71 @@ class ToastService {
   bool _retryScheduled = false;
 
   /// Muestra un toast de éxito
-  static void success(String message, {Duration? duration, VoidCallback? onTap}) {
-    instance._show(ToastConfig(
-      message: message,
-      type: ToastType.success,
-      duration: duration ?? const Duration(seconds: 3),
-      onTap: onTap,
-    ));
+  static void success(
+    String message, {
+    Duration? duration,
+    VoidCallback? onTap,
+  }) {
+    instance._show(
+      ToastConfig(
+        message: message,
+        type: ToastType.success,
+        duration: duration ?? const Duration(seconds: 3),
+        onTap: onTap,
+      ),
+    );
   }
 
   /// Muestra un toast de error
   static void error(String message, {Duration? duration, VoidCallback? onTap}) {
-    instance._show(ToastConfig(
-      message: message,
-      type: ToastType.error,
-      duration: duration ?? const Duration(seconds: 5),
-      onTap: onTap,
-    ));
+    instance._show(
+      ToastConfig(
+        message: message,
+        type: ToastType.error,
+        duration: duration ?? const Duration(seconds: 5),
+        onTap: onTap,
+      ),
+    );
   }
 
   /// Muestra un toast de advertencia
-  static void warning(String message, {Duration? duration, VoidCallback? onTap}) {
-    instance._show(ToastConfig(
-      message: message,
-      type: ToastType.warning,
-      duration: duration ?? const Duration(seconds: 4),
-      onTap: onTap,
-    ));
+  static void warning(
+    String message, {
+    Duration? duration,
+    VoidCallback? onTap,
+  }) {
+    instance._show(
+      ToastConfig(
+        message: message,
+        type: ToastType.warning,
+        duration: duration ?? const Duration(seconds: 4),
+        onTap: onTap,
+      ),
+    );
   }
 
   /// Muestra un toast de información
   static void info(String message, {Duration? duration, VoidCallback? onTap}) {
-    instance._show(ToastConfig(
-      message: message,
-      type: ToastType.info,
-      duration: duration ?? const Duration(seconds: 3),
-      onTap: onTap,
-    ));
+    instance._show(
+      ToastConfig(
+        message: message,
+        type: ToastType.info,
+        duration: duration ?? const Duration(seconds: 3),
+        onTap: onTap,
+      ),
+    );
   }
 
   /// Muestra un toast de carga
   static void loading(String message) {
-    instance._show(ToastConfig(
-      message: message,
-      type: ToastType.loading,
-      duration: const Duration(seconds: 30), // Duración larga para loading
-      showProgress: false,
-    ));
+    instance._show(
+      ToastConfig(
+        message: message,
+        type: ToastType.loading,
+        duration: const Duration(seconds: 30), // Duración larga para loading
+        showProgress: false,
+      ),
+    );
   }
 
   /// Muestra un toast con acción
@@ -106,13 +118,15 @@ class ToastService {
     ToastType type = ToastType.info,
     Duration? duration,
   }) {
-    instance._show(ToastConfig(
-      message: message,
-      type: type,
-      duration: duration ?? const Duration(seconds: 6),
-      action: action,
-      onAction: onAction,
-    ));
+    instance._show(
+      ToastConfig(
+        message: message,
+        type: type,
+        duration: duration ?? const Duration(seconds: 6),
+        action: action,
+        onAction: onAction,
+      ),
+    );
   }
 
   /// Oculta el toast actual
@@ -170,10 +184,7 @@ class ToastService {
     }
 
     _overlayEntry = OverlayEntry(
-      builder: (context) => _ToastWidget(
-        config: config,
-        onDismiss: _hide,
-      ),
+      builder: (context) => _ToastWidget(config: config, onDismiss: _hide),
     );
 
     overlay.insert(_overlayEntry!);
@@ -224,10 +235,7 @@ class _ToastWidget extends StatefulWidget {
   final ToastConfig config;
   final VoidCallback onDismiss;
 
-  const _ToastWidget({
-    required this.config,
-    required this.onDismiss,
-  });
+  const _ToastWidget({required this.config, required this.onDismiss});
 
   @override
   State<_ToastWidget> createState() => _ToastWidgetState();
@@ -248,26 +256,22 @@ class _ToastWidgetState extends State<_ToastWidget>
       vsync: this,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, -1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutBack,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutBack,
+          ),
+        );
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(_animationController);
 
-    _progressAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.linear,
-    ));
+    _progressAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.linear),
+    );
 
     _animationController.forward();
 
@@ -320,7 +324,8 @@ class _ToastWidgetState extends State<_ToastWidget>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildContent(),
-                    if (widget.config.showProgress && widget.config.type != ToastType.loading)
+                    if (widget.config.showProgress &&
+                        widget.config.type != ToastType.loading)
                       _buildProgressBar(),
                   ],
                 ),
@@ -394,11 +399,7 @@ class _ToastWidgetState extends State<_ToastWidget>
         color: _getAccentColor(),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Icon(
-        _getIcon(),
-        color: Colors.white,
-        size: 14,
-      ),
+      child: Icon(_getIcon(), color: Colors.white, size: 14),
     );
   }
 
@@ -456,9 +457,7 @@ class _ToastWidgetState extends State<_ToastWidget>
           child: FractionallySizedBox(
             alignment: Alignment.centerLeft,
             widthFactor: _progressAnimation.value,
-            child: Container(
-              color: _getAccentColor(),
-            ),
+            child: Container(color: _getAccentColor()),
           ),
         );
       },
@@ -510,10 +509,7 @@ class _ToastWidgetState extends State<_ToastWidget>
 class ToastProvider extends StatefulWidget {
   final Widget child;
 
-  const ToastProvider({
-    super.key,
-    required this.child,
-  });
+  const ToastProvider({super.key, required this.child});
 
   @override
   State<ToastProvider> createState() => _ToastProviderState();

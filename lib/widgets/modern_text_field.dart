@@ -26,27 +26,21 @@ class ModernTextField extends StatelessWidget {
   final ModernFieldTone tone;
 
   Color get _baseColor => switch (tone) {
-        ModernFieldTone.primary => AppColors.primary,
-        ModernFieldTone.accent => AppColors.accent,
-        ModernFieldTone.secondary => AppColors.secondary,
-      };
+    ModernFieldTone.primary => AppColors.primary,
+    ModernFieldTone.accent => AppColors.accent,
+    ModernFieldTone.secondary => AppColors.secondary,
+  };
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _baseColor.withValues(alpha: 0.2),
-          width: 1,
-        ),
+        border: Border.all(color: _baseColor.withValues(alpha: 0.2), width: 1),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            _baseColor.withValues(alpha: 0.05),
-            Colors.transparent,
-          ],
+          colors: [_baseColor.withValues(alpha: 0.05), Colors.transparent],
         ),
       ),
       child: TextFormField(
@@ -67,7 +61,10 @@ class ModernTextField extends StatelessWidget {
           filled: true,
           fillColor: Colors.transparent,
           labelStyle: TextStyle(color: _baseColor.withValues(alpha: 0.8)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
         ),
       ),
     );

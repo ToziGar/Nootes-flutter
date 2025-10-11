@@ -9,10 +9,10 @@ class RecentSearches extends StatefulWidget {
     required this.onSearchSelected,
     this.maxVisible = 5,
   });
-  
+
   final Function(String) onSearchSelected;
   final int maxVisible;
-  
+
   @override
   State<RecentSearches> createState() => _RecentSearchesState();
 }
@@ -20,13 +20,13 @@ class RecentSearches extends StatefulWidget {
 class _RecentSearchesState extends State<RecentSearches> {
   List<String> _recentSearches = [];
   bool _loading = true;
-  
+
   @override
   void initState() {
     super.initState();
     _loadRecentSearches();
   }
-  
+
   Future<void> _loadRecentSearches() async {
     final searches = await PreferencesService.getRecentSearches();
     if (!mounted) return;
@@ -35,13 +35,13 @@ class _RecentSearchesState extends State<RecentSearches> {
       _loading = false;
     });
   }
-  
+
   Future<void> _clearAll() async {
     await PreferencesService.clearRecentSearches();
     if (!mounted) return;
     setState(() => _recentSearches = []);
   }
-  
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -52,21 +52,21 @@ class _RecentSearchesState extends State<RecentSearches> {
         ),
       );
     }
-    
+
     if (_recentSearches.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(AppColors.space16),
         child: Text(
           'No hay búsquedas recientes',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColors.textMuted,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
         ),
       );
     }
-    
+
     final visible = _recentSearches.take(widget.maxVisible).toList();
-    
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -116,7 +116,7 @@ class _RecentSearchesState extends State<RecentSearches> {
             ),
           ),
           const Divider(height: 1),
-          
+
           // Lista de búsquedas
           ListView.builder(
             shrinkWrap: true,

@@ -22,7 +22,8 @@ class EditorConfigService {
   static const String _autoSaveDelayKey = 'editor_auto_save_delay';
   static const String _bracketMatchingKey = 'editor_bracket_matching';
   static const String _showWhitespaceKey = 'editor_show_whitespace';
-  static const String _trimTrailingWhitespaceKey = 'editor_trim_trailing_whitespace';
+  static const String _trimTrailingWhitespaceKey =
+      'editor_trim_trailing_whitespace';
 
   /// Obtiene si el resaltado de sintaxis está habilitado
   Future<bool> getSyntaxHighlighting() async {
@@ -32,7 +33,10 @@ class EditorConfigService {
 
   /// Establece si el resaltado de sintaxis está habilitado
   Future<void> setSyntaxHighlighting(bool enabled) async {
-    await _storage.write(key: _syntaxHighlightingKey, value: enabled.toString());
+    await _storage.write(
+      key: _syntaxHighlightingKey,
+      value: enabled.toString(),
+    );
   }
 
   /// Obtiene si el autocompletado está habilitado
@@ -175,7 +179,10 @@ class EditorConfigService {
 
   /// Establece si eliminar espacios al final de línea
   Future<void> setTrimTrailingWhitespace(bool trim) async {
-    await _storage.write(key: _trimTrailingWhitespaceKey, value: trim.toString());
+    await _storage.write(
+      key: _trimTrailingWhitespaceKey,
+      value: trim.toString(),
+    );
   }
 
   /// Obtiene todas las configuraciones del editor
@@ -309,7 +316,8 @@ class EditorConfig {
       autoSaveDelay: autoSaveDelay ?? this.autoSaveDelay,
       bracketMatching: bracketMatching ?? this.bracketMatching,
       showWhitespace: showWhitespace ?? this.showWhitespace,
-      trimTrailingWhitespace: trimTrailingWhitespace ?? this.trimTrailingWhitespace,
+      trimTrailingWhitespace:
+          trimTrailingWhitespace ?? this.trimTrailingWhitespace,
     );
   }
 

@@ -5,7 +5,13 @@ import 'package:flutter/services.dart';
 /// A small widget that displays a network image with a retry button and
 /// a friendly placeholder when loading fails (useful for web/CORS issues).
 class SafeNetworkImage extends StatefulWidget {
-  const SafeNetworkImage(this.url, {super.key, this.fit = BoxFit.contain, this.height, this.width});
+  const SafeNetworkImage(
+    this.url, {
+    super.key,
+    this.fit = BoxFit.contain,
+    this.height,
+    this.width,
+  });
 
   final String url;
   final BoxFit fit;
@@ -36,7 +42,7 @@ class _SafeNetworkImageState extends State<SafeNetworkImage> {
   @override
   Widget build(BuildContext context) {
     final correctedUrl = _addCorsParams(widget.url);
-    
+
     return SizedBox(
       height: widget.height,
       width: widget.width,
@@ -58,7 +64,10 @@ class _SafeNetworkImageState extends State<SafeNetworkImage> {
               children: [
                 const Icon(Icons.broken_image_rounded, size: 28),
                 const SizedBox(height: 8),
-                const Text('Imagen no disponible', style: TextStyle(fontSize: 12)),
+                const Text(
+                  'Imagen no disponible',
+                  style: TextStyle(fontSize: 12),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -72,10 +81,22 @@ class _SafeNetworkImageState extends State<SafeNetworkImage> {
                     TextButton.icon(
                       onPressed: () async {
                         try {
-                          await Clipboard.setData(ClipboardData(text: widget.url));
-                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('URL copiada al portapapeles')));
+                          await Clipboard.setData(
+                            ClipboardData(text: widget.url),
+                          );
+                          if (context.mounted)
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('URL copiada al portapapeles'),
+                              ),
+                            );
                         } catch (_) {
-                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo copiar la URL')));
+                          if (context.mounted)
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('No se pudo copiar la URL'),
+                              ),
+                            );
                         }
                       },
                       icon: const Icon(Icons.copy_rounded),
@@ -88,9 +109,21 @@ class _SafeNetworkImageState extends State<SafeNetworkImage> {
                     padding: const EdgeInsets.only(top: 6),
                     child: Column(
                       children: [
-                        Text('Puede existir un bloqueo CORS en web', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                        Text(
+                          'Puede existir un bloqueo CORS en web',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text('Verifica configuración CORS en Firebase Storage', style: TextStyle(fontSize: 10, color: Colors.orange[700])),
+                        Text(
+                          'Verifica configuración CORS en Firebase Storage',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.orange[700],
+                          ),
+                        ),
                       ],
                     ),
                   ),

@@ -6,7 +6,7 @@ class TagInput extends StatefulWidget {
     required this.initialTags,
     required this.onAdd,
     required this.onRemove,
-    this.hintText = 'Añadir etiqueta...'
+    this.hintText = 'Añadir etiqueta...',
   });
 
   final List<String> initialTags;
@@ -82,10 +82,7 @@ class _TagInputState extends State<TagInput> {
           runSpacing: 4,
           children: [
             for (final t in _tags)
-              Chip(
-                label: Text(t),
-                onDeleted: _busy ? null : () => _remove(t),
-              ),
+              Chip(label: Text(t), onDeleted: _busy ? null : () => _remove(t)),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 260, minWidth: 120),
               child: TextField(
@@ -104,4 +101,3 @@ class _TagInputState extends State<TagInput> {
     );
   }
 }
-

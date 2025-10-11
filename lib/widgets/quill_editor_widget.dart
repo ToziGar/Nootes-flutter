@@ -17,7 +17,8 @@ class QuillEditorWidget extends StatefulWidget {
   final Future<void> Function(List<String>)? onLinksChanged;
   final Future<void> Function(String)? onNoteOpen;
   final bool splitEnabled;
-  final Future<List<NoteSuggestion>> Function(String query)? fetchNoteSuggestions;
+  final Future<List<NoteSuggestion>> Function(String query)?
+  fetchNoteSuggestions;
 
   const QuillEditorWidget({
     super.key,
@@ -52,12 +53,12 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   String _mathPreview = '';
   bool _mathIsBlock = false;
   bool _showMathPreview = false;
-  
+
   // Auto-save state
   Timer? _autoSaveTimer;
   bool _hasUnsavedChanges = false;
   DateTime? _lastSaveTime;
-  
+
   // Editor state
   double _editorFontSize = 16.0;
 
@@ -87,7 +88,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
       _scheduleAutoSave();
       // Eliminado: _scheduleStatusUpdate() - causa pérdida de focus en web
     });
-    
+
     // Dar foco inicial al editor
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _editorFocusNode.requestFocus();
@@ -102,7 +103,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     _changesSub?.cancel();
     super.dispose();
   }
-  
+
   void _scheduleAutoSave() {
     _autoSaveTimer?.cancel();
     _autoSaveTimer = Timer(const Duration(seconds: 2), () {
@@ -111,17 +112,19 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
       }
     });
   }
-  
+
   Future<void> _performAutoSave() async {
     if (!mounted) return;
-    
+
     // En web, guardar el estado de focus antes del guardado
     final hadFocus = kIsWeb ? _editorFocusNode.hasFocus : false;
-    final selection = kIsWeb ? _controller.selection : const TextSelection.collapsed(offset: 0);
-    
+    final selection = kIsWeb
+        ? _controller.selection
+        : const TextSelection.collapsed(offset: 0);
+
     final json = jsonEncode(_controller.document.toDelta().toJson());
     widget.onChanged(json);
-    
+
     try {
       await widget.onSave(json);
       if (mounted) {
@@ -129,7 +132,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
           _hasUnsavedChanges = false;
           _lastSaveTime = DateTime.now();
         });
-        
+
         // En web, restaurar focus SOLO si lo tenía antes (fix específico web)
         if (kIsWeb && hadFocus && !_editorFocusNode.hasFocus) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -149,11 +152,11 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   }
 
   Timer? _mathPreviewTimer;
-  
+
   void _onDocumentChanged() {
     // Solo actualizar callbacks esenciales, el guardado lo maneja el auto-save
     widget.onPlainTextChanged?.call(_controller.document.toPlainText());
-    
+
     // Debounce math preview para mejor rendimiento
     _mathPreviewTimer?.cancel();
     _mathPreviewTimer = Timer(const Duration(milliseconds: 300), () {
@@ -174,7 +177,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     final lineStart = plain.lastIndexOf('\n', caret - 1) + 1;
     final upToCursorInLine = plain.substring(lineStart, caret);
 
-    // Headings #-### 
+    // Headings #-###
     final h = RegExp(r'^(#{1,6})\s$').firstMatch(upToCursorInLine);
     if (h != null) {
       final level = h.group(1)!.length;
@@ -196,27 +199,47 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
       return;
     }
 
-    // UL - * 
+    // UL - *
     if (RegExp(r'^(?:- |\* )$').hasMatch(upToCursorInLine)) {
-      _applyLinePrefix(lineStart, 2, caret, () => _controller.formatSelection(Attribute.ul));
+      _applyLinePrefix(
+        lineStart,
+        2,
+        caret,
+        () => _controller.formatSelection(Attribute.ul),
+      );
       return;
     }
 
-    // OL 1. 
+    // OL 1.
     if (RegExp(r'^\d+\. $').hasMatch(upToCursorInLine)) {
-      _applyLinePrefix(lineStart, upToCursorInLine.length, caret, () => _controller.formatSelection(Attribute.ol));
+      _applyLinePrefix(
+        lineStart,
+        upToCursorInLine.length,
+        caret,
+        () => _controller.formatSelection(Attribute.ol),
+      );
       return;
     }
 
-    // Blockquote > 
+    // Blockquote >
     if (upToCursorInLine == '> ') {
-      _applyLinePrefix(lineStart, 2, caret, () => _controller.formatSelection(Attribute.blockQuote));
+      _applyLinePrefix(
+        lineStart,
+        2,
+        caret,
+        () => _controller.formatSelection(Attribute.blockQuote),
+      );
       return;
     }
 
     // Code block ```
     if (upToCursorInLine.endsWith('```')) {
-      _applyLinePrefix(lineStart + upToCursorInLine.length - 3, 3, caret, () => _controller.formatSelection(Attribute.codeBlock));
+      _applyLinePrefix(
+        lineStart + upToCursorInLine.length - 3,
+        3,
+        caret,
+        () => _controller.formatSelection(Attribute.codeBlock),
+      );
       return;
     }
 
@@ -226,13 +249,13 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
       return;
     }
 
-    // LaTeX block $$ 
+    // LaTeX block $$
     if (RegExp(r'^\$\$\s$').hasMatch(upToCursorInLine)) {
       _expandMathBlockSkeleton(lineStart, upToCursorInLine.length, caret);
       return;
     }
 
-    // LaTeX inline $ 
+    // LaTeX inline $
     if (RegExp(r'^\$\s$').hasMatch(upToCursorInLine)) {
       _expandInlineMathSkeleton(lineStart, upToCursorInLine.length, caret);
       return;
@@ -251,12 +274,28 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     _updateMathPreview();
   }
 
-  void _applyLinePrefix(int start, int length, int originalCaret, VoidCallback formatLine) {
+  void _applyLinePrefix(
+    int start,
+    int length,
+    int originalCaret,
+    VoidCallback formatLine,
+  ) {
     _applyingShortcuts = true;
     try {
-      final newCaret = (originalCaret - length).clamp(0, _controller.document.length);
-      _controller.replaceText(start, length, '', TextSelection.collapsed(offset: newCaret));
-      _controller.updateSelection(TextSelection.collapsed(offset: newCaret), ChangeSource.local);
+      final newCaret = (originalCaret - length).clamp(
+        0,
+        _controller.document.length,
+      );
+      _controller.replaceText(
+        start,
+        length,
+        '',
+        TextSelection.collapsed(offset: newCaret),
+      );
+      _controller.updateSelection(
+        TextSelection.collapsed(offset: newCaret),
+        ChangeSource.local,
+      );
       formatLine();
     } finally {
       _applyingShortcuts = false;
@@ -266,8 +305,18 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   void _applyHorizontalRule(int lineStart) {
     _applyingShortcuts = true;
     try {
-      _controller.replaceText(lineStart, 3, '', TextSelection.collapsed(offset: lineStart));
-      _controller.replaceText(lineStart, 0, '————————————\n', TextSelection.collapsed(offset: lineStart + 1));
+      _controller.replaceText(
+        lineStart,
+        3,
+        '',
+        TextSelection.collapsed(offset: lineStart),
+      );
+      _controller.replaceText(
+        lineStart,
+        0,
+        '————————————\n',
+        TextSelection.collapsed(offset: lineStart + 1),
+      );
     } finally {
       _applyingShortcuts = false;
     }
@@ -307,7 +356,12 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     final insertion = '[[$display]]';
     _applyingShortcuts = true;
     try {
-      _controller.replaceText(start, removeLen, insertion, TextSelection.collapsed(offset: start + insertion.length));
+      _controller.replaceText(
+        start,
+        removeLen,
+        insertion,
+        TextSelection.collapsed(offset: start + insertion.length),
+      );
       widget.onLinksChanged?.call([s.id]);
     } finally {
       _applyingShortcuts = false;
@@ -322,7 +376,10 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     if (caret < 0 || caret > plain.length) return;
     final lineStart = plain.lastIndexOf('\n', caret - 1) + 1;
     final lineEnd = plain.indexOf('\n', caret);
-    final segment = plain.substring(lineStart, lineEnd == -1 ? plain.length : lineEnd);
+    final segment = plain.substring(
+      lineStart,
+      lineEnd == -1 ? plain.length : lineEnd,
+    );
     final linkMatch = RegExp(r'\[\[(.+?)\]\]').firstMatch(segment);
     if (linkMatch != null) {
       final label = linkMatch.group(1)!.trim();
@@ -353,8 +410,18 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     _applyingShortcuts = true;
     try {
       const template = '\n\$\$\n\n\$\$\n';
-      _controller.replaceText(start, typedLen, '', TextSelection.collapsed(offset: start));
-      _controller.replaceText(start, 0, template, TextSelection.collapsed(offset: start + 4));
+      _controller.replaceText(
+        start,
+        typedLen,
+        '',
+        TextSelection.collapsed(offset: start),
+      );
+      _controller.replaceText(
+        start,
+        0,
+        template,
+        TextSelection.collapsed(offset: start + 4),
+      );
     } finally {
       _applyingShortcuts = false;
     }
@@ -363,7 +430,12 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   void _expandInlineMathSkeleton(int start, int typedLen, int caret) {
     _applyingShortcuts = true;
     try {
-      _controller.replaceText(start, typedLen, '\$\$', TextSelection.collapsed(offset: start + 1));
+      _controller.replaceText(
+        start,
+        typedLen,
+        '\$\$',
+        TextSelection.collapsed(offset: start + 1),
+      );
     } finally {
       _applyingShortcuts = false;
     }
@@ -447,80 +519,184 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
           ),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12.0,
+              vertical: 10.0,
+            ),
             child: Row(
               children: [
                 // Grupo: Formato de texto
                 _buildToolbarGroup([
-                  _buildToolbarButton(Icons.format_bold, () => _controller.formatSelection(Attribute.bold), 'Negrita (Ctrl+B)'),
-                  _buildToolbarButton(Icons.format_italic, () => _controller.formatSelection(Attribute.italic), 'Cursiva (Ctrl+I)'),
-                  _buildToolbarButton(Icons.format_underline, () => _controller.formatSelection(Attribute.underline), 'Subrayado (Ctrl+U)'),
-                  _buildToolbarButton(Icons.strikethrough_s, () => _controller.formatSelection(Attribute.strikeThrough), 'Tachado'),
+                  _buildToolbarButton(
+                    Icons.format_bold,
+                    () => _controller.formatSelection(Attribute.bold),
+                    'Negrita (Ctrl+B)',
+                  ),
+                  _buildToolbarButton(
+                    Icons.format_italic,
+                    () => _controller.formatSelection(Attribute.italic),
+                    'Cursiva (Ctrl+I)',
+                  ),
+                  _buildToolbarButton(
+                    Icons.format_underline,
+                    () => _controller.formatSelection(Attribute.underline),
+                    'Subrayado (Ctrl+U)',
+                  ),
+                  _buildToolbarButton(
+                    Icons.strikethrough_s,
+                    () => _controller.formatSelection(Attribute.strikeThrough),
+                    'Tachado',
+                  ),
                 ]),
                 const SizedBox(width: 8),
                 _buildToolbarDivider(),
                 const SizedBox(width: 8),
-                
+
                 // Grupo: Alineación
                 _buildToolbarGroup([
-                  _buildToolbarButton(Icons.format_align_left, () => _controller.formatSelection(Attribute.leftAlignment), 'Alinear izquierda'),
-                  _buildToolbarButton(Icons.format_align_center, () => _controller.formatSelection(Attribute.centerAlignment), 'Centrar'),
-                  _buildToolbarButton(Icons.format_align_right, () => _controller.formatSelection(Attribute.rightAlignment), 'Alinear derecha'),
-                  _buildToolbarButton(Icons.format_align_justify, () => _controller.formatSelection(Attribute.justifyAlignment), 'Justificar'),
+                  _buildToolbarButton(
+                    Icons.format_align_left,
+                    () => _controller.formatSelection(Attribute.leftAlignment),
+                    'Alinear izquierda',
+                  ),
+                  _buildToolbarButton(
+                    Icons.format_align_center,
+                    () =>
+                        _controller.formatSelection(Attribute.centerAlignment),
+                    'Centrar',
+                  ),
+                  _buildToolbarButton(
+                    Icons.format_align_right,
+                    () => _controller.formatSelection(Attribute.rightAlignment),
+                    'Alinear derecha',
+                  ),
+                  _buildToolbarButton(
+                    Icons.format_align_justify,
+                    () =>
+                        _controller.formatSelection(Attribute.justifyAlignment),
+                    'Justificar',
+                  ),
                 ]),
                 const SizedBox(width: 8),
                 _buildToolbarDivider(),
                 const SizedBox(width: 8),
-                
+
                 // Grupo: Listas y bloques
                 _buildToolbarGroup([
-                  _buildToolbarButton(Icons.format_list_bulleted, () => _controller.formatSelection(Attribute.ul), 'Lista con viñetas'),
-                  _buildToolbarButton(Icons.format_list_numbered, () => _controller.formatSelection(Attribute.ol), 'Lista numerada'),
-                  _buildToolbarButton(Icons.format_quote, () => _controller.formatSelection(Attribute.blockQuote), 'Cita'),
-                  _buildToolbarButton(Icons.code, () => _controller.formatSelection(Attribute.codeBlock), 'Bloque de código'),
+                  _buildToolbarButton(
+                    Icons.format_list_bulleted,
+                    () => _controller.formatSelection(Attribute.ul),
+                    'Lista con viñetas',
+                  ),
+                  _buildToolbarButton(
+                    Icons.format_list_numbered,
+                    () => _controller.formatSelection(Attribute.ol),
+                    'Lista numerada',
+                  ),
+                  _buildToolbarButton(
+                    Icons.format_quote,
+                    () => _controller.formatSelection(Attribute.blockQuote),
+                    'Cita',
+                  ),
+                  _buildToolbarButton(
+                    Icons.code,
+                    () => _controller.formatSelection(Attribute.codeBlock),
+                    'Bloque de código',
+                  ),
                 ]),
                 const SizedBox(width: 8),
                 _buildToolbarDivider(),
                 const SizedBox(width: 8),
-                
+
                 // Grupo: Deshacer/Rehacer
                 _buildToolbarGroup([
-                  _buildToolbarButton(Icons.undo, () => _controller.undo(), 'Deshacer (Ctrl+Z)'),
-                  _buildToolbarButton(Icons.redo, () => _controller.redo(), 'Rehacer (Ctrl+Y)'),
+                  _buildToolbarButton(
+                    Icons.undo,
+                    () => _controller.undo(),
+                    'Deshacer (Ctrl+Z)',
+                  ),
+                  _buildToolbarButton(
+                    Icons.redo,
+                    () => _controller.redo(),
+                    'Rehacer (Ctrl+Y)',
+                  ),
                 ]),
                 const SizedBox(width: 8),
                 _buildToolbarDivider(),
                 const SizedBox(width: 8),
-                
+
                 // Grupo: Insertar contenido
                 _buildToolbarGroup([
-                  _buildToolbarButton(Icons.image_outlined, () => _insertImage(context), 'Insertar imagen'),
-                  _buildToolbarButton(Icons.link, () => _insertLink(context), 'Insertar enlace'),
-                  _buildToolbarButton(Icons.functions, _insertMathBlock, 'Insertar ecuación LaTeX'),
-                  _buildToolbarButton(Icons.exposure, _insertMathInline, 'Ecuación inline'),
+                  _buildToolbarButton(
+                    Icons.image_outlined,
+                    () => _insertImage(context),
+                    'Insertar imagen',
+                  ),
+                  _buildToolbarButton(
+                    Icons.link,
+                    () => _insertLink(context),
+                    'Insertar enlace',
+                  ),
+                  _buildToolbarButton(
+                    Icons.functions,
+                    _insertMathBlock,
+                    'Insertar ecuación LaTeX',
+                  ),
+                  _buildToolbarButton(
+                    Icons.exposure,
+                    _insertMathInline,
+                    'Ecuación inline',
+                  ),
                 ]),
                 const SizedBox(width: 8),
                 _buildToolbarDivider(),
                 const SizedBox(width: 8),
-                
+
                 // Grupo: Herramientas
                 _buildToolbarGroup([
-                  _buildToolbarButton(Icons.search, () => _showSearchDialog(context), 'Buscar (Ctrl+F)'),
-                  _buildToolbarButton(Icons.color_lens_outlined, () => _showColorPicker(context), 'Color de texto'),
-                  _buildToolbarButton(_darkTheme ? Icons.light_mode_outlined : Icons.dark_mode_outlined, () => _toggleTheme(), 'Cambiar tema'),
-                  _buildToolbarButton(Icons.fullscreen, () => _toggleFullscreen(context), 'Pantalla completa'),
+                  _buildToolbarButton(
+                    Icons.search,
+                    () => _showSearchDialog(context),
+                    'Buscar (Ctrl+F)',
+                  ),
+                  _buildToolbarButton(
+                    Icons.color_lens_outlined,
+                    () => _showColorPicker(context),
+                    'Color de texto',
+                  ),
+                  _buildToolbarButton(
+                    _darkTheme
+                        ? Icons.light_mode_outlined
+                        : Icons.dark_mode_outlined,
+                    () => _toggleTheme(),
+                    'Cambiar tema',
+                  ),
+                  _buildToolbarButton(
+                    Icons.fullscreen,
+                    () => _toggleFullscreen(context),
+                    'Pantalla completa',
+                  ),
                 ]),
                 const SizedBox(width: 8),
                 _buildToolbarDivider(),
                 const SizedBox(width: 8),
-                
+
                 // Grupo: Tamaño de fuente
                 _buildToolbarGroup([
-                  _buildToolbarButton(Icons.text_decrease, _decreaseFontSize, 'Reducir texto (Ctrl+-)'),
+                  _buildToolbarButton(
+                    Icons.text_decrease,
+                    _decreaseFontSize,
+                    'Reducir texto (Ctrl+-)',
+                  ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -532,7 +708,11 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                       ),
                     ),
                   ),
-                  _buildToolbarButton(Icons.text_increase, _increaseFontSize, 'Aumentar texto (Ctrl++)'),
+                  _buildToolbarButton(
+                    Icons.text_increase,
+                    _increaseFontSize,
+                    'Aumentar texto (Ctrl++)',
+                  ),
                 ]),
               ],
             ),
@@ -555,23 +735,32 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                 // Main editor con padding mejorado
                 Positioned.fill(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                      vertical: 20.0,
+                    ),
                     child: KeyboardListener(
                       focusNode: _editorFocusNode,
                       onKeyEvent: (event) {
                         if (event is KeyDownEvent) {
-                          final isCtrl = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
-                          if (isCtrl && event.logicalKey == LogicalKeyboardKey.enter) {
+                          final isCtrl =
+                              HardwareKeyboard.instance.isControlPressed ||
+                              HardwareKeyboard.instance.isMetaPressed;
+                          if (isCtrl &&
+                              event.logicalKey == LogicalKeyboardKey.enter) {
                             _tryOpenWikilink();
                           }
                           // Zoom con Ctrl + / Ctrl -
-                          if (isCtrl && event.logicalKey == LogicalKeyboardKey.equal) {
+                          if (isCtrl &&
+                              event.logicalKey == LogicalKeyboardKey.equal) {
                             _increaseFontSize();
                           }
-                          if (isCtrl && event.logicalKey == LogicalKeyboardKey.minus) {
+                          if (isCtrl &&
+                              event.logicalKey == LogicalKeyboardKey.minus) {
                             _decreaseFontSize();
                           }
-                          if (event.logicalKey == LogicalKeyboardKey.backspace) {
+                          if (event.logicalKey ==
+                              LogicalKeyboardKey.backspace) {
                             _handleBackspaceFormatExit();
                           }
                         }
@@ -582,9 +771,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                           height: 1.6,
                           color: _darkTheme ? Colors.white : Colors.black,
                         ),
-                        child: QuillEditor.basic(
-                          controller: _controller,
-                        ),
+                        child: QuillEditor.basic(controller: _controller),
                       ),
                     ),
                   ),
@@ -617,12 +804,17 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                       borderRadius: BorderRadius.circular(12),
                       shadowColor: Colors.black.withValues(alpha: 0.2),
                       child: Container(
-                        constraints: const BoxConstraints(maxWidth: 350, maxHeight: 250),
+                        constraints: const BoxConstraints(
+                          maxWidth: 350,
+                          maxHeight: 250,
+                        ),
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.2),
                             width: 1.5,
                           ),
                         ),
@@ -632,9 +824,14 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                           children: [
                             // Header
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.1),
                                 borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(12),
                                   topRight: Radius.circular(12),
@@ -644,17 +841,28 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    _mathIsBlock ? Icons.functions : Icons.exposure,
+                                    _mathIsBlock
+                                        ? Icons.functions
+                                        : Icons.exposure,
                                     size: 18,
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    _mathIsBlock ? 'Bloque LaTeX' : 'LaTeX inline',
-                                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                      color: Theme.of(context).colorScheme.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                    _mathIsBlock
+                                        ? 'Bloque LaTeX'
+                                        : 'LaTeX inline',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelMedium
+                                        ?.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                   ),
                                 ],
                               ),
@@ -668,7 +876,9 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                                     child: math.Math.tex(
                                       _mathPreview,
                                       textStyle: TextStyle(
-                                        color: Theme.of(context).colorScheme.onSurface,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
                                         fontSize: _mathIsBlock ? 18 : 16,
                                       ),
                                     ),
@@ -705,9 +915,15 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -716,14 +932,15 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                         Icon(
                           Icons.article_outlined,
                           size: 16,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           '${_getWordCount()} palabras',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(width: 12),
                         Container(
@@ -735,14 +952,15 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                         Icon(
                           Icons.text_fields,
                           size: 16,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           '${_controller.document.toPlainText().length} caracteres',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(width: 12),
                         Container(
@@ -754,14 +972,15 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                         Icon(
                           Icons.timer_outlined,
                           size: 16,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           '${_getReadingTime()} min lectura',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
@@ -772,16 +991,19 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
               // Indicador de estado de guardado
               AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: _hasUnsavedChanges 
-                    ? Colors.orange.withValues(alpha: 0.1)
-                    : Colors.green.withValues(alpha: 0.1),
+                  color: _hasUnsavedChanges
+                      ? Colors.orange.withValues(alpha: 0.1)
+                      : Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: _hasUnsavedChanges
-                      ? Colors.orange.withValues(alpha: 0.3)
-                      : Colors.green.withValues(alpha: 0.3),
+                        ? Colors.orange.withValues(alpha: 0.3)
+                        : Colors.green.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -798,7 +1020,9 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: _hasUnsavedChanges ? Colors.orange.shade700 : Colors.green.shade700,
+                        color: _hasUnsavedChanges
+                            ? Colors.orange.shade700
+                            : Colors.green.shade700,
                       ),
                     ),
                     if (_lastSaveTime != null && !_hasUnsavedChanges) ...[
@@ -821,8 +1045,12 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
                 icon: const Icon(Icons.help_outline),
                 tooltip: 'Ayuda y tutorial completo',
                 style: IconButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.5),
-                  foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                  foregroundColor: Theme.of(
+                    context,
+                  ).colorScheme.onSecondaryContainer,
                 ),
               ),
             ],
@@ -832,7 +1060,11 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     );
   }
 
-  Widget _buildToolbarButton(IconData icon, VoidCallback onPressed, String tooltip) {
+  Widget _buildToolbarButton(
+    IconData icon,
+    VoidCallback onPressed,
+    String tooltip,
+  ) {
     return Tooltip(
       message: tooltip,
       waitDuration: const Duration(milliseconds: 500),
@@ -845,7 +1077,9 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+              color: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             ),
             child: Icon(
               icon,
@@ -862,15 +1096,21 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: buttons.map((btn) => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: btn,
-        )).toList(),
+        children: buttons
+            .map(
+              (btn) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: btn,
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -888,14 +1128,14 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     if (text.trim().isEmpty) return 0;
     return text.trim().split(RegExp(r'\s+')).length;
   }
-  
+
   int _getReadingTime() {
     final words = _getWordCount();
     // Promedio de 200 palabras por minuto
     final minutes = (words / 200).ceil();
     return minutes < 1 ? 1 : minutes;
   }
-  
+
   String _getTimeSinceSave() {
     if (_lastSaveTime == null) return '';
     final diff = DateTime.now().difference(_lastSaveTime!);
@@ -985,7 +1225,13 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
               onPressed: () {
                 if (imageUrl.isNotEmpty) {
                   final delta = Delta()..insert({'image': imageUrl});
-                  _controller.compose(delta, TextSelection.collapsed(offset: _controller.selection.baseOffset), ChangeSource.local);
+                  _controller.compose(
+                    delta,
+                    TextSelection.collapsed(
+                      offset: _controller.selection.baseOffset,
+                    ),
+                    ChangeSource.local,
+                  );
                 }
                 Navigator.of(ctx).pop();
               },
@@ -1035,7 +1281,11 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
             ElevatedButton(
               onPressed: () {
                 if (linkUrl.isNotEmpty && linkText.isNotEmpty) {
-                  _controller.formatText(_controller.selection.baseOffset, linkText.length, LinkAttribute(linkUrl));
+                  _controller.formatText(
+                    _controller.selection.baseOffset,
+                    linkText.length,
+                    LinkAttribute(linkUrl),
+                  );
                 }
                 Navigator.of(ctx).pop();
               },
@@ -1070,7 +1320,11 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
             children: colors.map((color) {
               return InkWell(
                 onTap: () {
-                  _controller.formatSelection(ColorAttribute('#${color.toARGB32().toRadixString(16).padLeft(8, '0')}'));
+                  _controller.formatSelection(
+                    ColorAttribute(
+                      '#${color.toARGB32().toRadixString(16).padLeft(8, '0')}',
+                    ),
+                  );
                   Navigator.of(ctx).pop();
                 },
                 child: Container(
@@ -1116,7 +1370,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
       }
     });
   }
-  
+
   void _decreaseFontSize() {
     setState(() {
       if (_editorFontSize > 10) {
@@ -1135,7 +1389,9 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
               IconButton(
                 icon: const Icon(Icons.save),
                 onPressed: () async {
-                  final json = jsonEncode(_controller.document.toDelta().toJson());
+                  final json = jsonEncode(
+                    _controller.document.toDelta().toJson(),
+                  );
                   widget.onChanged(json);
                   final navigator = Navigator.of(context);
                   await widget.onSave(json);
@@ -1156,7 +1412,12 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     _applyingShortcuts = true;
     try {
       const text = '\n\$\$\n\n\$\$\n';
-      _controller.replaceText(caret, 0, text, TextSelection.collapsed(offset: caret + 4));
+      _controller.replaceText(
+        caret,
+        0,
+        text,
+        TextSelection.collapsed(offset: caret + 4),
+      );
     } finally {
       _applyingShortcuts = false;
     }
@@ -1167,7 +1428,12 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     final caret = sel.baseOffset;
     _applyingShortcuts = true;
     try {
-      _controller.replaceText(caret, 0, '\$\$', TextSelection.collapsed(offset: caret + 1));
+      _controller.replaceText(
+        caret,
+        0,
+        '\$\$',
+        TextSelection.collapsed(offset: caret + 1),
+      );
     } finally {
       _applyingShortcuts = false;
     }
@@ -1182,7 +1448,8 @@ class EditorHelpDialog extends StatefulWidget {
   State<EditorHelpDialog> createState() => _EditorHelpDialogState();
 }
 
-class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerProviderStateMixin {
+class _EditorHelpDialogState extends State<EditorHelpDialog>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _currentTab = 0;
 
@@ -1247,7 +1514,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                     Text(
                       'Aprende a usar todas las funcionalidades',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
                       ),
                     ),
                   ],
@@ -1362,7 +1631,11 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
               children: [
                 Row(
                   children: [
-                    Icon(Icons.celebration, size: 48, color: Theme.of(context).colorScheme.primary),
+                    Icon(
+                      Icons.celebration,
+                      size: 48,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
@@ -1373,7 +1646,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -1381,7 +1656,10 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                             'Un editor potente con LaTeX, Markdown, Wikilinks y mucho más',
                             style: TextStyle(
                               fontSize: 16,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer
+                                  .withValues(alpha: 0.8),
                             ),
                           ),
                         ],
@@ -1393,10 +1671,10 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             ),
           ),
           const SizedBox(height: 32),
-          
+
           _buildSectionTitle('🚀 Características Principales'),
           const SizedBox(height: 16),
-          
+
           _buildFeatureHighlight(
             Icons.functions,
             'Ecuaciones LaTeX',
@@ -1433,11 +1711,11 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             'Ajusta el tamaño de fuente de 10px a 32px con Ctrl+/Ctrl-',
             Colors.indigo,
           ),
-          
+
           const SizedBox(height: 32),
           _buildSectionTitle('📚 Navegación del Tutorial'),
           const SizedBox(height: 16),
-          
+
           Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -1453,7 +1731,7 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
               _buildQuickNavChip(Icons.tips_and_updates, 'Tips', 9),
             ],
           ),
-          
+
           const SizedBox(height: 32),
           Container(
             padding: const EdgeInsets.all(16),
@@ -1480,7 +1758,12 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
     );
   }
 
-  Widget _buildFeatureHighlight(IconData icon, String title, String description, Color color) {
+  Widget _buildFeatureHighlight(
+    IconData icon,
+    String title,
+    String description,
+    Color color,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -1517,7 +1800,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                   description,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -1533,7 +1818,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
       avatar: Icon(icon, size: 18),
       label: Text(label),
       onPressed: () => _tabController.animateTo(tabIndex),
-      backgroundColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+      backgroundColor: Theme.of(
+        context,
+      ).colorScheme.primaryContainer.withValues(alpha: 0.5),
     );
   }
 
@@ -1613,7 +1900,11 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
           _buildShortcutItem('Ctrl + Z', 'Deshacer', Icons.undo),
           _buildShortcutItem('Ctrl + Y', 'Rehacer', Icons.redo),
           _buildShortcutItem('Ctrl + F', 'Buscar', Icons.search),
-          _buildShortcutItem('Ctrl + Enter', 'Abrir Wikilink', Icons.open_in_new),
+          _buildShortcutItem(
+            'Ctrl + Enter',
+            'Abrir Wikilink',
+            Icons.open_in_new,
+          ),
           const SizedBox(height: 24),
           _buildSectionTitle('📋 Listas y Bloques'),
           const SizedBox(height: 16),
@@ -1661,7 +1952,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
           Text(
             'Escribe ecuaciones matemáticas profesionales con LaTeX',
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 24),
@@ -1728,7 +2021,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
           Text(
             'Conecta tus notas creando una red de conocimiento',
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 24),
@@ -1786,19 +2081,37 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
           Text(
             'Escribe más rápido con sintaxis Markdown',
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 24),
           _buildMarkdownShortcut('# ', 'Título Grande (H1)', '# Mi Título'),
           _buildMarkdownShortcut('## ', 'Título Mediano (H2)', '## Subtítulo'),
           _buildMarkdownShortcut('### ', 'Título Pequeño (H3)', '### Sección'),
-          _buildMarkdownShortcut('- ', 'Lista con Viñetas', '- Elemento de lista'),
-          _buildMarkdownShortcut('* ', 'Lista con Viñetas (alt)', '* Otro elemento'),
+          _buildMarkdownShortcut(
+            '- ',
+            'Lista con Viñetas',
+            '- Elemento de lista',
+          ),
+          _buildMarkdownShortcut(
+            '* ',
+            'Lista con Viñetas (alt)',
+            '* Otro elemento',
+          ),
           _buildMarkdownShortcut('1. ', 'Lista Numerada', '1. Primer paso'),
           _buildMarkdownShortcut('> ', 'Cita', '> Texto citado'),
-          _buildMarkdownShortcut('``` ', 'Bloque de Código', '``` tu código aquí'),
-          _buildMarkdownShortcut('--- ', 'Línea Horizontal', '--- (en línea nueva)'),
+          _buildMarkdownShortcut(
+            '``` ',
+            'Bloque de Código',
+            '``` tu código aquí',
+          ),
+          _buildMarkdownShortcut(
+            '--- ',
+            'Línea Horizontal',
+            '--- (en línea nueva)',
+          ),
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(16),
@@ -1897,9 +2210,21 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             ),
             child: Column(
               children: [
-                _buildStatRow(Icons.article_outlined, 'Contador de palabras', 'En la barra inferior'),
-                _buildStatRow(Icons.text_fields, 'Contador de caracteres', 'Junto al contador de palabras'),
-                _buildStatRow(Icons.history, 'Historial infinito', 'Ctrl+Z y Ctrl+Y ilimitados'),
+                _buildStatRow(
+                  Icons.article_outlined,
+                  'Contador de palabras',
+                  'En la barra inferior',
+                ),
+                _buildStatRow(
+                  Icons.text_fields,
+                  'Contador de caracteres',
+                  'Junto al contador de palabras',
+                ),
+                _buildStatRow(
+                  Icons.history,
+                  'Historial infinito',
+                  'Ctrl+Z y Ctrl+Y ilimitados',
+                ),
               ],
             ),
           ),
@@ -1911,9 +2236,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-        fontWeight: FontWeight.bold,
-      ),
+      style: Theme.of(
+        context,
+      ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
     );
   }
 
@@ -1932,7 +2257,8 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: color?.withValues(alpha: 0.3) ?? Theme.of(context).dividerColor,
+          color:
+              color?.withValues(alpha: 0.3) ?? Theme.of(context).dividerColor,
         ),
       ),
       child: Row(
@@ -1941,10 +2267,15 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: (color ?? Theme.of(context).colorScheme.primary).withValues(alpha: 0.1),
+              color: (color ?? Theme.of(context).colorScheme.primary)
+                  .withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color ?? Theme.of(context).colorScheme.primary, size: 24),
+            child: Icon(
+              icon,
+              color: color ?? Theme.of(context).colorScheme.primary,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1964,9 +2295,14 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                     ),
                     if (shortcut != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -1974,7 +2310,8 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: color ?? Theme.of(context).colorScheme.primary,
+                            color:
+                                color ?? Theme.of(context).colorScheme.primary,
                           ),
                         ),
                       ),
@@ -1984,7 +2321,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                 Text(
                   description,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.7),
                     fontSize: 14,
                   ),
                 ),
@@ -2023,19 +2362,18 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
         children: [
           Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              action,
-              style: const TextStyle(fontSize: 15),
-            ),
-          ),
+          Expanded(child: Text(action, style: const TextStyle(fontSize: 15))),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.3),
               ),
             ),
             child: Text(
@@ -2113,7 +2451,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             example,
             style: TextStyle(
               fontSize: 14,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -2121,7 +2461,11 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
     );
   }
 
-  Widget _buildMarkdownShortcut(String shortcut, String result, String example) {
+  Widget _buildMarkdownShortcut(
+    String shortcut,
+    String result,
+    String example,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -2134,7 +2478,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -2160,7 +2506,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                   example,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -2172,7 +2520,12 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
     );
   }
 
-  Widget _buildTipCard(IconData icon, String title, String description, Color color) {
+  Widget _buildTipCard(
+    IconData icon,
+    String title,
+    String description,
+    Color color,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -2210,7 +2563,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                   description,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -2237,7 +2592,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
           Text(
             value,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
               fontSize: 13,
             ),
           ),
@@ -2254,7 +2611,7 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
         children: [
           _buildSectionTitle('🎨 Personalización Visual'),
           const SizedBox(height: 16),
-          
+
           _buildFeatureCard(
             icon: Icons.text_increase,
             title: 'Zoom de Texto',
@@ -2263,7 +2620,7 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             shortcut: 'Ctrl + / Ctrl -',
             color: Colors.indigo,
           ),
-          
+
           _buildFeatureCard(
             icon: Icons.color_lens,
             title: 'Colores de Texto',
@@ -2271,15 +2628,16 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             example: 'Selecciona texto → Botón de color → Elige color',
             color: Colors.pink,
           ),
-          
+
           _buildFeatureCard(
             icon: Icons.format_align_left,
             title: 'Alineación',
-            description: 'Alinea texto a la izquierda, centro, derecha o justificado',
+            description:
+                'Alinea texto a la izquierda, centro, derecha o justificado',
             example: 'Usa los botones de alineación en la toolbar',
             color: Colors.teal,
           ),
-          
+
           _buildFeatureCard(
             icon: Icons.dark_mode,
             title: 'Modo Claro/Oscuro',
@@ -2287,11 +2645,11 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             example: 'Botón de luna/sol en la toolbar',
             color: Colors.deepPurple,
           ),
-          
+
           const SizedBox(height: 24),
           _buildSectionTitle('🎯 Ajustes de Espacio'),
           const SizedBox(height: 16),
-          
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -2307,31 +2665,37 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                 ),
                 const SizedBox(height: 12),
                 _buildSpacingItem('Líneas', 'Altura 1.6x para mejor lectura'),
-                _buildSpacingItem('Párrafos', 'Espaciado automático entre párrafos'),
-                _buildSpacingItem('Títulos', 'Espacios mayores para jerarquía visual'),
+                _buildSpacingItem(
+                  'Párrafos',
+                  'Espaciado automático entre párrafos',
+                ),
+                _buildSpacingItem(
+                  'Títulos',
+                  'Espacios mayores para jerarquía visual',
+                ),
                 _buildSpacingItem('Listas', 'Indentación automática'),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
           _buildSectionTitle('💡 Tips de Diseño'),
           const SizedBox(height: 16),
-          
+
           _buildTipCard(
             Icons.palette,
             'Usa Colores con Propósito',
             'Los colores ayudan a destacar información importante. Usa rojo para urgente, verde para completado, azul para enlaces.',
             Colors.orange,
           ),
-          
+
           _buildTipCard(
             Icons.format_size,
             'Jerarquía con Títulos',
             'Usa H1 para títulos principales, H2 para secciones, H3 para subsecciones. Crea estructura visual clara.',
             Colors.blue,
           ),
-          
+
           _buildTipCard(
             Icons.space_bar,
             'Espacio en Blanco',
@@ -2355,15 +2719,14 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
+                Text(label, style: TextStyle(fontWeight: FontWeight.w600)),
                 Text(
                   description,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -2382,7 +2745,7 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
         children: [
           _buildSectionTitle('🖼️ Imágenes'),
           const SizedBox(height: 16),
-          
+
           _buildFeatureCard(
             icon: Icons.image,
             title: 'Insertar Imagen',
@@ -2390,7 +2753,7 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             example: 'Botón de imagen → Pega URL → Insertar',
             color: Colors.blue,
           ),
-          
+
           Container(
             padding: const EdgeInsets.all(16),
             margin: const EdgeInsets.only(bottom: 16),
@@ -2412,11 +2775,11 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
           _buildSectionTitle('🔗 Enlaces'),
           const SizedBox(height: 16),
-          
+
           _buildFeatureCard(
             icon: Icons.link,
             title: 'Crear Enlace',
@@ -2424,7 +2787,7 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             example: 'Selecciona texto → Botón enlace → Pega URL',
             color: Colors.purple,
           ),
-          
+
           _buildFeatureCard(
             icon: Icons.open_in_new,
             title: 'Enlaces Externos',
@@ -2432,23 +2795,23 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             example: 'Haz clic en cualquier enlace creado',
             color: Colors.indigo,
           ),
-          
+
           const SizedBox(height: 24),
           _buildSectionTitle('📎 Mejores Prácticas'),
           const SizedBox(height: 16),
-          
+
           _buildPracticeCard(
             '✅ Usa URLs descriptivas',
             'En lugar de "Haz clic aquí", usa texto descriptivo como "Ver documentación oficial"',
             Colors.green,
           ),
-          
+
           _buildPracticeCard(
             '✅ Optimiza imágenes',
             'Usa imágenes comprimidas para mejor rendimiento. Servicios como Imgur o Cloudinary funcionan bien.',
             Colors.blue,
           ),
-          
+
           _buildPracticeCard(
             '✅ Texto alternativo',
             'Siempre describe qué muestra la imagen para contexto futuro',
@@ -2484,7 +2847,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             description,
             style: TextStyle(
               fontSize: 14,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -2500,15 +2865,16 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
         children: [
           _buildSectionTitle('⚡ Rendimiento'),
           const SizedBox(height: 16),
-          
+
           _buildFeatureCard(
             icon: Icons.save,
             title: 'Auto-guardado Inteligente',
             description: 'Guarda automáticamente sin interrumpir tu escritura',
-            example: 'Se guarda cada 2 segundos de inactividad\nCompletamente silencioso y transparente',
+            example:
+                'Se guarda cada 2 segundos de inactividad\nCompletamente silencioso y transparente',
             color: Colors.green,
           ),
-          
+
           _buildFeatureCard(
             icon: Icons.flash_on,
             title: 'Atajos Markdown Instantáneos',
@@ -2516,11 +2882,11 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             example: 'Escribe # + espacio → título inmediato',
             color: Colors.orange,
           ),
-          
+
           const SizedBox(height: 24),
           _buildSectionTitle('🔍 Búsqueda y Navegación'),
           const SizedBox(height: 16),
-          
+
           _buildFeatureCard(
             icon: Icons.search,
             title: 'Búsqueda en Nota',
@@ -2529,7 +2895,7 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             shortcut: 'Ctrl + F',
             color: Colors.blue,
           ),
-          
+
           _buildFeatureCard(
             icon: Icons.link,
             title: 'Navegación con Wikilinks',
@@ -2538,43 +2904,43 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
             shortcut: 'Ctrl + Enter en wikilink',
             color: Colors.purple,
           ),
-          
+
           const SizedBox(height: 24),
           _buildSectionTitle('🛠️ Funciones Avanzadas'),
           const SizedBox(height: 16),
-          
+
           _buildAdvancedFeature(
             Icons.undo,
             'Historial Infinito',
             'Deshacer y rehacer ilimitado. Nunca pierdas cambios.',
             'Ctrl + Z / Ctrl + Y',
           ),
-          
+
           _buildAdvancedFeature(
             Icons.code,
             'Bloques de Código',
             'Formatea código con fuente monospace. Ideal para snippets.',
             'Escribe ``` + espacio',
           ),
-          
+
           _buildAdvancedFeature(
             Icons.format_quote,
             'Citas y Referencias',
             'Crea bloques de citas visuales para referencias.',
             'Escribe > + espacio',
           ),
-          
+
           _buildAdvancedFeature(
             Icons.horizontal_rule,
             'Separadores',
             'Añade líneas horizontales para dividir secciones.',
             'Escribe --- + espacio',
           ),
-          
+
           const SizedBox(height: 24),
           _buildSectionTitle('📊 Estadísticas en Tiempo Real'),
           const SizedBox(height: 16),
-          
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -2604,10 +2970,26 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                   ],
                 ),
                 const SizedBox(height: 16),
-                _buildStatItem(Icons.article_outlined, 'Contador de palabras', 'Para medir extensión'),
-                _buildStatItem(Icons.text_fields, 'Caracteres totales', 'Útil para límites'),
-                _buildStatItem(Icons.timer_outlined, 'Tiempo de lectura', 'Basado en 200 palabras/min'),
-                _buildStatItem(Icons.edit_note, 'Estado de guardado', 'Editando... o Guardado'),
+                _buildStatItem(
+                  Icons.article_outlined,
+                  'Contador de palabras',
+                  'Para medir extensión',
+                ),
+                _buildStatItem(
+                  Icons.text_fields,
+                  'Caracteres totales',
+                  'Útil para límites',
+                ),
+                _buildStatItem(
+                  Icons.timer_outlined,
+                  'Tiempo de lectura',
+                  'Basado en 200 palabras/min',
+                ),
+                _buildStatItem(
+                  Icons.edit_note,
+                  'Estado de guardado',
+                  'Editando... o Guardado',
+                ),
               ],
             ),
           ),
@@ -2616,7 +2998,12 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
     );
   }
 
-  Widget _buildAdvancedFeature(IconData icon, String title, String description, String howTo) {
+  Widget _buildAdvancedFeature(
+    IconData icon,
+    String title,
+    String description,
+    String howTo,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -2642,14 +3029,21 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                   description,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -2689,7 +3083,9 @@ class _EditorHelpDialogState extends State<EditorHelpDialog> with SingleTickerPr
                   description,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ],

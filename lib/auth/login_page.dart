@@ -18,7 +18,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final _passwordController = TextEditingController();
   bool _loading = false;
   bool _obscure = true;
-  
+
   // Animaciones para el nuevo diseño
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -28,34 +28,28 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    
+
     // Configurar animaciones
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    
+
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOut,
-    ));
-    
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutBack,
-    ));
-    
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutBack),
+        );
+
     // Iniciar animaciones
     _fadeController.forward();
     _slideController.forward();
@@ -72,14 +66,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     // Feedback háptico
     HapticFeedback.lightImpact();
-    
+
     setState(() => _loading = true);
     try {
-      await AuthService.instance
-          .signInWithEmailAndPassword(_emailController.text.trim(), _passwordController.text);
+      await AuthService.instance.signInWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
       if (mounted) {
         // Feedback de éxito
         HapticFeedback.mediumImpact();
@@ -88,13 +84,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     } catch (e) {
       // Feedback de error
       HapticFeedback.heavyImpact();
-      
+
       String msg = 'Error al iniciar sesión';
       final errorStr = e.toString().toLowerCase();
-      
+
       if (errorStr.contains('invalid-email')) {
         msg = 'Email inválido';
-      } else if (errorStr.contains('wrong-password') || errorStr.contains('invalid-credential')) {
+      } else if (errorStr.contains('wrong-password') ||
+          errorStr.contains('invalid-credential')) {
         msg = 'Email o contraseña incorrectos';
       } else if (errorStr.contains('user-not-found')) {
         msg = 'Usuario no encontrado. ¿Deseas crear una cuenta?';
@@ -107,7 +104,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       } else {
         msg = 'Error: ${errorStr.split(':').last.trim()}';
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -118,7 +115,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 ? SnackBarAction(
                     label: 'Crear cuenta',
                     textColor: Colors.white,
-                    onPressed: () => Navigator.of(context).pushNamed('/register'),
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed('/register'),
                   )
                 : null,
           ),
@@ -178,12 +176,17 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [AppColors.primary, AppColors.primaryLight],
+                                  colors: [
+                                    AppColors.primary,
+                                    AppColors.primaryLight,
+                                  ],
                                 ),
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppColors.primary.withOpacityCompat(0.3),
+                                    color: AppColors.primary.withOpacityCompat(
+                                      0.3,
+                                    ),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
                                   ),
@@ -196,39 +199,48 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                 fit: BoxFit.contain,
                                 errorBuilder: (context, error, stackTrace) {
                                   return const Icon(
-                                    Icons.note_alt_rounded, 
-                                    size: 60, 
+                                    Icons.note_alt_rounded,
+                                    size: 60,
                                     color: Colors.white,
                                   );
                                 },
                               ),
                             ),
                             const SizedBox(height: 24),
-                            
+
                             // Título mejorado
                             ShaderMask(
                               shaderCallback: (bounds) => LinearGradient(
-                                colors: [AppColors.primary, AppColors.primaryLight],
+                                colors: [
+                                  AppColors.primary,
+                                  AppColors.primaryLight,
+                                ],
                               ).createShader(bounds),
                               child: Text(
                                 'Nootes',
                                 textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                                style: Theme.of(context).textTheme.headlineLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               'Bienvenido de vuelta',
                               textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacityCompat(0.7),
-                              ),
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color
+                                        ?.withOpacityCompat(0.7),
+                                  ),
                             ),
                             const SizedBox(height: 32),
-                            
+
                             // Campo email mejorado
                             _buildModernTextField(
                               key: const Key('login_email_field'),
@@ -238,15 +250,18 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               keyboardType: TextInputType.emailAddress,
                               autofillHints: const [AutofillHints.email],
                               validator: (value) {
-                                if (value?.isEmpty ?? true) return 'Ingresa tu email';
-                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value!)) {
+                                if (value?.isEmpty ?? true)
+                                  return 'Ingresa tu email';
+                                if (!RegExp(
+                                  r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                                ).hasMatch(value!)) {
                                   return 'Email inválido';
                                 }
                                 return null;
                               },
                             ),
                             const SizedBox(height: 20),
-                            
+
                             // Campo contraseña mejorado
                             _buildModernTextField(
                               controller: _passwordController,
@@ -255,38 +270,55 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               obscureText: _obscure,
                               autofillHints: const [AutofillHints.password],
                               suffixIcon: IconButton(
-                                onPressed: () => setState(() => _obscure = !_obscure),
-                                icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                                onPressed: () =>
+                                    setState(() => _obscure = !_obscure),
+                                icon: Icon(
+                                  _obscure
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                ),
                               ),
                               validator: (value) {
-                                if (value?.isEmpty ?? true) return 'Ingresa tu contraseña';
-                                if (value!.length < 6) return 'Mínimo 6 caracteres';
+                                if (value?.isEmpty ?? true)
+                                  return 'Ingresa tu contraseña';
+                                if (value!.length < 6)
+                                  return 'Mínimo 6 caracteres';
                                 return null;
                               },
                             ),
                             const SizedBox(height: 32),
-                            
+
                             // Botón de login mejorado
                             _buildModernButton(),
                             const SizedBox(height: 20),
-                            
+
                             // Enlaces (responsivo, evita overflow horizontal)
                             LayoutBuilder(
                               builder: (context, constraints) {
                                 final isNarrow = constraints.maxWidth < 380;
                                 final children = [
                                   TextButton(
-                                    onPressed: () => Navigator.pushNamed(context, '/register'),
+                                    onPressed: () => Navigator.pushNamed(
+                                      context,
+                                      '/register',
+                                    ),
                                     child: Text(
                                       'Crear cuenta',
-                                      style: TextStyle(color: AppColors.primary),
+                                      style: TextStyle(
+                                        color: AppColors.primary,
+                                      ),
                                     ),
                                   ),
                                   TextButton(
-                                    onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
+                                    onPressed: () => Navigator.pushNamed(
+                                      context,
+                                      '/forgot-password',
+                                    ),
                                     child: Text(
                                       'Olvidé mi contraseña',
-                                      style: TextStyle(color: AppColors.secondary),
+                                      style: TextStyle(
+                                        color: AppColors.secondary,
+                                      ),
                                     ),
                                   ),
                                 ];
@@ -300,7 +332,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                   );
                                 }
                                 return Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: children,
                                 );
                               },
@@ -364,8 +397,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ),
           filled: true,
           fillColor: Colors.transparent,
-          labelStyle: TextStyle(color: AppColors.primary.withOpacityCompat(0.8)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          labelStyle: TextStyle(
+            color: AppColors.primary.withOpacityCompat(0.8),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
         ),
       ),
     );
@@ -416,4 +454,3 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     );
   }
 }
-

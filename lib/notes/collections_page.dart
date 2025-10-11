@@ -39,8 +39,14 @@ class _CollectionsPageState extends State<CollectionsPage> {
           autofocus: true,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Crear')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Crear'),
+          ),
         ],
       ),
     );
@@ -49,7 +55,10 @@ class _CollectionsPageState extends State<CollectionsPage> {
     if (name.isEmpty) return;
     setState(() => _busy = true);
     try {
-      await FirestoreService.instance.createCollection(uid: _uid, data: {'name': name});
+      await FirestoreService.instance.createCollection(
+        uid: _uid,
+        data: {'name': name},
+      );
       await _load();
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -57,7 +66,9 @@ class _CollectionsPageState extends State<CollectionsPage> {
   }
 
   Future<void> _rename(Map<String, dynamic> c) async {
-    final nameController = TextEditingController(text: c['name']?.toString() ?? '');
+    final nameController = TextEditingController(
+      text: c['name']?.toString() ?? '',
+    );
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -68,8 +79,14 @@ class _CollectionsPageState extends State<CollectionsPage> {
           autofocus: true,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Guardar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Guardar'),
+          ),
         ],
       ),
     );
@@ -78,7 +95,11 @@ class _CollectionsPageState extends State<CollectionsPage> {
     if (name.isEmpty) return;
     setState(() => _busy = true);
     try {
-      await FirestoreService.instance.updateCollection(uid: _uid, collectionId: c['id'].toString(), data: {'name': name});
+      await FirestoreService.instance.updateCollection(
+        uid: _uid,
+        collectionId: c['id'].toString(),
+        data: {'name': name},
+      );
       await _load();
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -90,17 +111,28 @@ class _CollectionsPageState extends State<CollectionsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar colección'),
-        content: Text('¿Eliminar "${c['name'] ?? c['id']}"? No se borran notas, solo la colección.'),
+        content: Text(
+          '¿Eliminar "${c['name'] ?? c['id']}"? No se borran notas, solo la colección.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar'),
+          ),
         ],
       ),
     );
     if (ok != true) return;
     setState(() => _busy = true);
     try {
-      await FirestoreService.instance.deleteCollection(uid: _uid, collectionId: c['id'].toString());
+      await FirestoreService.instance.deleteCollection(
+        uid: _uid,
+        collectionId: c['id'].toString(),
+      );
       await _load();
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -127,7 +159,8 @@ class _CollectionsPageState extends State<CollectionsPage> {
             if (snapshot.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (_collections.isEmpty) return const Center(child: Text('Sin colecciones'));
+            if (_collections.isEmpty)
+              return const Center(child: Text('Sin colecciones'));
             return ListView.separated(
               padding: const EdgeInsets.all(12),
               itemBuilder: (context, i) {
@@ -156,4 +189,3 @@ class _CollectionsPageState extends State<CollectionsPage> {
     );
   }
 }
-

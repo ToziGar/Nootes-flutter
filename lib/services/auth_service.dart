@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb; // Used on mobile/web
@@ -37,7 +38,8 @@ abstract class AuthService {
       return _RestAuthService();
     }
 
-    final isMobileOrWeb = kIsWeb ||
+    final isMobileOrWeb =
+        kIsWeb ||
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS;
@@ -51,7 +53,10 @@ abstract class AuthService {
   Future<void> init();
   Future<void> signOut();
   Future<AuthUser> signInWithEmailAndPassword(String email, String password);
-  Future<AuthUser> createUserWithEmailAndPassword(String email, String password);
+  Future<AuthUser> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  );
   Future<void> sendPasswordResetEmail(String email);
   Future<String?> getIdToken();
 }
@@ -69,9 +74,9 @@ class _FirebaseAuthService implements AuthService {
   }
 
   @override
-  Stream<AuthUser?> authStateChanges() => _auth
-      .authStateChanges()
-      .map((u) => u == null ? null : AuthUser(uid: u.uid, email: u.email));
+  Stream<AuthUser?> authStateChanges() => _auth.authStateChanges().map(
+    (u) => u == null ? null : AuthUser(uid: u.uid, email: u.email),
+  );
 
   @override
   Future<void> init() async {
@@ -87,8 +92,14 @@ class _FirebaseAuthService implements AuthService {
   }
 
   @override
-  Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async {
-    final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+  Future<AuthUser> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    final cred = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
     final u = cred.user!;
     return AuthUser(uid: u.uid, email: u.email);
   }
@@ -107,8 +118,14 @@ class _FirebaseAuthService implements AuthService {
   }
 
   @override
-  Future<AuthUser> signInWithEmailAndPassword(String email, String password) async {
-    final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
+  Future<AuthUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    final cred = await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
     final u = cred.user!;
     return AuthUser(uid: u.uid, email: u.email);
   }
@@ -141,7 +158,8 @@ class _RestAuthService implements AuthService {
   bool get usesRest => true;
 
   @override
-  AuthUser? get currentUser => _uid == null ? null : AuthUser(uid: _uid!, email: _email);
+  AuthUser? get currentUser =>
+      _uid == null ? null : AuthUser(uid: _uid!, email: _email);
 
   bool get _isExpired => _expiry == null || DateTime.now().isAfter(_expiry!);
 
@@ -175,13 +193,20 @@ class _RestAuthService implements AuthService {
   }
 
   @override
-  Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async {
+  Future<AuthUser> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     final uri = Uri.parse('$_identityBase/accounts:signUp?key=$_apiKey');
-    final resp = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: jsonEncode({
-      'email': email,
-      'password': password,
-      'returnSecureToken': true,
-    }));
+    final resp = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+        'returnSecureToken': true,
+      }),
+    );
     _handleError(resp);
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     _applyAuth(data);
@@ -209,22 +234,29 @@ class _RestAuthService implements AuthService {
     }
     final resp = await http.post(
       uri,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: {'Content-Type': 'application/json'},
       body: jsonEncode(payload),
     );
     _handleError(resp);
   }
 
   @override
-  Future<AuthUser> signInWithEmailAndPassword(String email, String password) async {
-    final uri = Uri.parse('$_identityBase/accounts:signInWithPassword?key=$_apiKey');
-    final resp = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: jsonEncode({
-      'email': email,
-      'password': password,
-      'returnSecureToken': true,
-    }));
+  Future<AuthUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    final uri = Uri.parse(
+      '$_identityBase/accounts:signInWithPassword?key=$_apiKey',
+    );
+    final resp = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+        'returnSecureToken': true,
+      }),
+    );
     _handleError(resp);
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     _applyAuth(data);
@@ -249,17 +281,19 @@ class _RestAuthService implements AuthService {
   Future<void> _refreshIdToken() async {
     if (_refreshToken == null) return;
     final uri = Uri.parse('$_secureToken/token?key=$_apiKey');
-    final resp = await http.post(uri, headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: {
-      'grant_type': 'refresh_token',
-      'refresh_token': _refreshToken!,
-    });
+    final resp = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: {'grant_type': 'refresh_token', 'refresh_token': _refreshToken!},
+    );
     _handleError(resp);
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     _idToken = data['id_token'] as String?;
     _refreshToken = data['refresh_token'] as String? ?? _refreshToken;
     _uid = data['user_id'] as String? ?? _uid;
     _email = data['email'] as String? ?? _email;
-    final expiresIn = int.tryParse(data['expires_in']?.toString() ?? '3600') ?? 3600;
+    final expiresIn =
+        int.tryParse(data['expires_in']?.toString() ?? '3600') ?? 3600;
     _expiry = DateTime.now().add(Duration(seconds: expiresIn - 30));
     await _persist();
   }
@@ -269,7 +303,8 @@ class _RestAuthService implements AuthService {
     _refreshToken = data['refreshToken'] as String?;
     _uid = data['localId'] as String?;
     _email = data['email'] as String?;
-    final expiresIn = int.tryParse(data['expiresIn']?.toString() ?? '3600') ?? 3600;
+    final expiresIn =
+        int.tryParse(data['expiresIn']?.toString() ?? '3600') ?? 3600;
     _expiry = DateTime.now().add(Duration(seconds: expiresIn - 30));
   }
 
@@ -282,7 +317,8 @@ class _RestAuthService implements AuthService {
   }
 
   Future<void> _persist() async {
-    if (_refreshToken != null) await _storage.write(key: 'refreshToken', value: _refreshToken);
+    if (_refreshToken != null)
+      await _storage.write(key: 'refreshToken', value: _refreshToken);
     if (_uid != null) await _storage.write(key: 'uid', value: _uid);
     if (_email != null) await _storage.write(key: 'email', value: _email);
   }

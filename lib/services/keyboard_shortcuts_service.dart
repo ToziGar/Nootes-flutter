@@ -4,53 +4,39 @@ import 'package:flutter/services.dart';
 /// Servicio para manejar shortcuts de teclado
 class KeyboardShortcutsService {
   /// Crear LogicalKeySet para Ctrl+F (búsqueda)
-  static LogicalKeySet get search => LogicalKeySet(
-    LogicalKeyboardKey.control,
-    LogicalKeyboardKey.keyF,
-  );
-  
+  static LogicalKeySet get search =>
+      LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyF);
+
   /// Crear LogicalKeySet para Ctrl+N (nueva nota)
-  static LogicalKeySet get newNote => LogicalKeySet(
-    LogicalKeyboardKey.control,
-    LogicalKeyboardKey.keyN,
-  );
-  
+  static LogicalKeySet get newNote =>
+      LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyN);
+
   /// Crear LogicalKeySet para Ctrl+S (guardar)
-  static LogicalKeySet get save => LogicalKeySet(
-    LogicalKeyboardKey.control,
-    LogicalKeyboardKey.keyS,
-  );
-  
+  static LogicalKeySet get save =>
+      LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS);
+
   /// Crear LogicalKeySet para Ctrl+K (búsqueda avanzada)
-  static LogicalKeySet get advancedSearch => LogicalKeySet(
-    LogicalKeyboardKey.control,
-    LogicalKeyboardKey.keyK,
-  );
-  
+  static LogicalKeySet get advancedSearch =>
+      LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyK);
+
   /// Crear LogicalKeySet para Ctrl+B (toggle sidebar)
-  static LogicalKeySet get toggleSidebar => LogicalKeySet(
-    LogicalKeyboardKey.control,
-    LogicalKeyboardKey.keyB,
-  );
-  
+  static LogicalKeySet get toggleSidebar =>
+      LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyB);
+
   /// Crear LogicalKeySet para Ctrl+Shift+F (modo focus)
   static LogicalKeySet get focusMode => LogicalKeySet(
     LogicalKeyboardKey.control,
     LogicalKeyboardKey.shift,
     LogicalKeyboardKey.keyF,
   );
-  
+
   /// Crear LogicalKeySet para Ctrl+/ (toggle modo compacto)
-  static LogicalKeySet get toggleCompactMode => LogicalKeySet(
-    LogicalKeyboardKey.control,
-    LogicalKeyboardKey.slash,
-  );
-  
+  static LogicalKeySet get toggleCompactMode =>
+      LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.slash);
+
   /// Escape para cerrar diálogos
-  static LogicalKeySet get escape => LogicalKeySet(
-    LogicalKeyboardKey.escape,
-  );
-  
+  static LogicalKeySet get escape => LogicalKeySet(LogicalKeyboardKey.escape);
+
   /// Crear mapa de shortcuts con sus acciones
   static Map<ShortcutActivator, Intent> getShortcuts() {
     return {
@@ -63,7 +49,7 @@ class KeyboardShortcutsService {
       toggleCompactMode: const ToggleCompactModeIntent(),
     };
   }
-  
+
   /// Obtener descripción de un shortcut para mostrar en UI
   static String getShortcutLabel(String action) {
     switch (action) {

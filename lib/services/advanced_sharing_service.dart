@@ -5,13 +5,8 @@ import '../services/auth_service.dart';
 import '../services/toast_service.dart';
 
 enum SharePermission { view, comment, edit }
-enum ShareStatus {
-  pending,
-  accepted,
-  declined,
-  revoked,
-  expired,
-}
+
+enum ShareStatus { pending, accepted, declined, revoked, expired }
 
 enum NotificationType {
   shareInvite,
@@ -22,12 +17,7 @@ enum NotificationType {
   collaboratorJoined,
 }
 
-enum CollaboratorStatus {
-  online,
-  offline,
-  away,
-  busy,
-}
+enum CollaboratorStatus { online, offline, away, busy }
 
 enum ActivityType {
   created,
@@ -40,43 +30,15 @@ enum ActivityType {
   deleted,
 }
 
-enum PermissionTemplate {
-  viewer,
-  commenter,
-  editor,
-  admin,
-  custom,
-}
+enum PermissionTemplate { viewer, commenter, editor, admin, custom }
 
-enum CommentType {
-  general,
-  suggestion,
-  question,
-  approval,
-  rejection,
-}
+enum CommentType { general, suggestion, question, approval, rejection }
 
-enum VersionAction {
-  created,
-  edited,
-  restored,
-  merged,
-  branched,
-}
+enum VersionAction { created, edited, restored, merged, branched }
 
-enum ApprovalStatus {
-  pending,
-  approved,
-  rejected,
-  needsRevision,
-}
+enum ApprovalStatus { pending, approved, rejected, needsRevision }
 
-enum CalendarEventType {
-  deadline,
-  review,
-  meeting,
-  reminder,
-}
+enum CalendarEventType { deadline, review, meeting, reminder }
 
 class NoteComment {
   final String id;
@@ -132,14 +94,18 @@ class NoteComment {
         orElse: () => CommentType.general,
       ),
       createdAt: (json['createdAt'] as Timestamp).toDate(),
-      updatedAt: json['updatedAt'] != null ? (json['updatedAt'] as Timestamp).toDate() : null,
+      updatedAt: json['updatedAt'] != null
+          ? (json['updatedAt'] as Timestamp).toDate()
+          : null,
       parentId: json['parentId'],
       mentions: List<String>.from(json['mentions'] ?? []),
       metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
       attachments: List<String>.from(json['attachments'] ?? []),
       isResolved: json['isResolved'] ?? false,
       resolvedBy: json['resolvedBy'],
-      resolvedAt: json['resolvedAt'] != null ? (json['resolvedAt'] as Timestamp).toDate() : null,
+      resolvedAt: json['resolvedAt'] != null
+          ? (json['resolvedAt'] as Timestamp).toDate()
+          : null,
       position: json['position'] ?? 0,
       selectedText: json['selectedText'],
     );
@@ -310,7 +276,9 @@ class ApprovalRequest {
       ),
       description: json['description'] ?? '',
       createdAt: (json['createdAt'] as Timestamp).toDate(),
-      deadline: json['deadline'] != null ? (json['deadline'] as Timestamp).toDate() : null,
+      deadline: json['deadline'] != null
+          ? (json['deadline'] as Timestamp).toDate()
+          : null,
       approvals: approvalsMap,
       comments: Map<String, String>.from(json['comments'] ?? {}),
       timestamps: timestampsMap,
@@ -399,7 +367,9 @@ class CalendarEvent {
         orElse: () => CalendarEventType.reminder,
       ),
       startTime: (json['startTime'] as Timestamp).toDate(),
-      endTime: json['endTime'] != null ? (json['endTime'] as Timestamp).toDate() : null,
+      endTime: json['endTime'] != null
+          ? (json['endTime'] as Timestamp).toDate()
+          : null,
       attendeeIds: List<String>.from(json['attendeeIds'] ?? []),
       attendeeNames: Map<String, String>.from(json['attendeeNames'] ?? {}),
       createdBy: json['createdBy'] ?? '',
@@ -603,7 +573,9 @@ class CollaboratorPresence {
       currentLocation: json['currentLocation'],
       isTyping: json['isTyping'] ?? false,
       typingLocation: json['typingLocation'],
-      cursorColor: json['cursorColor'] != null ? Color(json['cursorColor']) : null,
+      cursorColor: json['cursorColor'] != null
+          ? Color(json['cursorColor'])
+          : null,
     );
   }
 
@@ -617,7 +589,7 @@ class CollaboratorPresence {
       'currentLocation': currentLocation,
       'isTyping': isTyping,
       'typingLocation': typingLocation,
-  'cursorColor': cursorColor?.toARGB32(),
+      'cursorColor': cursorColor?.toARGB32(),
     };
   }
 }
@@ -660,7 +632,7 @@ class ShareTemplate {
         (e) => e.name == json['defaultPermission'],
         orElse: () => SharePermission.view,
       ),
-      expirationDuration: json['expirationDurationMinutes'] != null 
+      expirationDuration: json['expirationDurationMinutes'] != null
           ? Duration(minutes: json['expirationDurationMinutes'])
           : null,
       requireMessage: json['requireMessage'] ?? false,
@@ -742,7 +714,9 @@ class SharedNote {
         orElse: () => ShareStatus.pending,
       ),
       sharedAt: (json['sharedAt'] as Timestamp).toDate(),
-      respondedAt: json['respondedAt'] != null ? (json['respondedAt'] as Timestamp).toDate() : null,
+      respondedAt: json['respondedAt'] != null
+          ? (json['respondedAt'] as Timestamp).toDate()
+          : null,
       message: json['message'],
       lastModified: (json['lastModified'] as Timestamp).toDate(),
       collaboratorCount: json['collaboratorCount'] ?? 1,
@@ -763,7 +737,9 @@ class SharedNote {
       'permission': permission.name,
       'status': status.name,
       'sharedAt': Timestamp.fromDate(sharedAt),
-      'respondedAt': respondedAt != null ? Timestamp.fromDate(respondedAt!) : null,
+      'respondedAt': respondedAt != null
+          ? Timestamp.fromDate(respondedAt!)
+          : null,
       'message': message,
       'lastModified': Timestamp.fromDate(lastModified),
       'collaboratorCount': collaboratorCount,
@@ -808,7 +784,9 @@ class Collaborator {
         orElse: () => ShareStatus.pending,
       ),
       addedAt: (json['addedAt'] as Timestamp).toDate(),
-      lastActive: json['lastActive'] != null ? (json['lastActive'] as Timestamp).toDate() : null,
+      lastActive: json['lastActive'] != null
+          ? (json['lastActive'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -827,7 +805,8 @@ class Collaborator {
 }
 
 class AdvancedSharingService {
-  static final AdvancedSharingService _instance = AdvancedSharingService._internal();
+  static final AdvancedSharingService _instance =
+      AdvancedSharingService._internal();
   factory AdvancedSharingService() => _instance;
   AdvancedSharingService._internal();
 
@@ -852,7 +831,7 @@ class AdvancedSharingService {
         return SharedNote.fromJson(data);
       }).toList();
       */
-      
+
       // Datos simulados mientras se configuran las colecciones
       return [
         SharedNote(
@@ -937,7 +916,7 @@ class AdvancedSharingService {
         ),
       ];
     } catch (e) {
-  debugPrint('Error getting shared notes: $e');
+      debugPrint('Error getting shared notes: $e');
       return [];
     }
   }
@@ -986,15 +965,15 @@ class AdvancedSharingService {
         };
       }).toList();
       */
-      
+
       // Datos simulados específicos por usuario
       // Solo mostrar datos para usuarios específicos (simular usuarios que han compartido)
       final hasSharedNotes = _simulateUserHasSharedContent(_currentUserId);
-      
+
       if (!hasSharedNotes) {
         return []; // Usuario sin notas compartidas
       }
-      
+
       return [
         {
           'id': 'note_001',
@@ -1101,7 +1080,7 @@ class AdvancedSharingService {
         },
       ];
     } catch (e) {
-  debugPrint('Error getting shared by me: $e');
+      debugPrint('Error getting shared by me: $e');
       return [];
     }
   }
@@ -1124,7 +1103,7 @@ class AdvancedSharingService {
         return SharedNote.fromJson(data);
       }).toList();
       */
-      
+
       // Datos simulados completos para demostración
       return [
         SharedNote(
@@ -1139,7 +1118,8 @@ class AdvancedSharingService {
           permission: SharePermission.comment,
           status: ShareStatus.pending,
           sharedAt: DateTime.now().subtract(Duration(hours: 2)),
-          message: 'Por favor revisa esta propuesta urgente y dame tu opinión antes de la reunión del viernes. Es para nuestro cliente más importante.',
+          message:
+              'Por favor revisa esta propuesta urgente y dame tu opinión antes de la reunión del viernes. Es para nuestro cliente más importante.',
           lastModified: DateTime.now().subtract(Duration(hours: 2)),
           collaboratorCount: 1,
           isOwnerOnline: true,
@@ -1156,7 +1136,8 @@ class AdvancedSharingService {
           permission: SharePermission.edit,
           status: ShareStatus.pending,
           sharedAt: DateTime.now().subtract(Duration(hours: 8)),
-          message: 'Te invito a colaborar en el plan de capacitación para el próximo año. Necesito tu expertise en desarrollo técnico.',
+          message:
+              'Te invito a colaborar en el plan de capacitación para el próximo año. Necesito tu expertise en desarrollo técnico.',
           lastModified: DateTime.now().subtract(Duration(hours: 8)),
           collaboratorCount: 1,
           isOwnerOnline: false,
@@ -1173,14 +1154,15 @@ class AdvancedSharingService {
           permission: SharePermission.view,
           status: ShareStatus.pending,
           sharedAt: DateTime.now().subtract(Duration(days: 1)),
-          message: 'Compartiendo la estrategia de marketing para el primer trimestre. Tu feedback sería muy valioso.',
+          message:
+              'Compartiendo la estrategia de marketing para el primer trimestre. Tu feedback sería muy valioso.',
           lastModified: DateTime.now().subtract(Duration(days: 1)),
           collaboratorCount: 3,
           isOwnerOnline: true,
         ),
       ];
     } catch (e) {
-  debugPrint('Error getting pending invites: $e');
+      debugPrint('Error getting pending invites: $e');
       return [];
     }
   }
@@ -1209,7 +1191,7 @@ class AdvancedSharingService {
 
       // Obtener información del usuario actual
       final currentUser = AuthService.instance.currentUser!;
-      
+
       // Crear el documento de compartir
       await _firestore.collection('shared_notes').add({
         'noteId': noteId,
@@ -1231,7 +1213,7 @@ class AdvancedSharingService {
       ToastService.success('Invitación enviada correctamente');
       return true;
     } catch (e) {
-  debugPrint('Error sharing note: $e');
+      debugPrint('Error sharing note: $e');
       ToastService.error('Error al compartir la nota');
       return false;
     }
@@ -1249,7 +1231,7 @@ class AdvancedSharingService {
       ToastService.success('Invitación aceptada');
       return true;
     } catch (e) {
-  debugPrint('Error accepting invite: $e');
+      debugPrint('Error accepting invite: $e');
       ToastService.error('Error al aceptar la invitación');
       return false;
     }
@@ -1266,14 +1248,17 @@ class AdvancedSharingService {
       ToastService.info('Invitación rechazada');
       return true;
     } catch (e) {
-  debugPrint('Error declining invite: $e');
+      debugPrint('Error declining invite: $e');
       ToastService.error('Error al rechazar la invitación');
       return false;
     }
   }
 
   // Cambiar permisos de un colaborador
-  Future<bool> updatePermission(String shareId, SharePermission newPermission) async {
+  Future<bool> updatePermission(
+    String shareId,
+    SharePermission newPermission,
+  ) async {
     try {
       await _firestore.collection('shared_notes').doc(shareId).update({
         'permission': newPermission.name,
@@ -1283,7 +1268,7 @@ class AdvancedSharingService {
       ToastService.success('Permisos actualizados');
       return true;
     } catch (e) {
-  debugPrint('Error updating permission: $e');
+      debugPrint('Error updating permission: $e');
       ToastService.error('Error al actualizar permisos');
       return false;
     }
@@ -1296,7 +1281,7 @@ class AdvancedSharingService {
       ToastService.success('Colaborador removido');
       return true;
     } catch (e) {
-  debugPrint('Error removing collaborator: $e');
+      debugPrint('Error removing collaborator: $e');
       ToastService.error('Error al remover colaborador');
       return false;
     }
@@ -1320,7 +1305,7 @@ class AdvancedSharingService {
       ToastService.success('Se dejó de compartir la nota');
       return true;
     } catch (e) {
-  debugPrint('Error stopping share: $e');
+      debugPrint('Error stopping share: $e');
       ToastService.error('Error al dejar de compartir');
       return false;
     }
@@ -1333,7 +1318,7 @@ class AdvancedSharingService {
       await Clipboard.setData(ClipboardData(text: link));
       ToastService.success('Enlace copiado al portapapeles');
     } catch (e) {
-  debugPrint('Error copying link: $e');
+      debugPrint('Error copying link: $e');
       ToastService.error('Error al copiar el enlace');
     }
   }
@@ -1356,7 +1341,7 @@ class AdvancedSharingService {
       ToastService.success('Enlace público generado y copiado');
       return link;
     } catch (e) {
-  debugPrint('Error generating public link: $e');
+      debugPrint('Error generating public link: $e');
       ToastService.error('Error al generar enlace público');
       return null;
     }
@@ -1385,13 +1370,13 @@ class AdvancedSharingService {
           ),
           status: ShareStatus.accepted,
           addedAt: (data['sharedAt'] as Timestamp).toDate(),
-          lastActive: data['lastActive'] != null 
-              ? (data['lastActive'] as Timestamp).toDate() 
+          lastActive: data['lastActive'] != null
+              ? (data['lastActive'] as Timestamp).toDate()
               : null,
         );
       }).toList();
     } catch (e) {
-  debugPrint('Error getting collaborators: $e');
+      debugPrint('Error getting collaborators: $e');
       return [];
     }
   }
@@ -1430,9 +1415,9 @@ class AdvancedSharingService {
           .doc(notification.id)
           .set(notification.toJson());
 
-  debugPrint('✅ Notificación creada: $title');
+      debugPrint('✅ Notificación creada: $title');
     } catch (e) {
-  debugPrint('❌ Error creando notificación: $e');
+      debugPrint('❌ Error creando notificación: $e');
     }
   }
 
@@ -1462,7 +1447,7 @@ class AdvancedSharingService {
               }))
           .toList();
       */
-      
+
       // Datos simulados completos para demostración
       final notifications = [
         ShareNotification(
@@ -1471,7 +1456,8 @@ class AdvancedSharingService {
           noteId: 'note_123',
           type: NotificationType.commentAdded,
           title: 'Nuevo comentario en tu nota',
-          message: 'Ana García ha comentado en "Proyecto de Marketing Digital": "Excelente propuesta, me gusta la dirección que estamos tomando."',
+          message:
+              'Ana García ha comentado en "Proyecto de Marketing Digital": "Excelente propuesta, me gusta la dirección que estamos tomando."',
           isRead: false,
           createdAt: DateTime.now().subtract(Duration(minutes: 30)),
           fromUserId: 'user_456',
@@ -1483,7 +1469,8 @@ class AdvancedSharingService {
           noteId: 'note_456',
           type: NotificationType.noteUpdated,
           title: 'Nota colaborativa actualizada',
-          message: 'Carlos López ha editado "Reunión de Ventas Q4" - Se agregaron nuevas métricas de rendimiento',
+          message:
+              'Carlos López ha editado "Reunión de Ventas Q4" - Se agregaron nuevas métricas de rendimiento',
           isRead: false,
           createdAt: DateTime.now().subtract(Duration(hours: 2)),
           fromUserId: 'user_789',
@@ -1495,7 +1482,8 @@ class AdvancedSharingService {
           noteId: 'note_789',
           type: NotificationType.shareInvite,
           title: 'Nueva invitación para colaborar',
-          message: 'Roberto Díaz te ha invitado a colaborar en "Propuesta de Cliente VIP"',
+          message:
+              'Roberto Díaz te ha invitado a colaborar en "Propuesta de Cliente VIP"',
           isRead: false,
           createdAt: DateTime.now().subtract(Duration(hours: 3)),
           fromUserId: 'user_999',
@@ -1507,7 +1495,8 @@ class AdvancedSharingService {
           noteId: 'note_321',
           type: NotificationType.permissionChanged,
           title: 'Permisos actualizados',
-          message: 'Tus permisos en "Plan Estratégico 2025" han sido actualizados a Editor',
+          message:
+              'Tus permisos en "Plan Estratégico 2025" han sido actualizados a Editor',
           isRead: true,
           createdAt: DateTime.now().subtract(Duration(hours: 6)),
           fromUserId: 'user_555',
@@ -1519,7 +1508,8 @@ class AdvancedSharingService {
           noteId: 'note_654',
           type: NotificationType.collaboratorJoined,
           title: 'Nuevo colaborador',
-          message: 'Laura Martínez se ha unido a "Presentación de Ventas" como colaboradora',
+          message:
+              'Laura Martínez se ha unido a "Presentación de Ventas" como colaboradora',
           isRead: true,
           createdAt: DateTime.now().subtract(Duration(days: 1)),
           fromUserId: 'user_444',
@@ -1531,7 +1521,8 @@ class AdvancedSharingService {
           noteId: 'note_987',
           type: NotificationType.accessRevoked,
           title: 'Acceso revocado',
-          message: 'Tu acceso a "Documento Confidencial XYZ" ha sido revocado por motivos de seguridad',
+          message:
+              'Tu acceso a "Documento Confidencial XYZ" ha sido revocado por motivos de seguridad',
           isRead: true,
           createdAt: DateTime.now().subtract(Duration(days: 2)),
           fromUserId: 'user_111',
@@ -1542,10 +1533,10 @@ class AdvancedSharingService {
       if (unreadOnly == true) {
         return notifications.where((n) => !n.isRead).toList();
       }
-      
+
       return notifications.take(limit).toList();
     } catch (e) {
-  debugPrint('❌ Error obteniendo notificaciones: $e');
+      debugPrint('❌ Error obteniendo notificaciones: $e');
       return [];
     }
   }
@@ -1553,12 +1544,11 @@ class AdvancedSharingService {
   /// Marcar notificación como leída
   Future<void> markNotificationAsRead(String notificationId) async {
     try {
-      await _firestore
-          .collection('notifications')
-          .doc(notificationId)
-          .update({'isRead': true});
+      await _firestore.collection('notifications').doc(notificationId).update({
+        'isRead': true,
+      });
     } catch (e) {
-  debugPrint('❌ Error marcando notificación como leída: $e');
+      debugPrint('❌ Error marcando notificación como leída: $e');
     }
   }
 
@@ -1577,7 +1567,7 @@ class AdvancedSharingService {
       }
       await batch.commit();
     } catch (e) {
-  debugPrint('❌ Error marcando todas las notificaciones como leídas: $e');
+      debugPrint('❌ Error marcando todas las notificaciones como leídas: $e');
     }
   }
 
@@ -1599,7 +1589,7 @@ class AdvancedSharingService {
         return NoteComment.fromJson(data);
       }).toList();
       */
-      
+
       // Datos simulados completos para demostración
       return [
         NoteComment(
@@ -1608,7 +1598,8 @@ class AdvancedSharingService {
           userId: 'user_456',
           userName: 'Ana García',
           userAvatar: 'AG',
-          content: 'Excelente trabajo en esta sección. Me parece que deberíamos expandir el punto sobre las métricas de ROI.',
+          content:
+              'Excelente trabajo en esta sección. Me parece que deberíamos expandir el punto sobre las métricas de ROI.',
           type: CommentType.suggestion,
           createdAt: DateTime.now().subtract(Duration(minutes: 45)),
           mentions: [],
@@ -1624,7 +1615,8 @@ class AdvancedSharingService {
           userId: 'user_789',
           userName: 'Carlos López',
           userAvatar: 'CL',
-          content: '¿Podríamos agregar más detalles sobre la implementación técnica? @${AuthService.instance.currentUser?.email ?? "Usuario"}',
+          content:
+              '¿Podríamos agregar más detalles sobre la implementación técnica? @${AuthService.instance.currentUser?.email ?? "Usuario"}',
           type: CommentType.question,
           createdAt: DateTime.now().subtract(Duration(hours: 2)),
           mentions: [_currentUserId],
@@ -1640,7 +1632,8 @@ class AdvancedSharingService {
           userId: 'user_999',
           userName: 'Roberto Díaz',
           userAvatar: 'RD',
-          content: 'Perfecto, este enfoque está alineado con nuestros objetivos estratégicos.',
+          content:
+              'Perfecto, este enfoque está alineado con nuestros objetivos estratégicos.',
           type: CommentType.approval,
           createdAt: DateTime.now().subtract(Duration(hours: 4)),
           mentions: [],
@@ -1657,7 +1650,8 @@ class AdvancedSharingService {
           userId: 'user_555',
           userName: 'María Fernández',
           userAvatar: 'MF',
-          content: 'Necesitamos revisar los números del presupuesto. Hay algunas discrepancias que debemos aclarar.',
+          content:
+              'Necesitamos revisar los números del presupuesto. Hay algunas discrepancias que debemos aclarar.',
           type: CommentType.general,
           createdAt: DateTime.now().subtract(Duration(hours: 6)),
           mentions: [],
@@ -1672,7 +1666,8 @@ class AdvancedSharingService {
           userId: 'user_444',
           userName: 'Laura Martínez',
           userAvatar: 'LM',
-          content: 'Excelente presentación. Solo sugiero ajustar el slide 15 para mayor claridad visual.',
+          content:
+              'Excelente presentación. Solo sugiero ajustar el slide 15 para mayor claridad visual.',
           type: CommentType.suggestion,
           createdAt: DateTime.now().subtract(Duration(days: 1)),
           mentions: [],
@@ -1684,7 +1679,7 @@ class AdvancedSharingService {
         ),
       ];
     } catch (e) {
-  debugPrint('❌ Error obteniendo comentarios recientes: $e');
+      debugPrint('❌ Error obteniendo comentarios recientes: $e');
       return [];
     }
   }
@@ -1715,12 +1710,15 @@ class AdvancedSharingService {
           .doc(activity.id)
           .set(activity.toJson());
     } catch (e) {
-  debugPrint('❌ Error registrando actividad: $e');
+      debugPrint('❌ Error registrando actividad: $e');
     }
   }
 
   /// Obtener historial de actividad de una nota
-  Future<List<ActivityLog>> getActivityHistory(String noteId, {int limit = 100}) async {
+  Future<List<ActivityLog>> getActivityHistory(
+    String noteId, {
+    int limit = 100,
+  }) async {
     try {
       final query = await _firestore
           .collection('activity_logs')
@@ -1730,13 +1728,10 @@ class AdvancedSharingService {
           .get();
 
       return query.docs
-          .map((doc) => ActivityLog.fromJson({
-                ...doc.data(),
-                'id': doc.id,
-              }))
+          .map((doc) => ActivityLog.fromJson({...doc.data(), 'id': doc.id}))
           .toList();
     } catch (e) {
-  debugPrint('❌ Error obteniendo historial de actividad: $e');
+      debugPrint('❌ Error obteniendo historial de actividad: $e');
       return [];
     }
   }
@@ -1766,7 +1761,7 @@ class AdvancedSharingService {
           .doc('${noteId}_$_currentUserId')
           .set(presence.toJson());
     } catch (e) {
-  debugPrint('❌ Error actualizando presencia: $e');
+      debugPrint('❌ Error actualizando presencia: $e');
     }
   }
 
@@ -1776,10 +1771,14 @@ class AdvancedSharingService {
         .collection('presence')
         .where('currentLocation', isEqualTo: 'nota:$noteId')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => CollaboratorPresence.fromJson(doc.data()))
-            .where((presence) => presence.userId != _currentUserId) // Excluir usuario actual
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => CollaboratorPresence.fromJson(doc.data()))
+              .where(
+                (presence) => presence.userId != _currentUserId,
+              ) // Excluir usuario actual
+              .toList(),
+        );
   }
 
   /// Crear enlace público para una nota
@@ -1790,33 +1789,29 @@ class AdvancedSharingService {
   }) async {
     try {
       final publicId = _generateUniqueId();
-      final expiresAt = expiresIn != null ? DateTime.now().add(expiresIn) : null;
+      final expiresAt = expiresIn != null
+          ? DateTime.now().add(expiresIn)
+          : null;
 
-      await _firestore
-          .collection('public_links')
-          .doc(publicId)
-          .set({
-            'noteId': noteId,
-            'ownerId': _currentUserId,
-            'createdAt': Timestamp.fromDate(DateTime.now()),
-            'expiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt) : null,
-            'allowComments': allowComments,
-            'viewCount': 0,
-          });
+      await _firestore.collection('public_links').doc(publicId).set({
+        'noteId': noteId,
+        'ownerId': _currentUserId,
+        'createdAt': Timestamp.fromDate(DateTime.now()),
+        'expiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt) : null,
+        'allowComments': allowComments,
+        'viewCount': 0,
+      });
 
       // Actualizar la nota con el enlace público
-      await _firestore
-          .collection('notes')
-          .doc(noteId)
-          .update({
-            'isPublic': true,
-            'publicId': publicId,
-          });
+      await _firestore.collection('notes').doc(noteId).update({
+        'isPublic': true,
+        'publicId': publicId,
+      });
 
       final baseUrl = 'https://nootes.app/public'; // URL base de tu app
       return '$baseUrl/$publicId';
     } catch (e) {
-  debugPrint('❌ Error creando enlace público: $e');
+      debugPrint('❌ Error creando enlace público: $e');
       return null;
     }
   }
@@ -1837,17 +1832,14 @@ class AdvancedSharingService {
       }
 
       // Actualizar la nota
-      batch.update(
-        _firestore.collection('notes').doc(noteId),
-        {
-          'isPublic': false,
-          'publicId': FieldValue.delete(),
-        },
-      );
+      batch.update(_firestore.collection('notes').doc(noteId), {
+        'isPublic': false,
+        'publicId': FieldValue.delete(),
+      });
 
       await batch.commit();
     } catch (e) {
-  debugPrint('❌ Error revocando enlace público: $e');
+      debugPrint('❌ Error revocando enlace público: $e');
     }
   }
 
@@ -1903,7 +1895,8 @@ class AdvancedSharingService {
     String? customMessage,
   }) async {
     try {
-      final message = customMessage ?? 
+      final message =
+          customMessage ??
           'Te han compartido una nota usando la plantilla "${template.name}"';
 
       return await shareNote(
@@ -1914,7 +1907,7 @@ class AdvancedSharingService {
         message: message,
       );
     } catch (e) {
-  debugPrint('❌ Error compartiendo con plantilla: $e');
+      debugPrint('❌ Error compartiendo con plantilla: $e');
       return false;
     }
   }
@@ -1953,7 +1946,7 @@ class AdvancedSharingService {
             .length,
       };
     } catch (e) {
-  debugPrint('❌ Error obteniendo estadísticas: $e');
+      debugPrint('❌ Error obteniendo estadísticas: $e');
       return {};
     }
   }
@@ -1989,7 +1982,7 @@ class AdvancedSharingService {
     try {
       final commentId = _generateUniqueId();
       final currentUser = AuthService.instance.currentUser!;
-      
+
       final comment = NoteComment(
         id: commentId,
         noteId: noteId,
@@ -2016,14 +2009,16 @@ class AdvancedSharingService {
           noteId: noteId,
           type: NotificationType.commentAdded,
           title: 'Te han mencionado en un comentario',
-          message: content.length > 100 ? '${content.substring(0, 100)}...' : content,
+          message: content.length > 100
+              ? '${content.substring(0, 100)}...'
+              : content,
           data: {'commentId': commentId},
         );
       }
 
       return commentId;
     } catch (e) {
-  debugPrint('❌ Error añadiendo comentario: $e');
+      debugPrint('❌ Error añadiendo comentario: $e');
       return null;
     }
   }
@@ -2035,27 +2030,23 @@ class AdvancedSharingService {
         .where('noteId', isEqualTo: noteId)
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => NoteComment.fromJson({
-                  ...doc.data(),
-                  'id': doc.id,
-                }))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => NoteComment.fromJson({...doc.data(), 'id': doc.id}))
+              .toList(),
+        );
   }
 
   /// Resolver comentario
   Future<void> resolveComment(String commentId) async {
     try {
-      await _firestore
-          .collection('note_comments')
-          .doc(commentId)
-          .update({
-            'isResolved': true,
-            'resolvedBy': _currentUserId,
-            'resolvedAt': Timestamp.fromDate(DateTime.now()),
-          });
+      await _firestore.collection('note_comments').doc(commentId).update({
+        'isResolved': true,
+        'resolvedBy': _currentUserId,
+        'resolvedAt': Timestamp.fromDate(DateTime.now()),
+      });
     } catch (e) {
-  debugPrint('❌ Error resolviendo comentario: $e');
+      debugPrint('❌ Error resolviendo comentario: $e');
     }
   }
 
@@ -2100,8 +2091,8 @@ class AdvancedSharingService {
           .limit(1)
           .get();
 
-      final previousVersionId = previousVersionQuery.docs.isNotEmpty 
-          ? previousVersionQuery.docs.first.id 
+      final previousVersionId = previousVersionQuery.docs.isNotEmpty
+          ? previousVersionQuery.docs.first.id
           : null;
 
       final version = NoteVersion(
@@ -2139,13 +2130,16 @@ class AdvancedSharingService {
 
       return versionId;
     } catch (e) {
-  debugPrint('❌ Error creando versión: $e');
+      debugPrint('❌ Error creando versión: $e');
       return null;
     }
   }
 
   /// Obtener historial de versiones
-  Future<List<NoteVersion>> getVersionHistory(String noteId, {int limit = 50}) async {
+  Future<List<NoteVersion>> getVersionHistory(
+    String noteId, {
+    int limit = 50,
+  }) async {
     try {
       final query = await _firestore
           .collection('note_versions')
@@ -2155,13 +2149,10 @@ class AdvancedSharingService {
           .get();
 
       return query.docs
-          .map((doc) => NoteVersion.fromJson({
-                ...doc.data(),
-                'id': doc.id,
-              }))
+          .map((doc) => NoteVersion.fromJson({...doc.data(), 'id': doc.id}))
           .toList();
     } catch (e) {
-  debugPrint('❌ Error obteniendo historial: $e');
+      debugPrint('❌ Error obteniendo historial: $e');
       return [];
     }
   }
@@ -2182,28 +2173,26 @@ class AdvancedSharingService {
       });
 
       // Actualizar la nota actual
-      await _firestore
-          .collection('notes')
-          .doc(noteId)
-          .update({
-            'title': version.title,
-            'content': version.content,
-            'updatedAt': Timestamp.fromDate(DateTime.now()),
-          });
+      await _firestore.collection('notes').doc(noteId).update({
+        'title': version.title,
+        'content': version.content,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
 
       // Crear nueva versión con la restauración
       await createVersion(
         noteId: noteId,
         title: version.title,
         content: version.content,
-        changesSummary: 'Restaurado a versión del ${version.createdAt.day}/${version.createdAt.month}',
+        changesSummary:
+            'Restaurado a versión del ${version.createdAt.day}/${version.createdAt.month}',
         action: VersionAction.restored,
         changes: {'restoredFromVersion': versionId},
       );
 
       return true;
     } catch (e) {
-  debugPrint('❌ Error restaurando versión: $e');
+      debugPrint('❌ Error restaurando versión: $e');
       return false;
     }
   }
@@ -2261,7 +2250,7 @@ class AdvancedSharingService {
 
       return requestId;
     } catch (e) {
-  debugPrint('❌ Error creando solicitud de aprobación: $e');
+      debugPrint('❌ Error creando solicitud de aprobación: $e');
       return null;
     }
   }
@@ -2274,15 +2263,12 @@ class AdvancedSharingService {
   }) async {
     try {
       final currentUser = AuthService.instance.currentUser!;
-      
-      await _firestore
-          .collection('approval_requests')
-          .doc(requestId)
-          .update({
-            'approvals.${currentUser.uid}': response.name,
-            'comments.${currentUser.uid}': comment ?? '',
-            'timestamps.${currentUser.uid}': Timestamp.fromDate(DateTime.now()),
-          });
+
+      await _firestore.collection('approval_requests').doc(requestId).update({
+        'approvals.${currentUser.uid}': response.name,
+        'comments.${currentUser.uid}': comment ?? '',
+        'timestamps.${currentUser.uid}': Timestamp.fromDate(DateTime.now()),
+      });
 
       // Verificar si todas las aprobaciones están completas
       final requestDoc = await _firestore
@@ -2303,13 +2289,19 @@ class AdvancedSharingService {
         if (allResponded) {
           ApprovalStatus finalStatus;
           if (request.requiresAllApprovals) {
-            finalStatus = request.approvals.values.every(
-              (status) => status == ApprovalStatus.approved,
-            ) ? ApprovalStatus.approved : ApprovalStatus.rejected;
+            finalStatus =
+                request.approvals.values.every(
+                  (status) => status == ApprovalStatus.approved,
+                )
+                ? ApprovalStatus.approved
+                : ApprovalStatus.rejected;
           } else {
-            finalStatus = request.approvals.values.any(
-              (status) => status == ApprovalStatus.approved,
-            ) ? ApprovalStatus.approved : ApprovalStatus.rejected;
+            finalStatus =
+                request.approvals.values.any(
+                  (status) => status == ApprovalStatus.approved,
+                )
+                ? ApprovalStatus.approved
+                : ApprovalStatus.rejected;
           }
 
           await _firestore
@@ -2322,10 +2314,11 @@ class AdvancedSharingService {
             userId: request.requesterId,
             noteId: request.noteId,
             type: NotificationType.permissionChanged,
-            title: finalStatus == ApprovalStatus.approved 
-                ? 'Aprobación concedida' 
+            title: finalStatus == ApprovalStatus.approved
+                ? 'Aprobación concedida'
                 : 'Aprobación denegada',
-            message: 'Tu solicitud para "${request.noteTitle}" ha sido ${finalStatus.name}',
+            message:
+                'Tu solicitud para "${request.noteTitle}" ha sido ${finalStatus.name}',
             data: {'requestId': requestId},
           );
         }
@@ -2333,7 +2326,7 @@ class AdvancedSharingService {
 
       return true;
     } catch (e) {
-  debugPrint('❌ Error respondiendo a aprobación: $e');
+      debugPrint('❌ Error respondiendo a aprobación: $e');
       return false;
     }
   }
@@ -2357,7 +2350,7 @@ class AdvancedSharingService {
               }))
           .toList();
       */
-      
+
       // Datos simulados completos para demostración
       return [
         ApprovalRequest(
@@ -2368,7 +2361,8 @@ class AdvancedSharingService {
           requesterName: 'Fernando Castro',
           approverIds: [_currentUserId, 'user_888', 'user_999'],
           status: ApprovalStatus.pending,
-          description: 'Necesito aprobación urgente para publicar la nueva política de trabajo remoto. Incluye cambios importantes en horarios flexibles y nuevas herramientas de colaboración.',
+          description:
+              'Necesito aprobación urgente para publicar la nueva política de trabajo remoto. Incluye cambios importantes en horarios flexibles y nuevas herramientas de colaboración.',
           createdAt: DateTime.now().subtract(Duration(hours: 2)),
           deadline: DateTime.now().add(Duration(days: 2)),
           requiresAllApprovals: true,
@@ -2381,7 +2375,8 @@ class AdvancedSharingService {
           requesterName: 'Mónica Herrera',
           approverIds: [_currentUserId, 'user_111'],
           status: ApprovalStatus.pending,
-          description: 'Solicito aprobación del presupuesto para el primer trimestre. Total solicitado: \$150,000 USD para campañas digitales y eventos.',
+          description:
+              'Solicito aprobación del presupuesto para el primer trimestre. Total solicitado: \$150,000 USD para campañas digitales y eventos.',
           createdAt: DateTime.now().subtract(Duration(hours: 8)),
           deadline: DateTime.now().add(Duration(days: 5)),
           requiresAllApprovals: false,
@@ -2394,7 +2389,8 @@ class AdvancedSharingService {
           requesterName: 'Ricardo Mendoza',
           approverIds: [_currentUserId],
           status: ApprovalStatus.pending,
-          description: 'Contrato anual con nuevo proveedor de servicios de TI. Requiere aprobación legal y financiera antes del 15 de octubre.',
+          description:
+              'Contrato anual con nuevo proveedor de servicios de TI. Requiere aprobación legal y financiera antes del 15 de octubre.',
           createdAt: DateTime.now().subtract(Duration(days: 1)),
           deadline: DateTime.now().add(Duration(days: 4)),
           requiresAllApprovals: false,
@@ -2407,14 +2403,15 @@ class AdvancedSharingService {
           requesterName: 'Carmen Silva',
           approverIds: [_currentUserId, 'user_444'],
           status: ApprovalStatus.needsRevision,
-          description: 'Manual actualizado de procedimientos de seguridad. Requiere revisión de las secciones 3.2 y 4.1 según comentarios anteriores.',
+          description:
+              'Manual actualizado de procedimientos de seguridad. Requiere revisión de las secciones 3.2 y 4.1 según comentarios anteriores.',
           createdAt: DateTime.now().subtract(Duration(days: 3)),
           deadline: DateTime.now().add(Duration(days: 7)),
           requiresAllApprovals: true,
         ),
       ];
     } catch (e) {
-  debugPrint('❌ Error obteniendo aprobaciones pendientes: $e');
+      debugPrint('❌ Error obteniendo aprobaciones pendientes: $e');
       return [];
     }
   }
@@ -2437,7 +2434,7 @@ class AdvancedSharingService {
   }) async {
     try {
       final eventId = _generateUniqueId();
-      
+
       // Obtener nombres de los asistentes
       final attendeeNames = <String, String>{};
       for (final attendeeId in attendeeIds) {
@@ -2475,17 +2472,15 @@ class AdvancedSharingService {
           noteId: noteId,
           type: NotificationType.shareInvite, // Reutilizar para eventos
           title: 'Nuevo evento: $title',
-          message: 'Tienes un evento programado para ${startTime.day}/${startTime.month}',
-          data: {
-            'eventId': eventId,
-            'startTime': startTime.toIso8601String(),
-          },
+          message:
+              'Tienes un evento programado para ${startTime.day}/${startTime.month}',
+          data: {'eventId': eventId, 'startTime': startTime.toIso8601String()},
         );
       }
 
       return eventId;
     } catch (e) {
-  debugPrint('❌ Error creando evento: $e');
+      debugPrint('❌ Error creando evento: $e');
       return null;
     }
   }
@@ -2524,7 +2519,7 @@ class AdvancedSharingService {
               }))
           .toList();
       */
-      
+
       // Datos simulados mientras se configuran las colecciones
       final now = DateTime.now();
       return [
@@ -2561,7 +2556,7 @@ class AdvancedSharingService {
         ),
       ];
     } catch (e) {
-  debugPrint('❌ Error obteniendo eventos: $e');
+      debugPrint('❌ Error obteniendo eventos: $e');
       return [];
     }
   }
@@ -2571,11 +2566,11 @@ class AdvancedSharingService {
     // Lista de usuarios que simulamos que tienen notas compartidas
     final usersWithSharedContent = [
       'demo@nootes.com',
-      'admin@nootes.com', 
+      'admin@nootes.com',
       'test@example.com',
-      'user@demo.com'
+      'user@demo.com',
     ];
-    
+
     return usersWithSharedContent.contains(userId);
   }
 
@@ -2613,12 +2608,12 @@ class AdvancedSharingService {
           .doc(eventId)
           .update(eventData);
       */
-      
+
       // Simulación de actualización exitosa
-  debugPrint('✅ Evento actualizado: $title');
+      debugPrint('✅ Evento actualizado: $title');
       return true;
     } catch (e) {
-  debugPrint('❌ Error actualizando evento: $e');
+      debugPrint('❌ Error actualizando evento: $e');
       return false;
     }
   }
@@ -2633,12 +2628,12 @@ class AdvancedSharingService {
           .doc(eventId)
           .delete();
       */
-      
+
       // Simulación de eliminación exitosa
-  debugPrint('✅ Evento eliminado: $eventId');
+      debugPrint('✅ Evento eliminado: $eventId');
       return true;
     } catch (e) {
-  debugPrint('❌ Error eliminando evento: $e');
+      debugPrint('❌ Error eliminando evento: $e');
       return false;
     }
   }
@@ -2662,7 +2657,7 @@ class AdvancedSharingService {
         reminders: ['0'], // Recordatorio en el momento exacto
       );
     } catch (e) {
-  debugPrint('❌ Error programando recordatorio: $e');
+      debugPrint('❌ Error programando recordatorio: $e');
     }
   }
 
@@ -2674,7 +2669,8 @@ class AdvancedSharingService {
     DateTime? endDate,
   }) async {
     try {
-      final start = startDate ?? DateTime.now().subtract(const Duration(days: 30));
+      final start =
+          startDate ?? DateTime.now().subtract(const Duration(days: 30));
       final end = endDate ?? DateTime.now();
 
       // Actividad por día
@@ -2691,9 +2687,10 @@ class AdvancedSharingService {
       for (final doc in activityQuery.docs) {
         final activity = ActivityLog.fromJson({...doc.data(), 'id': doc.id});
         final day = '${activity.timestamp.day}/${activity.timestamp.month}';
-        
+
         activityByDay[day] = (activityByDay[day] ?? 0) + 1;
-        activityByType[activity.type.name] = (activityByType[activity.type.name] ?? 0) + 1;
+        activityByType[activity.type.name] =
+            (activityByType[activity.type.name] ?? 0) + 1;
       }
 
       // Comentarios por nota
@@ -2707,7 +2704,8 @@ class AdvancedSharingService {
       final commentsByNote = <String, int>{};
       for (final doc in commentsQuery.docs) {
         final comment = NoteComment.fromJson({...doc.data(), 'id': doc.id});
-        commentsByNote[comment.noteId] = (commentsByNote[comment.noteId] ?? 0) + 1;
+        commentsByNote[comment.noteId] =
+            (commentsByNote[comment.noteId] ?? 0) + 1;
       }
 
       return {
@@ -2720,13 +2718,15 @@ class AdvancedSharingService {
         'periodEnd': end.toIso8601String(),
       };
     } catch (e) {
-  debugPrint('❌ Error obteniendo analytics: $e');
+      debugPrint('❌ Error obteniendo analytics: $e');
       return {};
     }
   }
 
   /// Generar reporte de colaboración
-  Future<Map<String, dynamic>> generateCollaborationReport(String noteId) async {
+  Future<Map<String, dynamic>> generateCollaborationReport(
+    String noteId,
+  ) async {
     try {
       final futures = await Future.wait([
         getVersionHistory(noteId),
@@ -2750,11 +2750,17 @@ class AdvancedSharingService {
 
       // Estadísticas por colaborador
       final collaboratorStats = <String, Map<String, dynamic>>{};
-      
+
       for (final collaborator in collaborators) {
-        final userActivities = activities.where((a) => a.userId == collaborator.userId).length;
-        final userComments = comments.where((c) => c.userId == collaborator.userId).length;
-        final userVersions = versions.where((v) => v.authorId == collaborator.userId).length;
+        final userActivities = activities
+            .where((a) => a.userId == collaborator.userId)
+            .length;
+        final userComments = comments
+            .where((c) => c.userId == collaborator.userId)
+            .length;
+        final userVersions = versions
+            .where((v) => v.authorId == collaborator.userId)
+            .length;
 
         collaboratorStats[collaborator.userId] = {
           'name': collaborator.name,
@@ -2774,15 +2780,19 @@ class AdvancedSharingService {
         'totalActivities': activities.length,
         'totalComments': comments.length,
         'totalCollaborators': collaborators.length,
-        'timeline': activities.map((a) => {
-          'timestamp': a.timestamp.toIso8601String(),
-          'type': a.type.name,
-          'user': a.userName,
-          'description': a.description,
-        }).toList(),
+        'timeline': activities
+            .map(
+              (a) => {
+                'timestamp': a.timestamp.toIso8601String(),
+                'type': a.type.name,
+                'user': a.userName,
+                'description': a.description,
+              },
+            )
+            .toList(),
       };
     } catch (e) {
-  debugPrint('❌ Error generando reporte: $e');
+      debugPrint('❌ Error generando reporte: $e');
       return {};
     }
   }

@@ -4,14 +4,24 @@ import 'package:nootes/widgets/expandable_fab.dart';
 
 void main() {
   testWidgets('ExpandableFab shows actions when tapped', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        floatingActionButton: ExpandableFab(actions: [
-          FloatingActionButton.small(onPressed: () {}, child: const Icon(Icons.add)),
-          FloatingActionButton.small(onPressed: () {}, child: const Icon(Icons.photo)),
-        ]),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          floatingActionButton: ExpandableFab(
+            actions: [
+              FloatingActionButton.small(
+                onPressed: () {},
+                child: const Icon(Icons.add),
+              ),
+              FloatingActionButton.small(
+                onPressed: () {},
+                child: const Icon(Icons.photo),
+              ),
+            ],
+          ),
+        ),
       ),
-    ));
+    );
 
     // Initial: FABs for actions are present in the tree (they animate scale)
     expect(find.byType(FloatingActionButton), findsNWidgets(3));
@@ -23,7 +33,12 @@ void main() {
 
     // When expanded, the background dismiss Container (color black26) is present
     expect(
-      find.byWidgetPredicate((w) => w is Container && w.decoration == null && (w.color == Colors.black26)),
+      find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            w.decoration == null &&
+            (w.color == Colors.black26),
+      ),
       findsOneWidget,
     );
   });

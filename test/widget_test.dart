@@ -10,7 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('smoke test: renders simple widget', (WidgetTester tester) async {
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: Text('Hello'))));
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: Text('Hello'))),
+    );
     expect(find.text('Hello'), findsOneWidget);
   });
 }

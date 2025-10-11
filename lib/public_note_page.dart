@@ -26,7 +26,10 @@ class _PublicNotePageState extends State<PublicNotePage> {
     try {
       final resolved = await SharingService().resolvePublicToken(widget.token);
       if (resolved == null) {
-        setState(() { _notFound = true; _loading = false; });
+        setState(() {
+          _notFound = true;
+          _loading = false;
+        });
         return;
       }
       final note = await FirestoreService.instance.getNote(
@@ -34,13 +37,25 @@ class _PublicNotePageState extends State<PublicNotePage> {
         noteId: resolved['noteId']!,
       );
       if (!mounted) return;
-      if (note == null || note['shareEnabled'] != true || note['shareToken'] != widget.token) {
-        setState(() { _notFound = true; _loading = false; });
+      if (note == null ||
+          note['shareEnabled'] != true ||
+          note['shareToken'] != widget.token) {
+        setState(() {
+          _notFound = true;
+          _loading = false;
+        });
       } else {
-        setState(() { _note = note; _loading = false; });
+        setState(() {
+          _note = note;
+          _loading = false;
+        });
       }
     } catch (_) {
-      if (mounted) setState(() { _notFound = true; _loading = false; });
+      if (mounted)
+        setState(() {
+          _notFound = true;
+          _loading = false;
+        });
     }
   }
 
@@ -79,24 +94,35 @@ class _PublicNotePageState extends State<PublicNotePage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _notFound
-              ? const Center(child: Text('Esta nota pública no está disponible.'))
-              : Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title, style: Theme.of(context).textTheme.headlineMedium),
-                        const SizedBox(height: 16),
-                        SelectableText(content, style: const TextStyle(fontSize: 15, height: 1.4)),
-                        const SizedBox(height: 40),
-                        Divider(color: AppColors.borderColor),
-                        const SizedBox(height: 8),
-                        Text('Vista pública de solo lectura', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppColors.textMuted)),
-                      ],
+          ? const Center(child: Text('Esta nota pública no está disponible.'))
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.headlineMedium,
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    SelectableText(
+                      content,
+                      style: const TextStyle(fontSize: 15, height: 1.4),
+                    ),
+                    const SizedBox(height: 40),
+                    Divider(color: AppColors.borderColor),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Vista pública de solo lectura',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+            ),
     );
   }
 }

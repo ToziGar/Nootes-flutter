@@ -4,7 +4,8 @@ import '../theme/color_utils.dart';
 
 /// Servicio para la paleta de comandos del editor
 class CommandPaletteService {
-  static final CommandPaletteService _instance = CommandPaletteService._internal();
+  static final CommandPaletteService _instance =
+      CommandPaletteService._internal();
   factory CommandPaletteService() => _instance;
   CommandPaletteService._internal();
 
@@ -46,7 +47,7 @@ class CommandPaletteService {
       // Mostrar comandos recientes primero
       final recent = <EditorCommand>[];
       final others = <EditorCommand>[];
-      
+
       for (final command in _commands) {
         if (_recentCommands.contains(command.id)) {
           recent.add(command);
@@ -54,16 +55,18 @@ class CommandPaletteService {
           others.add(command);
         }
       }
-      
+
       return [...recent, ...others];
     }
-    
+
     final lowerQuery = query.toLowerCase();
     return _commands.where((command) {
       return command.title.toLowerCase().contains(lowerQuery) ||
-             command.description.toLowerCase().contains(lowerQuery) ||
-             command.category.toLowerCase().contains(lowerQuery) ||
-             command.keywords.any((keyword) => keyword.toLowerCase().contains(lowerQuery));
+          command.description.toLowerCase().contains(lowerQuery) ||
+          command.category.toLowerCase().contains(lowerQuery) ||
+          command.keywords.any(
+            (keyword) => keyword.toLowerCase().contains(lowerQuery),
+          );
     }).toList();
   }
 
@@ -508,14 +511,17 @@ class _CommandPaletteState extends State<CommandPalette> {
 
   void _moveSelection(int delta) {
     setState(() {
-      _selectedIndex = (_selectedIndex + delta).clamp(0, _filteredCommands.length - 1);
+      _selectedIndex = (_selectedIndex + delta).clamp(
+        0,
+        _filteredCommands.length - 1,
+      );
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
@@ -539,7 +545,9 @@ class _CommandPaletteState extends State<CommandPalette> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: theme.primaryColor.withOpacityCompat(0.1),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
               ),
               child: Row(
                 children: [
@@ -550,13 +558,17 @@ class _CommandPaletteState extends State<CommandPalette> {
                       focusNode: _focusNode,
                       onKeyEvent: (event) {
                         if (event is KeyDownEvent) {
-                          if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                          if (event.logicalKey ==
+                              LogicalKeyboardKey.arrowDown) {
                             _moveSelection(1);
-                          } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                          } else if (event.logicalKey ==
+                              LogicalKeyboardKey.arrowUp) {
                             _moveSelection(-1);
-                          } else if (event.logicalKey == LogicalKeyboardKey.enter) {
+                          } else if (event.logicalKey ==
+                              LogicalKeyboardKey.enter) {
                             _executeSelectedCommand();
-                          } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+                          } else if (event.logicalKey ==
+                              LogicalKeyboardKey.escape) {
                             Navigator.of(context).pop();
                           }
                         }
@@ -582,7 +594,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                 ],
               ),
             ),
-            
+
             // Lista de comandos
             Flexible(
               child: _filteredCommands.isEmpty
@@ -619,12 +631,14 @@ class _CommandPaletteState extends State<CommandPalette> {
                       itemBuilder: (context, index) {
                         final command = _filteredCommands[index];
                         final isSelected = index == _selectedIndex;
-                        final isRecent = widget.service.recentCommands.contains(command.id);
-                        
+                        final isRecent = widget.service.recentCommands.contains(
+                          command.id,
+                        );
+
                         return Container(
-              color: isSelected
-                ? theme.primaryColor.withOpacityCompat(0.1)
-                : null,
+                          color: isSelected
+                              ? theme.primaryColor.withOpacityCompat(0.1)
+                              : null,
                           child: ListTile(
                             dense: true,
                             leading: Row(
@@ -639,7 +653,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                                 const SizedBox(width: 4),
                                 Icon(
                                   command.icon,
-                                  color: isSelected 
+                                  color: isSelected
                                       ? theme.primaryColor
                                       : theme.iconTheme.color,
                                 ),
@@ -675,7 +689,9 @@ class _CommandPaletteState extends State<CommandPalette> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: theme.primaryColor.withOpacityCompat(0.1),
+                                color: theme.primaryColor.withOpacityCompat(
+                                  0.1,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -695,16 +711,16 @@ class _CommandPaletteState extends State<CommandPalette> {
                       },
                     ),
             ),
-            
+
             // Ayuda del teclado
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: theme.cardColor,
-                border: Border(
-                  top: BorderSide(color: theme.dividerColor),
+                border: Border(top: BorderSide(color: theme.dividerColor)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(12),
                 ),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -743,10 +759,7 @@ class _CommandPaletteState extends State<CommandPalette> {
           ),
         ),
         const SizedBox(width: 4),
-        Text(
-          description,
-          style: theme.textTheme.bodySmall,
-        ),
+        Text(description, style: theme.textTheme.bodySmall),
       ],
     );
   }

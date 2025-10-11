@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class AppService {
   static late void Function(ThemeMode) changeTheme;
   static late void Function(Locale) changeLocale;
-  
+
   /// Inicializa las referencias a las funciones de cambio
   static void initialize({
     required void Function(ThemeMode) onChangeTheme,

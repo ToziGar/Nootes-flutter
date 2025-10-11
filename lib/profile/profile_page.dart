@@ -68,7 +68,9 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -79,22 +81,29 @@ class _ProfilePageState extends State<ProfilePage> {
     if (uid == null) return;
     setState(() => _saving = true);
     try {
-      await FirestoreService.instance.updateUserProfile(uid: uid, data: {
-        'fullName': _fullName.text.trim(),
-        'email': _email.text.trim(),
-        'organization': _organization.text.trim(),
-        'role': _role.text.trim(),
-        'experience': _experience.text.trim(),
-        'language': _language.text.trim(),
-        'preferredTheme': _preferredTheme.text.trim(),
-        'newsOptIn': _newsOptIn,
-      });
+      await FirestoreService.instance.updateUserProfile(
+        uid: uid,
+        data: {
+          'fullName': _fullName.text.trim(),
+          'email': _email.text.trim(),
+          'organization': _organization.text.trim(),
+          'role': _role.text.trim(),
+          'experience': _experience.text.trim(),
+          'language': _language.text.trim(),
+          'preferredTheme': _preferredTheme.text.trim(),
+          'newsOptIn': _newsOptIn,
+        },
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perfil actualizado')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Perfil actualizado')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -106,18 +115,27 @@ class _ProfilePageState extends State<ProfilePage> {
     if (uid == null) return;
     final newUser = _username.text.trim().toLowerCase();
     if (!RegExp(r'^[a-z0-9._]{3,20}$').hasMatch(newUser)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario inválido')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Usuario inválido')));
       return;
     }
     setState(() => _saving = true);
     try {
-      await FirestoreService.instance.changeHandle(uid: uid, newUsername: newUser);
+      await FirestoreService.instance.changeHandle(
+        uid: uid,
+        newUsername: newUser,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario actualizado')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Usuario actualizado')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -154,25 +172,48 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: _loading
-                      ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
+                      ? const SizedBox(
+                          height: 200,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
                       : Form(
                           key: _formKey,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Text('Perfil', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                              Text(
+                                'Perfil',
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
                               const SizedBox(height: 12),
                               TextFormField(
                                 controller: _fullName,
-                                decoration: const InputDecoration(labelText: 'Nombre completo', prefixIcon: Icon(Icons.person_outline_rounded)),
-                                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nombre completo',
+                                  prefixIcon: Icon(
+                                    Icons.person_outline_rounded,
+                                  ),
+                                ),
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                    ? 'Requerido'
+                                    : null,
                               ),
                               const SizedBox(height: 8),
                               TextFormField(
                                 key: const Key('profile_email_field'),
                                 controller: _email,
-                                decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.mail_outline_rounded)),
-                                validator: (v) => (v == null || v.trim().isEmpty || !v.contains('@')) ? 'Email inválido' : null,
+                                decoration: const InputDecoration(
+                                  labelText: 'Email',
+                                  prefixIcon: Icon(Icons.mail_outline_rounded),
+                                ),
+                                validator: (v) =>
+                                    (v == null ||
+                                        v.trim().isEmpty ||
+                                        !v.contains('@'))
+                                    ? 'Email inválido'
+                                    : null,
                               ),
                               const SizedBox(height: 8),
                               LayoutBuilder(
@@ -182,7 +223,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                     controller: _username,
                                     decoration: const InputDecoration(
                                       labelText: 'Usuario (handle)',
-                                      prefixIcon: Icon(Icons.alternate_email_rounded),
+                                      prefixIcon: Icon(
+                                        Icons.alternate_email_rounded,
+                                      ),
                                     ),
                                   );
                                   final button = FilledButton.icon(
@@ -200,7 +243,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                     );
                                   }
                                   return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
                                       field,
                                       const SizedBox(height: 8),
@@ -212,34 +256,52 @@ class _ProfilePageState extends State<ProfilePage> {
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _organization,
-                                decoration: const InputDecoration(labelText: 'Organización', prefixIcon: Icon(Icons.business_outlined)),
+                                decoration: const InputDecoration(
+                                  labelText: 'Organización',
+                                  prefixIcon: Icon(Icons.business_outlined),
+                                ),
                               ),
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _role,
-                                decoration: const InputDecoration(labelText: 'Rol', prefixIcon: Icon(Icons.badge_outlined)),
+                                decoration: const InputDecoration(
+                                  labelText: 'Rol',
+                                  prefixIcon: Icon(Icons.badge_outlined),
+                                ),
                               ),
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _experience,
-                                decoration: const InputDecoration(labelText: 'Experiencia', prefixIcon: Icon(Icons.timeline_outlined)),
+                                decoration: const InputDecoration(
+                                  labelText: 'Experiencia',
+                                  prefixIcon: Icon(Icons.timeline_outlined),
+                                ),
                               ),
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _language,
-                                decoration: const InputDecoration(labelText: 'Idioma', prefixIcon: Icon(Icons.language_outlined)),
+                                decoration: const InputDecoration(
+                                  labelText: 'Idioma',
+                                  prefixIcon: Icon(Icons.language_outlined),
+                                ),
                               ),
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _preferredTheme,
-                                decoration: const InputDecoration(labelText: 'Tema preferido', prefixIcon: Icon(Icons.dark_mode_outlined)),
+                                decoration: const InputDecoration(
+                                  labelText: 'Tema preferido',
+                                  prefixIcon: Icon(Icons.dark_mode_outlined),
+                                ),
                               ),
                               const SizedBox(height: 8),
                               SwitchListTile(
                                 contentPadding: EdgeInsets.zero,
-                                title: const Text('Recibir noticias y actualizaciones'),
+                                title: const Text(
+                                  'Recibir noticias y actualizaciones',
+                                ),
                                 value: _newsOptIn,
-                                onChanged: (v) => setState(() => _newsOptIn = v),
+                                onChanged: (v) =>
+                                    setState(() => _newsOptIn = v),
                               ),
                               const SizedBox(height: 12),
                               Align(
@@ -247,7 +309,13 @@ class _ProfilePageState extends State<ProfilePage> {
                                 child: FilledButton.icon(
                                   onPressed: _saving ? null : _save,
                                   icon: _saving
-                                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
                                       : const Icon(Icons.save_rounded),
                                   label: const Text('Guardar cambios'),
                                 ),

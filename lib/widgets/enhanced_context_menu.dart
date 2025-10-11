@@ -31,16 +31,22 @@ class EnhancedContextMenuRegion extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.deferToChild,
-      onSecondaryTapDown: enabled ? (details) {
-        // Solo procesar si no hay otros gestores activos
-        _handleRightClick(context, details.globalPosition);
-      } : null,
-      onLongPress: enabled ? () {
-        // Para dispositivos táctiles - solo en móviles
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        final Offset position = box.localToGlobal(box.size.center(Offset.zero));
-        _handleRightClick(context, position);
-      } : null,
+      onSecondaryTapDown: enabled
+          ? (details) {
+              // Solo procesar si no hay otros gestores activos
+              _handleRightClick(context, details.globalPosition);
+            }
+          : null,
+      onLongPress: enabled
+          ? () {
+              // Para dispositivos táctiles - solo en móviles
+              final RenderBox box = context.findRenderObject() as RenderBox;
+              final Offset position = box.localToGlobal(
+                box.size.center(Offset.zero),
+              );
+              _handleRightClick(context, position);
+            }
+          : null,
       child: child,
     );
   }
@@ -50,7 +56,8 @@ class EnhancedContextMenuRegion extends StatelessWidget {
 
     // Prevenir activaciones múltiples con debounce
     final now = DateTime.now();
-    if (_lastMenuTime != null && now.difference(_lastMenuTime!) < _debounceDelay) {
+    if (_lastMenuTime != null &&
+        now.difference(_lastMenuTime!) < _debounceDelay) {
       return;
     }
     _lastMenuTime = now;
@@ -84,7 +91,7 @@ class EnhancedContextMenuRegion extends StatelessWidget {
   }) async {
     // Verificar que el context aún sea válido
     if (!context.mounted) return null;
-    
+
     return showMenu<ContextMenuAction>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -95,41 +102,34 @@ class EnhancedContextMenuRegion extends StatelessWidget {
       ),
       items: actions.map<PopupMenuEntry<ContextMenuAction>>((action) {
         if (action.isDivider) {
-          return PopupMenuDivider(
-            height: 1,
-          );
+          return PopupMenuDivider(height: 1);
         }
-        
+
         return PopupMenuItem<ContextMenuAction>(
           value: action,
           enabled: action.enabled,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 8,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
             child: Row(
               children: [
                 Container(
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-          color: action.isDanger
-            ? AppColors.danger.withOpacityCompat(0.1)
-            : AppColors.primary.withOpacityCompat(0.1),
+                    color: action.isDanger
+                        ? AppColors.danger.withOpacityCompat(0.1)
+                        : AppColors.primary.withOpacityCompat(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     action.icon,
                     size: 18,
-                    color: action.isDanger 
-                        ? AppColors.danger 
-                        : action.enabled 
-                            ? AppColors.primary 
-                            : AppColors.textMuted,
+                    color: action.isDanger
+                        ? AppColors.danger
+                        : action.enabled
+                        ? AppColors.primary
+                        : AppColors.textMuted,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -137,13 +137,13 @@ class EnhancedContextMenuRegion extends StatelessWidget {
                   child: Text(
                     action.label,
                     style: TextStyle(
-                      color: action.isDanger 
-                          ? AppColors.danger 
-                          : action.enabled 
-                              ? AppColors.textPrimary 
-                              : AppColors.textMuted,
-                      fontWeight: action.isDanger 
-                          ? FontWeight.w600 
+                      color: action.isDanger
+                          ? AppColors.danger
+                          : action.enabled
+                          ? AppColors.textPrimary
+                          : AppColors.textMuted,
+                      fontWeight: action.isDanger
+                          ? FontWeight.w600
                           : FontWeight.w500,
                       fontSize: 14,
                     ),
@@ -181,18 +181,12 @@ class EnhancedContextMenuRegion extends StatelessWidget {
       }).toList(),
       elevation: 12,
       color: AppColors.surface,
-  shadowColor: AppColors.primary.withOpacityCompat(0.1),
+      shadowColor: AppColors.primary.withOpacityCompat(0.1),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: AppColors.borderColor,
-          width: 0.5,
-        ),
+        side: BorderSide(color: AppColors.borderColor, width: 0.5),
       ),
-      constraints: const BoxConstraints(
-        minWidth: 200,
-        maxWidth: 280,
-      ),
+      constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),
     );
   }
 }
@@ -343,9 +337,7 @@ class EnhancedContextMenuBuilder {
   }
 
   /// Menú para carpetas
-  static List<ContextMenuAction> folderMenu({
-    int noteCount = 0,
-  }) {
+  static List<ContextMenuAction> folderMenu({int noteCount = 0}) {
     return [
       ContextMenuAction(
         label: 'Abrir',
@@ -377,7 +369,9 @@ class EnhancedContextMenuBuilder {
         label: 'Duplicar carpeta',
         icon: Icons.content_copy_rounded,
         value: 'duplicate',
-        description: noteCount > 0 ? 'Duplicar con $noteCount notas' : 'Duplicar carpeta vacía',
+        description: noteCount > 0
+            ? 'Duplicar con $noteCount notas'
+            : 'Duplicar carpeta vacía',
       ),
       ContextMenuAction(
         label: 'Cambiar icono y color',
@@ -410,12 +404,16 @@ class EnhancedContextMenuBuilder {
       ),
       ContextMenuAction.divider,
       ContextMenuAction(
-        label: noteCount > 0 ? 'Eliminar carpeta (mover notas)' : 'Eliminar carpeta',
+        label: noteCount > 0
+            ? 'Eliminar carpeta (mover notas)'
+            : 'Eliminar carpeta',
         icon: Icons.delete_rounded,
         value: 'delete',
         isDanger: true,
         shortcut: 'Del',
-        description: noteCount > 0 ? 'Las notas se moverán fuera de la carpeta' : null,
+        description: noteCount > 0
+            ? 'Las notas se moverán fuera de la carpeta'
+            : null,
       ),
     ];
   }

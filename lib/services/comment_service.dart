@@ -34,9 +34,7 @@ class CommentService {
       'isDeleted': false,
     };
 
-    final docRef = await _firestore
-        .collection('comments')
-        .add(commentData);
+    final docRef = await _firestore.collection('comments').add(commentData);
 
     // Crear notificación para el propietario de la nota en users/{uid}/notifications
     if (ownerId != user.uid) {
@@ -46,15 +44,15 @@ class CommentService {
             .doc(ownerId)
             .collection('notifications')
             .add({
-          'type': 'commentAdded',
-          'title': 'Nuevo comentario',
-          'message': '${user.email} comentó en tu nota',
-          'createdAt': FieldValue.serverTimestamp(),
-          'isRead': false,
-          'noteId': noteId,
-          'commentId': docRef.id,
-          'authorId': user.uid,
-        });
+              'type': 'commentAdded',
+              'title': 'Nuevo comentario',
+              'message': '${user.email} comentó en tu nota',
+              'createdAt': FieldValue.serverTimestamp(),
+              'isRead': false,
+              'noteId': noteId,
+              'commentId': docRef.id,
+              'authorId': user.uid,
+            });
       } catch (e) {
         debugPrint('❌ Error creando notificación: $e');
       }
@@ -73,10 +71,10 @@ class CommentService {
         .orderBy('createdAt', descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Comment.fromMap(doc.id, doc.data());
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            return Comment.fromMap(doc.id, doc.data());
+          }).toList();
+        });
   }
 
   /// Actualiza un comentario existente
@@ -84,10 +82,7 @@ class CommentService {
     final user = _authService.currentUser;
     if (user == null) throw Exception('Usuario no autenticado');
 
-    await _firestore
-        .collection('comments')
-        .doc(commentId)
-        .update({
+    await _firestore.collection('comments').doc(commentId).update({
       'content': newContent,
       'updatedAt': FieldValue.serverTimestamp(),
       'isEdited': true,
@@ -101,10 +96,7 @@ class CommentService {
     final user = _authService.currentUser;
     if (user == null) throw Exception('Usuario no autenticado');
 
-    await _firestore
-        .collection('comments')
-        .doc(commentId)
-        .update({
+    await _firestore.collection('comments').doc(commentId).update({
       'isDeleted': true,
       'updatedAt': FieldValue.serverTimestamp(),
     });

@@ -67,8 +67,14 @@ class NoteIconRegistry {
     Color(0xFF9CA3AF), Color(0xFF6B7280), Color(0xFFF3F4F6),
   ];
 
-  static IconData? iconFromName(String? name) => name == null ? null : icons[name];
+  static IconData? iconFromName(String? name) =>
+      name == null ? null : icons[name];
   static String nameFromIcon(IconData icon) {
-    return icons.entries.firstWhere((e) => e.value == icon, orElse: () => const MapEntry('note', Icons.description_rounded)).key;
+    return icons.entries
+        .firstWhere(
+          (e) => e.value == icon,
+          orElse: () => const MapEntry('note', Icons.description_rounded),
+        )
+        .key;
   }
 }

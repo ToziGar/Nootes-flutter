@@ -13,7 +13,7 @@ class StatsDashboardPage extends StatefulWidget {
 
 class _StatsDashboardPageState extends State<StatsDashboardPage> {
   final AnalyticsService _analyticsService = AnalyticsService();
-  
+
   UserStats? _userStats;
   List<DailyActivity> _dailyActivity = [];
   List<FolderStats> _folderStats = [];
@@ -88,7 +88,7 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
                   // Overview cards
                   _buildOverviewCards(),
                   const SizedBox(height: 32),
-                  
+
                   // Statistics sections
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,9 +104,9 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
                           ],
                         ),
                       ),
-                      
+
                       const SizedBox(width: 24),
-                      
+
                       // Right column
                       Expanded(
                         child: Column(
@@ -182,12 +182,32 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
             ),
             const SizedBox(height: 16),
             if (_userStats != null) ...[
-              _buildStatRow('Notas hoy', _userStats!.notesToday.toString(), Icons.today),
-              _buildStatRow('Notas esta semana', _userStats!.notesThisWeek.toString(), Icons.date_range),
-              _buildStatRow('Notas este mes', _userStats!.notesThisMonth.toString(), Icons.calendar_month),
-              _buildStatRow('Promedio palabras/nota', _userStats!.averageWordsPerNote.toString(), Icons.text_fields),
+              _buildStatRow(
+                'Notas hoy',
+                _userStats!.notesToday.toString(),
+                Icons.today,
+              ),
+              _buildStatRow(
+                'Notas esta semana',
+                _userStats!.notesThisWeek.toString(),
+                Icons.date_range,
+              ),
+              _buildStatRow(
+                'Notas este mes',
+                _userStats!.notesThisMonth.toString(),
+                Icons.calendar_month,
+              ),
+              _buildStatRow(
+                'Promedio palabras/nota',
+                _userStats!.averageWordsPerNote.toString(),
+                Icons.text_fields,
+              ),
               if (_userStats!.firstNoteDate != null)
-                _buildStatRow('Días activo', _userStats!.daysSinceFirstNote.toString(), Icons.timeline),
+                _buildStatRow(
+                  'Días activo',
+                  _userStats!.daysSinceFirstNote.toString(),
+                  Icons.timeline,
+                ),
             ],
             if (_dailyActivity.isNotEmpty) ...[
               const SizedBox(height: 24),
@@ -209,8 +229,11 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
   }
 
   Widget _buildDailyActivityChart() {
-    final maxActivity = _dailyActivity.fold<int>(0, (max, day) => day.totalEvents > max ? day.totalEvents : max);
-    
+    final maxActivity = _dailyActivity.fold<int>(
+      0,
+      (max, day) => day.totalEvents > max ? day.totalEvents : max,
+    );
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -225,7 +248,9 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
                 Container(
                   height: 80 * intensity,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacityCompat(0.3 + (intensity * 0.7)),
+                    color: AppColors.primary.withOpacityCompat(
+                      0.3 + (intensity * 0.7),
+                    ),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -273,9 +298,9 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
             ),
             const SizedBox(height: 16),
             _buildStatRow(
-              'Hora más activa', 
-              '$mostActiveHour:00 ($maxActivity eventos)', 
-              Icons.schedule
+              'Hora más activa',
+              '$mostActiveHour:00 ($maxActivity eventos)',
+              Icons.schedule,
             ),
             const SizedBox(height: 12),
             // Mostrar barras de actividad por hora simplificadas
@@ -283,13 +308,17 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
               height: 60,
               child: Row(
                 children: _hourlyActivity.map((hourly) {
-                  final intensity = maxActivity > 0 ? hourly.activity / maxActivity : 0.0;
+                  final intensity = maxActivity > 0
+                      ? hourly.activity / maxActivity
+                      : 0.0;
                   return Expanded(
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 1),
                       height: 60 * intensity,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacityCompat(0.3 + (intensity * 0.7)),
+                        color: AppColors.primary.withOpacityCompat(
+                          0.3 + (intensity * 0.7),
+                        ),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -300,10 +329,7 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
             const SizedBox(height: 8),
             const Text(
               '0h                    12h                    23h',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 10,
-              ),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 10),
             ),
           ],
         ),
@@ -403,7 +429,10 @@ class _StatsDashboardPageState extends State<StatsDashboardPage> {
                 runSpacing: 8,
                 children: _tagStats.take(10).map((tag) {
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacityCompat(0.1),
                       borderRadius: BorderRadius.circular(16),
@@ -490,11 +519,7 @@ class _StatCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: color,
-              size: 32,
-            ),
+            Icon(icon, color: color, size: 32),
             const SizedBox(height: 12),
             Text(
               value,

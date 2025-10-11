@@ -5,7 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// Servicio para persistir preferencias y estado de la aplicación
 class PreferencesService {
   static const _storage = FlutterSecureStorage();
-  
+
   // Keys
   static const _keySelectedFolder = 'workspace_selected_folder';
   static const _keyFilterTags = 'workspace_filter_tags';
@@ -18,12 +18,12 @@ class PreferencesService {
   static const _keyThemeMode = 'app_theme_mode';
   static const _keyLocale = 'app_locale';
   static const _keyUserWords = 'autocomplete_user_words';
-  
+
   // Carpeta seleccionada
   static Future<String?> getSelectedFolder() async {
     return await _storage.read(key: _keySelectedFolder);
   }
-  
+
   static Future<void> setSelectedFolder(String? folderId) async {
     if (folderId == null) {
       await _storage.delete(key: _keySelectedFolder);
@@ -31,7 +31,7 @@ class PreferencesService {
       await _storage.write(key: _keySelectedFolder, value: folderId);
     }
   }
-  
+
   // Filtros de tags
   static Future<List<String>> getFilterTags() async {
     final json = await _storage.read(key: _keyFilterTags);
@@ -42,7 +42,7 @@ class PreferencesService {
       return [];
     }
   }
-  
+
   static Future<void> setFilterTags(List<String> tags) async {
     if (tags.isEmpty) {
       await _storage.delete(key: _keyFilterTags);
@@ -50,7 +50,7 @@ class PreferencesService {
       await _storage.write(key: _keyFilterTags, value: jsonEncode(tags));
     }
   }
-  
+
   // Rango de fechas
   static Future<Map<String, String>?> getDateRange() async {
     final start = await _storage.read(key: _keyDateRangeStart);
@@ -58,26 +58,29 @@ class PreferencesService {
     if (start == null || end == null) return null;
     return {'start': start, 'end': end};
   }
-  
+
   static Future<void> setDateRange(DateTime? start, DateTime? end) async {
     if (start == null || end == null) {
       await _storage.delete(key: _keyDateRangeStart);
       await _storage.delete(key: _keyDateRangeEnd);
     } else {
-      await _storage.write(key: _keyDateRangeStart, value: start.toIso8601String());
+      await _storage.write(
+        key: _keyDateRangeStart,
+        value: start.toIso8601String(),
+      );
       await _storage.write(key: _keyDateRangeEnd, value: end.toIso8601String());
     }
   }
-  
+
   // Opción de ordenamiento
   static Future<String?> getSortOption() async {
     return await _storage.read(key: _keySortOption);
   }
-  
+
   static Future<void> setSortOption(String option) async {
     await _storage.write(key: _keySortOption, value: option);
   }
-  
+
   // Búsquedas recientes (máximo 10)
   static Future<List<String>> getRecentSearches() async {
     final json = await _storage.read(key: _keyRecentSearches);
@@ -88,36 +91,36 @@ class PreferencesService {
       return [];
     }
   }
-  
+
   static Future<void> addRecentSearch(String query) async {
     if (query.trim().isEmpty) return;
-    
+
     final recent = await getRecentSearches();
     recent.remove(query); // Eliminar si ya existe
     recent.insert(0, query); // Agregar al inicio
-    
+
     // Mantener solo los últimos 10
     if (recent.length > 10) {
       recent.removeRange(10, recent.length);
     }
-    
+
     await _storage.write(key: _keyRecentSearches, value: jsonEncode(recent));
   }
-  
+
   static Future<void> clearRecentSearches() async {
     await _storage.delete(key: _keyRecentSearches);
   }
-  
+
   // Modo compacto
   static Future<bool> getCompactMode() async {
     final value = await _storage.read(key: _keyCompactMode);
     return value == 'true';
   }
-  
+
   static Future<void> setCompactMode(bool compact) async {
     await _storage.write(key: _keyCompactMode, value: compact.toString());
   }
-  
+
   // Caché de notas (por uid)
   static Future<Map<String, dynamic>?> getNoteCache(String uid) async {
     final json = await _storage.read(key: '$_keyNoteCache$uid');
@@ -134,8 +137,11 @@ class PreferencesService {
       return null;
     }
   }
-  
-  static Future<void> setNoteCache(String uid, List<Map<String, dynamic>> notes) async {
+
+  static Future<void> setNoteCache(
+    String uid,
+    List<Map<String, dynamic>> notes,
+  ) async {
     // Convertir Timestamp a String para serialización
     final serializedNotes = notes.map((note) {
       final serialized = Map<String, dynamic>.from(note);
@@ -145,11 +151,15 @@ class PreferencesService {
         if (createdAt is DateTime) {
           serialized['createdAt'] = createdAt.toIso8601String();
         } else if (createdAt is int) {
-          serialized['createdAt'] = DateTime.fromMillisecondsSinceEpoch(createdAt).toIso8601String();
+          serialized['createdAt'] = DateTime.fromMillisecondsSinceEpoch(
+            createdAt,
+          ).toIso8601String();
         } else {
           // Si es Timestamp de Firestore, tiene toDate()
           try {
-            serialized['createdAt'] = (createdAt as dynamic).toDate().toIso8601String();
+            serialized['createdAt'] = (createdAt as dynamic)
+                .toDate()
+                .toIso8601String();
           } catch (e) {
             serialized['createdAt'] = DateTime.now().toIso8601String();
           }
@@ -161,10 +171,14 @@ class PreferencesService {
         if (updatedAt is DateTime) {
           serialized['updatedAt'] = updatedAt.toIso8601String();
         } else if (updatedAt is int) {
-          serialized['updatedAt'] = DateTime.fromMillisecondsSinceEpoch(updatedAt).toIso8601String();
+          serialized['updatedAt'] = DateTime.fromMillisecondsSinceEpoch(
+            updatedAt,
+          ).toIso8601String();
         } else {
           try {
-            serialized['updatedAt'] = (updatedAt as dynamic).toDate().toIso8601String();
+            serialized['updatedAt'] = (updatedAt as dynamic)
+                .toDate()
+                .toIso8601String();
           } catch (e) {
             serialized['updatedAt'] = DateTime.now().toIso8601String();
           }
@@ -172,18 +186,18 @@ class PreferencesService {
       }
       return serialized;
     }).toList();
-    
+
     final data = {
       'timestamp': DateTime.now().toIso8601String(),
       'notes': serializedNotes,
     };
     await _storage.write(key: '$_keyNoteCache$uid', value: jsonEncode(data));
   }
-  
+
   static Future<void> clearNoteCache(String uid) async {
     await _storage.delete(key: '$_keyNoteCache$uid');
   }
-  
+
   // Limpiar todas las preferencias
   static Future<void> clearAll() async {
     await _storage.deleteAll();
@@ -208,7 +222,9 @@ class PreferencesService {
   static Future<void> setUserWords(List<Map<String, dynamic>> words) async {
     // Mantener un límite razonable para no crecer sin control
     const maxItems = 200;
-    final trimmed = words.length > maxItems ? words.sublist(0, maxItems) : words;
+    final trimmed = words.length > maxItems
+        ? words.sublist(0, maxItems)
+        : words;
     await _storage.write(key: _keyUserWords, value: jsonEncode(trimmed));
   }
 
@@ -219,10 +235,14 @@ class PreferencesService {
 
     final list = await getUserWords();
     // Búsqueda case-insensitive por consistencia
-    final idx = list.indexWhere((w) => (w['text']?.toString().toLowerCase() ?? '') == text.toLowerCase());
+    final idx = list.indexWhere(
+      (w) => (w['text']?.toString().toLowerCase() ?? '') == text.toLowerCase(),
+    );
     if (idx >= 0) {
       final current = Map<String, dynamic>.from(list[idx]);
-      final freq = (current['freq'] is int) ? current['freq'] as int : int.tryParse('${current['freq']}') ?? 0;
+      final freq = (current['freq'] is int)
+          ? current['freq'] as int
+          : int.tryParse('${current['freq']}') ?? 0;
       current['freq'] = (freq + 1);
       current['lastUsed'] = DateTime.now().toIso8601String();
       list[idx] = current;
@@ -236,23 +256,31 @@ class PreferencesService {
 
     // Ordenar por frecuencia y recencia
     list.sort((a, b) {
-      final fa = (a['freq'] is int) ? a['freq'] as int : int.tryParse('${a['freq']}') ?? 0;
-      final fb = (b['freq'] is int) ? b['freq'] as int : int.tryParse('${b['freq']}') ?? 0;
+      final fa = (a['freq'] is int)
+          ? a['freq'] as int
+          : int.tryParse('${a['freq']}') ?? 0;
+      final fb = (b['freq'] is int)
+          ? b['freq'] as int
+          : int.tryParse('${b['freq']}') ?? 0;
       if (fb != fa) return fb.compareTo(fa);
-      final da = DateTime.tryParse('${a['lastUsed']}') ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final db = DateTime.tryParse('${b['lastUsed']}') ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final da =
+          DateTime.tryParse('${a['lastUsed']}') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      final db =
+          DateTime.tryParse('${b['lastUsed']}') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
       return db.compareTo(da);
     });
 
     await setUserWords(list);
   }
-  
+
   // ==================== TEMA E IDIOMA ====================
-  
+
   /// Obtiene el modo de tema guardado (light, dark, system)
   static Future<ThemeMode> getThemeMode() async {
     final String? themeModeString = await _storage.read(key: _keyThemeMode);
-    
+
     switch (themeModeString) {
       case 'light':
         return ThemeMode.light;
@@ -263,11 +291,11 @@ class PreferencesService {
         return ThemeMode.system;
     }
   }
-  
+
   /// Guarda el modo de tema
   static Future<void> setThemeMode(ThemeMode themeMode) async {
     String themeModeString;
-    
+
     switch (themeMode) {
       case ThemeMode.light:
         themeModeString = 'light';
@@ -279,14 +307,14 @@ class PreferencesService {
         themeModeString = 'system';
         break;
     }
-    
+
     await _storage.write(key: _keyThemeMode, value: themeModeString);
   }
-  
+
   /// Obtiene el idioma guardado
   static Future<Locale> getLocale() async {
     final String? localeString = await _storage.read(key: _keyLocale);
-    
+
     switch (localeString) {
       case 'en':
         return const Locale('en', '');
@@ -295,12 +323,12 @@ class PreferencesService {
         return const Locale('es', '');
     }
   }
-  
+
   /// Guarda el idioma
   static Future<void> setLocale(Locale locale) async {
     await _storage.write(key: _keyLocale, value: locale.languageCode);
   }
-  
+
   /// Obtiene el modo de tema como string para la UI
   static Future<String> getThemeModeString() async {
     final themeMode = await getThemeMode();
@@ -313,7 +341,7 @@ class PreferencesService {
         return 'Sistema';
     }
   }
-  
+
   /// Obtiene el idioma como string para la UI
   static Future<String> getLanguageString() async {
     final locale = await getLocale();

@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
+import 'package:flutter_quill/flutter_quill.dart'
+    show FlutterQuillLocalizations;
 
 import 'firebase_options.dart';
 import 'auth/login_page.dart';
@@ -29,7 +31,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Object? initError;
   try {
-    final isMobileOrWeb = kIsWeb ||
+    final isMobileOrWeb =
+        kIsWeb ||
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS ||
@@ -42,7 +45,7 @@ Future<void> main() async {
   } catch (e) {
     initError = e;
   }
-  
+
   runApp(MyApp(initError: initError));
 }
 
@@ -63,13 +66,13 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _loadPreferences();
-    
+
     // Inicializar AppService con las funciones de cambio
     AppService.initialize(
       onChangeTheme: (mode) {},
       onChangeLocale: changeLocale,
     );
-    
+
     // Register ToastService context after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final context = _navigatorKey.currentContext;
@@ -82,7 +85,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _loadPreferences() async {
     final locale = await PreferencesService.getLocale();
-    
+
     if (mounted) {
       setState(() {
         _locale = locale;
@@ -105,7 +108,7 @@ class _MyAppState extends State<MyApp> {
       title: 'Nootes',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-  themeMode: ThemeMode.light,
+      themeMode: ThemeMode.light,
       locale: _locale,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -135,20 +138,25 @@ class _MyAppState extends State<MyApp> {
         if (name.startsWith('/p/')) {
           final token = name.substring(3);
           if (token.isNotEmpty) {
-            return MaterialPageRoute(builder: (_) => PublicNotePage(token: token));
+            return MaterialPageRoute(
+              builder: (_) => PublicNotePage(token: token),
+            );
           }
         }
         if (name == '/note') {
           final arguments = settings.arguments as Map<String, dynamic>?;
           if (arguments != null && arguments['noteId'] != null) {
             return MaterialPageRoute(
-              builder: (_) => NoteEditorPage(noteId: arguments['noteId'] as String),
+              builder: (_) =>
+                  NoteEditorPage(noteId: arguments['noteId'] as String),
             );
           }
         }
         return null;
       },
-      home: widget.initError == null ? const AuthGate() : SetupHelpPage(error: widget.initError!),
+      home: widget.initError == null
+          ? const AuthGate()
+          : SetupHelpPage(error: widget.initError!),
     );
   }
 }
@@ -161,7 +169,7 @@ class AuthGate extends StatelessWidget {
     if (defaultTargetPlatform == TargetPlatform.linux && !kIsWeb) {
       return const UnsupportedAuthPage();
     }
-    
+
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
@@ -182,7 +190,7 @@ class AuthGate extends StatelessWidget {
       },
     );
   }
-  
+
   void _initializePresenceService() async {
     try {
       await PresenceService().initialize();
@@ -190,7 +198,7 @@ class AuthGate extends StatelessWidget {
       debugPrint('❌ Error inicializando PresenceService: $e');
     }
   }
-  
+
   void _cleanupPresenceService() async {
     try {
       await PresenceService().goOffline();
@@ -206,18 +214,12 @@ class UnsupportedAuthPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Authentication Not Supported'),
-      ),
+      appBar: AppBar(title: const Text('Authentication Not Supported')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.orange,
-            ),
+            const Icon(Icons.error_outline, size: 64, color: Colors.orange),
             const SizedBox(height: 16),
             const Text(
               'Authentication Not Supported on Linux',
@@ -233,7 +235,8 @@ class UnsupportedAuthPage extends StatelessWidget {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () async {
-                const url = 'https://nootes-app.web.app'; // Replace with your web app URL
+                const url =
+                    'https://nootes-app.web.app'; // Replace with your web app URL
                 if (await canLaunchUrl(Uri.parse(url))) {
                   await launchUrl(Uri.parse(url));
                 }
@@ -255,18 +258,12 @@ class SetupHelpPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Setup Error'),
-      ),
+      appBar: AppBar(title: const Text('Setup Error')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red,
-            ),
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
             const Text(
               'Firebase Setup Error',
@@ -274,10 +271,7 @@ class SetupHelpPage extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            Text(
-              'Error: $error',
-              textAlign: TextAlign.center,
-            ),
+            Text('Error: $error', textAlign: TextAlign.center),
             const SizedBox(height: 24),
             const Text(
               'Please check your Firebase configuration and try again.',

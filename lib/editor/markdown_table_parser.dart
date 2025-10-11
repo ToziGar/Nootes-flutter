@@ -97,7 +97,9 @@ class MarkdownTableParser {
   /// Verifica si una línea es parte de una tabla Markdown
   static bool _isTableLine(String line) {
     final trimmed = line.trim();
-    return trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.contains('|');
+    return trimmed.startsWith('|') &&
+        trimmed.endsWith('|') &&
+        trimmed.contains('|');
   }
 
   /// Parsea una fila de tabla y devuelve las celdas
@@ -165,7 +167,7 @@ class MarkdownTableParser {
   /// Añade una columna a la izquierda de la posición especificada
   static ParsedTable addColumnLeft(ParsedTable table, int colIndex) {
     final safeIndex = colIndex.clamp(0, table.columnCount);
-    
+
     // Actualizar headers
     final newHeaders = table.headers.map((row) {
       final newRow = List<String>.from(row);
@@ -199,7 +201,7 @@ class MarkdownTableParser {
   /// Añade una columna a la derecha de la posición especificada
   static ParsedTable addColumnRight(ParsedTable table, int colIndex) {
     final safeIndex = (colIndex + 1).clamp(0, table.columnCount);
-    
+
     // Actualizar headers
     final newHeaders = table.headers.map((row) {
       final newRow = List<String>.from(row);
@@ -234,7 +236,7 @@ class MarkdownTableParser {
   static ParsedTable? deleteRow(ParsedTable table, int rowIndex) {
     if (rowIndex < 0 || rowIndex >= table.rows.length) return table;
     if (table.rows.length <= 1) return null; // No eliminar la última fila
-    
+
     final newRows = List<List<String>>.from(table.rows);
     newRows.removeAt(rowIndex);
 
@@ -285,7 +287,7 @@ class MarkdownTableParser {
   /// Mueve una fila hacia arriba
   static ParsedTable moveRowUp(ParsedTable table, int rowIndex) {
     if (rowIndex <= 0 || rowIndex >= table.rows.length) return table;
-    
+
     final newRows = List<List<String>>.from(table.rows);
     final temp = newRows[rowIndex];
     newRows[rowIndex] = newRows[rowIndex - 1];
@@ -303,7 +305,7 @@ class MarkdownTableParser {
   /// Mueve una fila hacia abajo
   static ParsedTable moveRowDown(ParsedTable table, int rowIndex) {
     if (rowIndex < 0 || rowIndex >= table.rows.length - 1) return table;
-    
+
     final newRows = List<List<String>>.from(table.rows);
     final temp = newRows[rowIndex];
     newRows[rowIndex] = newRows[rowIndex + 1];

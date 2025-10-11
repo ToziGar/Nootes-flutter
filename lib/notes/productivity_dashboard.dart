@@ -34,42 +34,43 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
     final today = DateTime(now.year, now.month, now.day);
     final weekAgo = today.subtract(const Duration(days: 7));
     final monthAgo = today.subtract(const Duration(days: 30));
-    
+
     // Notas creadas
     int notesToday = 0;
     int notesThisWeek = 0;
     int notesThisMonth = 0;
-    
+
     // Palabras escritas
     int totalWords = 0;
     int wordsToday = 0;
     int wordsThisWeek = 0;
-    
+
     // Racha de escritura (días consecutivos)
     Set<String> daysWritten = {};
-    
+
     // Notas por día (últimos 30 días)
     Map<String, int> notesByDay = {};
-    
+
     // Tags más usados
     Map<String, int> tagFrequency = {};
-    
+
     // Tiempo promedio entre notas
     List<DateTime> createdDates = [];
-    
+
     for (var note in notes) {
       final createdAt = note['createdAt'];
       DateTime? date;
-      
+
       if (createdAt is String) {
         date = DateTime.tryParse(createdAt);
       }
-      
+
       if (date != null) {
         createdDates.add(date);
         final dateOnly = DateTime(date.year, date.month, date.day);
-        final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-        
+        final dateKey =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
         // Contar notas por período
         if (dateOnly.isAtSameMomentAs(today) || dateOnly.isAfter(today)) {
           notesToday++;
@@ -81,16 +82,16 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
           notesThisMonth++;
           notesByDay[dateKey] = (notesByDay[dateKey] ?? 0) + 1;
         }
-        
+
         daysWritten.add(dateKey);
       }
-      
+
       // Contar palabras
       final content = note['content']?.toString() ?? '';
       final title = note['title']?.toString() ?? '';
       final words = _countWords(content) + _countWords(title);
       totalWords += words;
-      
+
       if (date != null) {
         final dateOnly = DateTime(date.year, date.month, date.day);
         if (dateOnly.isAtSameMomentAs(today) || dateOnly.isAfter(today)) {
@@ -100,7 +101,7 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
           wordsThisWeek += words;
         }
       }
-      
+
       // Contar tags
       final tags = note['tags'] as List?;
       if (tags != null) {
@@ -111,22 +112,27 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
         }
       }
     }
-    
+
     // Calcular racha actual
     int currentStreak = 0;
     int longestStreak = 0;
     int tempStreak = 0;
-    
+
     final sortedDays = daysWritten.toList()..sort();
     DateTime? lastDate;
-    
+
     for (var i = sortedDays.length - 1; i >= 0; i--) {
       final parts = sortedDays[i].split('-');
-      final date = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-      
+      final date = DateTime(
+        int.parse(parts[0]),
+        int.parse(parts[1]),
+        int.parse(parts[2]),
+      );
+
       if (lastDate == null) {
         tempStreak = 1;
-        if (date.isAfter(today.subtract(const Duration(days: 1))) || date.isAtSameMomentAs(today)) {
+        if (date.isAfter(today.subtract(const Duration(days: 1))) ||
+            date.isAtSameMomentAs(today)) {
           currentStreak = 1;
         }
       } else {
@@ -140,16 +146,16 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
           currentStreak = 0;
         }
       }
-      
+
       lastDate = date;
     }
-    
+
     if (tempStreak > longestStreak) longestStreak = tempStreak;
-    
+
     // Top tags
     final topTags = tagFrequency.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    
+
     return {
       'totalNotes': notes.length,
       'notesToday': notesToday,
@@ -158,7 +164,9 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
       'totalWords': totalWords,
       'wordsToday': wordsToday,
       'wordsThisWeek': wordsThisWeek,
-      'avgWordsPerNote': notes.isEmpty ? 0 : (totalWords / notes.length).round(),
+      'avgWordsPerNote': notes.isEmpty
+          ? 0
+          : (totalWords / notes.length).round(),
       'currentStreak': currentStreak,
       'longestStreak': longestStreak,
       'notesByDay': notesByDay,
@@ -196,7 +204,7 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
             if (snapshot.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
             }
-            
+
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -224,7 +232,7 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final crossAxisCount = constraints.maxWidth > 800 ? 4 : 2;
-        
+
         return GridView.count(
           crossAxisCount: crossAxisCount,
           shrinkWrap: true,
@@ -270,7 +278,7 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
   Widget _buildStreakSection() {
     final currentStreak = _stats['currentStreak'] ?? 0;
     final longestStreak = _stats['longestStreak'] ?? 0;
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -279,7 +287,10 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
           children: [
             Row(
               children: [
-                const Icon(Icons.local_fire_department_rounded, color: Color(0xFFEF4444)),
+                const Icon(
+                  Icons.local_fire_department_rounded,
+                  color: Color(0xFFEF4444),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Racha de Escritura',
@@ -317,14 +328,21 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.tips_and_updates_rounded, color: Color(0xFFEF4444), size: 20),
+                    const Icon(
+                      Icons.tips_and_updates_rounded,
+                      color: Color(0xFFEF4444),
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         currentStreak >= 7
                             ? '¡Increíble! Llevas una semana escribiendo. ¡Sigue así!'
                             : '¡Sigue escribiendo para mantener tu racha!',
-                        style: const TextStyle(fontSize: 12, color: Colors.white70),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white70,
+                        ),
                       ),
                     ),
                   ],
@@ -391,11 +409,18 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.auto_graph_rounded, color: Color(0xFF06B6D4), size: 20),
+                  const Icon(
+                    Icons.auto_graph_rounded,
+                    color: Color(0xFF06B6D4),
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Promedio: ${_stats['avgWordsPerNote'] ?? 0} palabras/nota',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -408,11 +433,11 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
 
   Widget _buildHeatmap() {
     final notesByDay = _stats['notesByDay'] as Map<String, int>? ?? {};
-    
+
     if (notesByDay.isEmpty) {
       return const SizedBox.shrink();
     }
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -421,7 +446,10 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
           children: [
             Row(
               children: [
-                const Icon(Icons.calendar_view_month_rounded, color: Color(0xFF8B5CF6)),
+                const Icon(
+                  Icons.calendar_view_month_rounded,
+                  color: Color(0xFF8B5CF6),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Actividad (Últimos 30 días)',
@@ -439,11 +467,11 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
 
   Widget _buildTopTags() {
     final topTags = _stats['topTags'] as List<MapEntry<String, int>>? ?? [];
-    
+
     if (topTags.isEmpty) {
       return const SizedBox.shrink();
     }
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -464,7 +492,7 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
             ...topTags.map((entry) {
               final maxCount = topTags.first.value;
               final percentage = (entry.value / maxCount * 100).round();
-              
+
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Column(
@@ -479,7 +507,10 @@ class _ProductivityDashboardState extends State<ProductivityDashboard> {
                         ),
                         Text(
                           '${entry.value} notas',
-                          style: const TextStyle(fontSize: 12, color: Colors.white70),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white70,
+                          ),
                         ),
                       ],
                     ),
@@ -529,16 +560,16 @@ class _MetricCard extends StatelessWidget {
             const Spacer(),
             Text(
               value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             Text(
               title,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.white70,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.white70),
             ),
             Text(
               subtitle,
@@ -655,18 +686,23 @@ class _HeatmapGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final days = List.generate(30, (i) => today.subtract(Duration(days: 29 - i)));
-    
+    final days = List.generate(
+      30,
+      (i) => today.subtract(Duration(days: 29 - i)),
+    );
+
     return Wrap(
       spacing: 4,
       runSpacing: 4,
       children: days.map((day) {
-        final key = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+        final key =
+            '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
         final count = data[key] ?? 0;
         final intensity = count == 0 ? 0.0 : (count / 5).clamp(0.2, 1.0);
-        
+
         return Tooltip(
-          message: '${day.day}/${day.month}: $count ${count == 1 ? 'nota' : 'notas'}',
+          message:
+              '${day.day}/${day.month}: $count ${count == 1 ? 'nota' : 'notas'}',
           child: Container(
             width: 24,
             height: 24,

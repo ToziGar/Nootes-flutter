@@ -23,7 +23,8 @@ class ShareDialog extends StatefulWidget {
   State<ShareDialog> createState() => _ShareDialogState();
 }
 
-class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin {
+class _ShareDialogState extends State<ShareDialog>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _recipientController = TextEditingController();
   final _messageController = TextEditingController();
@@ -36,7 +37,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
   String? _publicToken;
   bool _publicBusy = false;
   bool _showMessage = false;
-  
+
   // Autocomplete
   List<Map<String, dynamic>> _suggestions = [];
   bool _showSuggestions = false;
@@ -52,7 +53,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
   void initState() {
     super.initState();
     _loadExistingSharings();
-    
+
     // Inicializar animaciones
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -62,23 +63,17 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
-    
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOut,
-    ));
-    
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
+
     // Iniciar animaciones
     _slideController.forward();
     _fadeController.forward();
@@ -95,21 +90,25 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
 
   Future<void> _loadExistingSharings() async {
     try {
-      // Simulación de carga de comparticiones existentes
-      // Aquí iría la llamada real al servicio
-      await Future.delayed(const Duration(milliseconds: 800));
-      
-      setState(() {
-        _sharedByMe = []; // Lista vacía por ahora
-        _loadingExisting = false;
-      });
+      final items = await SharingService().getSharingsForItem(
+        itemId: widget.itemId,
+        type: widget.itemType,
+      );
+      if (mounted) {
+        setState(() {
+          _sharedByMe = items;
+          _loadingExisting = false;
+        });
+      }
     } catch (e) {
-      setState(() => _loadingExisting = false);
+      if (mounted) setState(() => _loadingExisting = false);
     }
 
     if (widget.itemType == SharedItemType.note) {
       try {
-        final token = await SharingService().getPublicLinkToken(noteId: widget.itemId);
+        final token = await SharingService().getPublicLinkToken(
+          noteId: widget.itemId,
+        );
         setState(() => _publicToken = token);
       } catch (e) {
         // Ignorar errores de enlace público
@@ -151,9 +150,15 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
       final clean = query.startsWith('@') ? query.substring(1) : query;
       if (clean.isNotEmpty) {
         try {
-          final handles = await FirestoreService.instance.listHandles(limit: 50);
+          final handles = await FirestoreService.instance.listHandles(
+            limit: 50,
+          );
           final matched = handles
-              .where((h) => (h['username']?.toString() ?? '').toLowerCase().startsWith(clean.toLowerCase()))
+              .where(
+                (h) => (h['username']?.toString() ?? '')
+                    .toLowerCase()
+                    .startsWith(clean.toLowerCase()),
+              )
               .take(5)
               .toList();
           for (final h in matched) {
@@ -175,19 +180,26 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
       // 3) Fallback: list few recent profiles and filter by name prefix
       if (suggestions.isEmpty) {
         try {
-          final profiles = await FirestoreService.instance.listUserProfiles(limit: 50);
+          final profiles = await FirestoreService.instance.listUserProfiles(
+            limit: 50,
+          );
           final matched = profiles
-              .where((u) => ((u['fullName'] ?? u['username'] ?? u['email'] ?? '')
-                      .toString()
-                      .toLowerCase())
-                  .startsWith(query.toLowerCase()))
+              .where(
+                (u) =>
+                    ((u['fullName'] ?? u['username'] ?? u['email'] ?? '')
+                            .toString()
+                            .toLowerCase())
+                        .startsWith(query.toLowerCase()),
+              )
               .take(5)
-              .map((u) => {
-                    'uid': u['id'],
-                    'email': u['email'],
-                    'fullName': u['fullName'],
-                    'username': u['username'],
-                  })
+              .map(
+                (u) => {
+                  'uid': u['id'],
+                  'email': u['email'],
+                  'fullName': u['fullName'],
+                  'username': u['username'],
+                },
+              )
               .toList();
           suggestions.addAll(matched);
         } catch (_) {}
@@ -205,7 +217,9 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
       setState(() {
         _suggestions = deduped;
         _showSuggestions = deduped.isNotEmpty;
-        _errorMessage = deduped.isEmpty ? 'No se encontraron usuarios que coincidan' : null;
+        _errorMessage = deduped.isEmpty
+            ? 'No se encontraron usuarios que coincidan'
+            : null;
       });
     } catch (e) {
       setState(() {
@@ -254,7 +268,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
           permission: permission,
           message: message,
         );
-        
+
         if (success) {
           ToastService.success('Nota compartida exitosamente');
         } else {
@@ -273,22 +287,28 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
 
       if (mounted) {
         Navigator.of(context).pop(true);
-        ToastService.success('${widget.itemType == SharedItemType.note ? 'Nota' : 'Carpeta'} compartida exitosamente');
+        ToastService.success(
+          '${widget.itemType == SharedItemType.note ? 'Nota' : 'Carpeta'} compartida exitosamente',
+        );
       }
     } catch (e) {
       final errorMsg = e.toString().toLowerCase();
       String userFriendlyMsg = 'Error al compartir';
-      
+
       if (errorMsg.contains('permission') || errorMsg.contains('permisos')) {
-        userFriendlyMsg = 'Permisos insuficientes. Verifica que tengas acceso a este elemento.';
-      } else if (errorMsg.contains('not found') || errorMsg.contains('no encontr')) {
+        userFriendlyMsg =
+            'Permisos insuficientes. Verifica que tengas acceso a este elemento.';
+      } else if (errorMsg.contains('not found') ||
+          errorMsg.contains('no encontr')) {
         userFriendlyMsg = 'El elemento no fue encontrado o ya no existe.';
-      } else if (errorMsg.contains('network') || errorMsg.contains('connection')) {
+      } else if (errorMsg.contains('network') ||
+          errorMsg.contains('connection')) {
         userFriendlyMsg = 'Error de conexión. Verifica tu internet.';
-      } else if (errorMsg.contains('already shared') || errorMsg.contains('ya está compartida')) {
+      } else if (errorMsg.contains('already shared') ||
+          errorMsg.contains('ya está compartida')) {
         userFriendlyMsg = 'Este elemento ya está compartido con este usuario.';
       }
-      
+
       ToastService.error(userFriendlyMsg);
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -311,10 +331,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: AppColors.borderColor,
-                width: 1,
-              ),
+              border: Border.all(color: AppColors.borderColor, width: 1),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.3),
@@ -327,9 +344,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildHeader(),
-                Expanded(
-                  child: _buildContent(),
-                ),
+                Expanded(child: _buildContent()),
               ],
             ),
           ),
@@ -343,10 +358,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppColors.primary,
-            AppColors.primaryLight,
-          ],
+          colors: [AppColors.primary, AppColors.primaryLight],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -364,7 +376,10 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
               decoration: BoxDecoration(
                 color: AppColors.textPrimary.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.textPrimary.withValues(alpha: 0.2), width: 2),
+                border: Border.all(
+                  color: AppColors.textPrimary.withValues(alpha: 0.2),
+                  width: 2,
+                ),
               ),
               child: Icon(
                 widget.itemType == SharedItemType.note
@@ -391,7 +406,10 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.textPrimary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -417,7 +435,11 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
             ),
             child: IconButton(
               onPressed: () => Navigator.of(context).pop(),
-              icon: Icon(Icons.close_rounded, color: AppColors.textPrimary, size: 24),
+              icon: Icon(
+                Icons.close_rounded,
+                color: AppColors.textPrimary,
+                size: 24,
+              ),
               padding: const EdgeInsets.all(12),
             ),
           ),
@@ -435,7 +457,8 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_loadingExisting) _buildLoadingIndicator(),
-            if (!_loadingExisting && _sharedByMe.isNotEmpty) _buildExistingShares(),
+            if (!_loadingExisting && _sharedByMe.isNotEmpty)
+              _buildExistingShares(),
             if (!_loadingExisting && _sharedByMe.isEmpty) _buildNoSharesHint(),
             if (widget.itemType == SharedItemType.note) _buildPublicLinkCard(),
             _buildNewShareForm(),
@@ -505,7 +528,11 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
                     color: AppColors.success.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(Icons.people_alt_rounded, size: 24, color: AppColors.success),
+                  child: Icon(
+                    Icons.people_alt_rounded,
+                    size: 24,
+                    color: AppColors.success,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -554,7 +581,10 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
             backgroundColor: AppColors.primary.withValues(alpha: 0.1),
             child: Text(
               item.recipientEmail.substring(0, 1).toUpperCase(),
-              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -566,16 +596,117 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
                   item.recipientEmail,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                Text(
-                  '${item.permission.name} • ${item.status.name}',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        item.permission.name,
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.textSecondary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        item.status.name,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          IconButton(
-            onPressed: () => _revokeSharing(item.id),
-            icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+          PopupMenuButton<String>(
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(
+                value: 'perm_read',
+                child: ListTile(
+                  leading: Icon(Icons.visibility_rounded),
+                  title: Text('Cambiar a lectura'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'perm_comment',
+                child: ListTile(
+                  leading: Icon(Icons.mode_comment_rounded),
+                  title: Text('Cambiar a comentarios'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'perm_edit',
+                child: ListTile(
+                  leading: Icon(Icons.edit_rounded),
+                  title: Text('Cambiar a edición'),
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'revoke_delete',
+                child: ListTile(
+                  leading: Icon(Icons.block_rounded, color: Colors.red),
+                  title: Text(
+                    'Revocar y eliminar',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ),
+            ],
+            onSelected: (v) async {
+              try {
+                switch (v) {
+                  case 'perm_read':
+                    await SharingService().updateSharingPermission(
+                      item.id,
+                      PermissionLevel.read,
+                    );
+                    break;
+                  case 'perm_comment':
+                    await SharingService().updateSharingPermission(
+                      item.id,
+                      PermissionLevel.comment,
+                    );
+                    break;
+                  case 'perm_edit':
+                    await SharingService().updateSharingPermission(
+                      item.id,
+                      PermissionLevel.edit,
+                    );
+                    break;
+                  case 'revoke_delete':
+                    // Use safe path to ensure deletion regardless of transient states
+                    await SharingService().safeDeleteSharing(item.id);
+                    break;
+                }
+                await _loadExistingSharings();
+                if (mounted) ToastService.success('Actualizado');
+              } catch (e) {
+                if (mounted) ToastService.error('Error: $e');
+              }
+            },
           ),
         ],
       ),
@@ -633,7 +764,11 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
                   color: AppColors.secondary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.link_rounded, color: AppColors.secondary, size: 22),
+                child: Icon(
+                  Icons.link_rounded,
+                  color: AppColors.secondary,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -672,7 +807,9 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
               decoration: BoxDecoration(
                 color: AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.borderColor.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppColors.borderColor.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 children: [
@@ -708,7 +845,9 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
         setState(() => _publicToken = null);
         ToastService.success('Enlace público deshabilitado');
       } else {
-        final token = await SharingService().generatePublicLink(noteId: widget.itemId);
+        final token = await SharingService().generatePublicLink(
+          noteId: widget.itemId,
+        );
         setState(() => _publicToken = token);
         ToastService.success('Enlace público generado');
       }
@@ -721,7 +860,9 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
 
   Future<void> _copyPublicLink() async {
     if (_publicToken != null) {
-      await Clipboard.setData(ClipboardData(text: 'https://nootes.app/public/$_publicToken'));
+      await Clipboard.setData(
+        ClipboardData(text: 'https://nootes.app/public/$_publicToken'),
+      );
       ToastService.success('Enlace copiado');
     }
   }
@@ -730,10 +871,7 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppColors.surface,
-            AppColors.surfaceLight,
-          ],
+          colors: [AppColors.surface, AppColors.surfaceLight],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -780,7 +918,11 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
               color: AppColors.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(Icons.person_add_rounded, color: AppColors.primary, size: 24),
+            child: Icon(
+              Icons.person_add_rounded,
+              color: AppColors.primary,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -819,20 +961,20 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
           color: AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: _foundUser != null 
+            color: _foundUser != null
                 ? AppColors.success
                 : _errorMessage != null
-                    ? AppColors.danger
-                    : AppColors.borderColor.withValues(alpha: 0.4),
+                ? AppColors.danger
+                : AppColors.borderColor.withValues(alpha: 0.4),
             width: _foundUser != null || _errorMessage != null ? 2.5 : 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: _foundUser != null 
+              color: _foundUser != null
                   ? AppColors.success.withValues(alpha: 0.2)
                   : _errorMessage != null
-                      ? AppColors.danger.withValues(alpha: 0.2)
-                      : Colors.black.withValues(alpha: 0.06),
+                  ? AppColors.danger.withValues(alpha: 0.2)
+                  : Colors.black.withValues(alpha: 0.06),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -846,24 +988,24 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: _foundUser != null 
+                  color: _foundUser != null
                       ? AppColors.success.withValues(alpha: 0.15)
                       : _errorMessage != null
-                          ? AppColors.danger.withValues(alpha: 0.15)
-                          : AppColors.primary.withValues(alpha: 0.1),
+                      ? AppColors.danger.withValues(alpha: 0.15)
+                      : AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
-                  _foundUser != null 
-                      ? Icons.check_circle_rounded 
+                  _foundUser != null
+                      ? Icons.check_circle_rounded
                       : _errorMessage != null
-                          ? Icons.error_outline_rounded
-                          : Icons.search_rounded,
-                  color: _foundUser != null 
-                      ? AppColors.success 
+                      ? Icons.error_outline_rounded
+                      : Icons.search_rounded,
+                  color: _foundUser != null
+                      ? AppColors.success
                       : _errorMessage != null
-                          ? AppColors.danger
-                          : AppColors.primary,
+                      ? AppColors.danger
+                      : AppColors.primary,
                   size: 24,
                 ),
               ),
@@ -910,7 +1052,9 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
                     height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.primary,
+                      ),
                     ),
                   ),
                 )
@@ -933,7 +1077,9 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
                       color: AppColors.textSecondary,
                     ),
                     style: IconButton.styleFrom(
-                      backgroundColor: AppColors.textSecondary.withValues(alpha: 0.1),
+                      backgroundColor: AppColors.textSecondary.withValues(
+                        alpha: 0.1,
+                      ),
                       padding: const EdgeInsets.all(8),
                       minimumSize: const Size(36, 36),
                     ),
@@ -975,7 +1121,8 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
             subtitle: Text(suggestion['email'] ?? ''),
             onTap: () {
               setState(() {
-                _recipientController.text = suggestion['email'] ?? suggestion['username'] ?? '';
+                _recipientController.text =
+                    suggestion['email'] ?? suggestion['username'] ?? '';
                 _foundUser = suggestion;
                 _showSuggestions = false;
                 _suggestions = [];
@@ -1033,8 +1180,13 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _foundUser!['fullName'] ?? _foundUser!['username'] ?? 'Usuario',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  _foundUser!['fullName'] ??
+                      _foundUser!['username'] ??
+                      'Usuario',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 Text(
                   _foundUser!['email'] ?? '',
@@ -1120,7 +1272,9 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
               ),
               TextButton.icon(
                 onPressed: () => setState(() => _showMessage = !_showMessage),
-                icon: Icon(_showMessage ? Icons.expand_less : Icons.add_comment_rounded),
+                icon: Icon(
+                  _showMessage ? Icons.expand_less : Icons.add_comment_rounded,
+                ),
                 label: Text(_showMessage ? 'Ocultar' : 'Añadir'),
               ),
             ],
@@ -1172,7 +1326,9 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
                   height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.textPrimary),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.textPrimary,
+                    ),
                   ),
                 )
               : const Text(
@@ -1203,16 +1359,6 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
         return 'Puede ver y comentar';
       case PermissionLevel.edit:
         return 'Puede ver, comentar y editar';
-    }
-  }
-
-  Future<void> _revokeSharing(String shareId) async {
-    try {
-      await SharingService().revokeSharing(shareId);
-      ToastService.success('Acceso revocado');
-      _loadExistingSharings();
-    } catch (e) {
-      ToastService.error('Error al revocar: $e');
     }
   }
 }

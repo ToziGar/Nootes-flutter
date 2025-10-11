@@ -20,11 +20,7 @@ enum ActivityType {
 }
 
 /// Plantillas predefinidas de permisos
-enum PermissionTemplate {
-  viewer,
-  collaborator,
-  editor,
-}
+enum PermissionTemplate { viewer, collaborator, editor }
 
 extension PermissionTemplateExtension on PermissionTemplate {
   String get name {
@@ -146,18 +142,19 @@ class SharedNotesPage extends StatefulWidget {
   State<SharedNotesPage> createState() => _SharedNotesPageState();
 }
 
-class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderStateMixin {
+class _SharedNotesPageState extends State<SharedNotesPage>
+    with TickerProviderStateMixin {
   late TabController _tabController;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  
+
   // Estado
   List<SharedItem> _sharedByMe = [];
   List<SharedItem> _sharedWithMe = [];
   final List<Map<String, dynamic>> _notifications = [];
   int _unreadNotifications = 0;
   bool _isLoading = false;
-  
+
   // Streams para tiempo real
   Stream<QuerySnapshot>? _notificationsStream;
   String _searchQuery = '';
@@ -187,27 +184,25 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
-    
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
+    );
+
     _initializeStreams();
     _loadData();
     _animationController.forward();
   }
-  
+
   void _initializeStreams() {
     final user = AuthService.instance.currentUser;
     if (user == null) return;
-    
+
     // Stream de notificaciones en tiempo real
+    // Ajustado a la ruta de reglas: users/{uid}/notifications
     _notificationsStream = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
         .collection('notifications')
-        .where('userId', isEqualTo: user.uid)
         .orderBy('createdAt', descending: true)
         .limit(50)
         .snapshots();
@@ -224,11 +219,11 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
 
   Future<void> _loadData() async {
     if (mounted) setState(() => _isLoading = true);
-    
+
     try {
-  debugPrint('📊 SharedNotesPage: Iniciando carga de datos...');
+      debugPrint('📊 SharedNotesPage: Iniciando carga de datos...');
       final sharingService = SharingService();
-      
+
       final results = await Future.wait([
         sharingService.getSharedByMe(
           status: _selectedStatus,
@@ -242,7 +237,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         ),
         sharingService.getSharingStats(),
       ]);
-      
+
       var sharedByMe = results[0] as List<SharedItem>;
       var sharedWithMe = results[1] as List<SharedItem>;
       final stats = results[2] as Map<String, int>;
@@ -250,9 +245,11 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       // Aplicar filtros adicionales
       sharedByMe = _applyAdvancedFilters(sharedByMe, true);
       sharedWithMe = _applyAdvancedFilters(sharedWithMe, false);
-      
-  debugPrint('📊 SharedNotesPage: Cargadas ${sharedByMe.length} enviadas, ${sharedWithMe.length} recibidas');
-      
+
+      debugPrint(
+        '📊 SharedNotesPage: Cargadas ${sharedByMe.length} enviadas, ${sharedWithMe.length} recibidas',
+      );
+
       if (mounted) {
         setState(() {
           _sharedByMe = sharedByMe;
@@ -261,7 +258,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         });
       }
     } catch (e) {
-  debugPrint('❌ SharedNotesPage: Error cargando datos - $e');
+      debugPrint('❌ SharedNotesPage: Error cargando datos - $e');
       if (mounted) {
         ToastService.error('Error cargando datos: $e');
       }
@@ -271,7 +268,10 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
   }
 
   /// Aplica filtros avanzados de fecha y usuario
-  List<SharedItem> _applyAdvancedFilters(List<SharedItem> items, bool isSentByMe) {
+  List<SharedItem> _applyAdvancedFilters(
+    List<SharedItem> items,
+    bool isSentByMe,
+  ) {
     var filteredItems = items;
 
     // Filtro por usuario
@@ -286,15 +286,16 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     if (_dateFrom != null || _dateTo != null) {
       filteredItems = filteredItems.where((item) {
         final itemDate = item.createdAt;
-        
+
         if (_dateFrom != null && itemDate.isBefore(_dateFrom!)) {
           return false;
         }
-        
-        if (_dateTo != null && itemDate.isAfter(_dateTo!.add(const Duration(days: 1)))) {
+
+        if (_dateTo != null &&
+            itemDate.isAfter(_dateTo!.add(const Duration(days: 1)))) {
           return false;
         }
-        
+
         return true;
       }).toList();
     }
@@ -319,7 +320,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       } else {
         _selectedItems.add(itemId);
       }
-      
+
       // Si no hay elementos seleccionados, salir del modo de selección
       if (_selectedItems.isEmpty) {
         _isMultiSelectMode = false;
@@ -329,7 +330,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
 
   void _selectAllItems() {
     setState(() {
-      final currentTabItems = _tabController.index == 0 ? _sharedByMe : _sharedWithMe;
+      final currentTabItems = _tabController.index == 0
+          ? _sharedByMe
+          : _sharedWithMe;
       _selectedItems.addAll(currentTabItems.map((item) => item.id));
     });
   }
@@ -365,7 +368,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       pinned: true,
       backgroundColor: AppColors.bg,
       foregroundColor: AppColors.textPrimary,
-      actions: _isMultiSelectMode ? _buildMultiSelectActions() : _buildNormalActions(),
+      actions: _isMultiSelectMode
+          ? _buildMultiSelectActions()
+          : _buildNormalActions(),
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: BoxDecoration(
@@ -422,7 +427,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                             Text(
                               'Gestiona tu contenido colaborativo',
                               style: TextStyle(
-                                color: AppColors.textPrimary.withValues(alpha: 0.8),
+                                color: AppColors.textPrimary.withValues(
+                                  alpha: 0.8,
+                                ),
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -432,9 +439,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Estadísticas
                   if (_stats.isNotEmpty) _buildStatsCards(),
                 ],
@@ -451,7 +458,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             children: [
               // Barra de búsqueda
               _buildSearchBar(),
-              
+
               // Tabs
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -517,7 +524,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                                       minHeight: 16,
                                     ),
                                     child: Text(
-                                      _unreadNotifications > 9 ? '9+' : '$_unreadNotifications',
+                                      _unreadNotifications > 9
+                                          ? '9+'
+                                          : '$_unreadNotifications',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 10,
@@ -594,6 +603,17 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                   dense: true,
                 ),
               ),
+              const PopupMenuItem(
+                value: 'revocar_eliminar',
+                child: ListTile(
+                  leading: Icon(
+                    Icons.delete_forever_rounded,
+                    color: Colors.red,
+                  ),
+                  title: Text('Revocar y eliminar'),
+                  dense: true,
+                ),
+              ),
             ] else ...[
               const PopupMenuItem(
                 value: 'aceptar',
@@ -616,6 +636,17 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                 child: ListTile(
                   leading: Icon(Icons.logout_rounded, color: Colors.orange),
                   title: Text('Salir'),
+                  dense: true,
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'salir_eliminar',
+                child: ListTile(
+                  leading: Icon(
+                    Icons.delete_sweep_rounded,
+                    color: Colors.orange,
+                  ),
+                  title: Text('Salir y eliminar'),
                   dense: true,
                 ),
               ),
@@ -652,14 +683,6 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
           ),
         ),
         const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Total',
-            _sharedByMe.length + _sharedWithMe.length,
-            Icons.analytics_rounded,
-            AppColors.info,
-          ),
-        ),
       ],
     );
   }
@@ -670,9 +693,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       decoration: BoxDecoration(
         color: AppColors.textPrimary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: AppColors.textPrimary.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -724,7 +745,10 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                 decoration: InputDecoration(
                   hintText: 'Buscar notas o usuarios...',
                   hintStyle: TextStyle(color: AppColors.textSecondary),
-                  prefixIcon: Icon(Icons.search_rounded, color: AppColors.textSecondary),
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: AppColors.textSecondary,
+                  ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -754,8 +778,12 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               onPressed: _showFilterDialog,
               icon: Icon(
                 Icons.tune_rounded,
-                color: (_selectedStatus != null || _selectedType != null || 
-                       _userFilterQuery.isNotEmpty || _dateFrom != null || _dateTo != null)
+                color:
+                    (_selectedStatus != null ||
+                        _selectedType != null ||
+                        _userFilterQuery.isNotEmpty ||
+                        _dateFrom != null ||
+                        _dateTo != null)
                     ? AppColors.primary
                     : AppColors.textSecondary,
               ),
@@ -779,10 +807,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             const SizedBox(height: 16),
             Text(
               'Cargando comparticiones...',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 16,
-              ),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
             ),
           ],
         ),
@@ -865,7 +890,13 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         children: [
           Icon(Icons.group_rounded, color: AppColors.textSecondary, size: 18),
           const SizedBox(width: 8),
-          Text('Agrupar', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+          Text(
+            'Agrupar',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const Spacer(),
           ChoiceChip(
             label: const Text('Todos'),
@@ -879,8 +910,18 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               }
             },
             selectedColor: AppColors.primary.withValues(alpha: 0.15),
-            labelStyle: TextStyle(color: (!_groupByOwner && !_groupByOwnerFolder) ? AppColors.primary : AppColors.textSecondary),
-            shape: StadiumBorder(side: BorderSide(color: (!_groupByOwner && !_groupByOwnerFolder) ? AppColors.primary : AppColors.borderColor)),
+            labelStyle: TextStyle(
+              color: (!_groupByOwner && !_groupByOwnerFolder)
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+            ),
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: (!_groupByOwner && !_groupByOwnerFolder)
+                    ? AppColors.primary
+                    : AppColors.borderColor,
+              ),
+            ),
             backgroundColor: AppColors.surfaceLight,
           ),
           const SizedBox(width: 8),
@@ -896,8 +937,18 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               }
             },
             selectedColor: AppColors.primary.withValues(alpha: 0.15),
-            labelStyle: TextStyle(color: _groupByOwner ? AppColors.primary : AppColors.textSecondary),
-            shape: StadiumBorder(side: BorderSide(color: _groupByOwner ? AppColors.primary : AppColors.borderColor)),
+            labelStyle: TextStyle(
+              color: _groupByOwner
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+            ),
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: _groupByOwner
+                    ? AppColors.primary
+                    : AppColors.borderColor,
+              ),
+            ),
             backgroundColor: AppColors.surfaceLight,
           ),
           const SizedBox(width: 8),
@@ -913,8 +964,18 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               }
             },
             selectedColor: AppColors.primary.withValues(alpha: 0.15),
-            labelStyle: TextStyle(color: _groupByOwnerFolder ? AppColors.primary : AppColors.textSecondary),
-            shape: StadiumBorder(side: BorderSide(color: _groupByOwnerFolder ? AppColors.primary : AppColors.borderColor)),
+            labelStyle: TextStyle(
+              color: _groupByOwnerFolder
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+            ),
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: _groupByOwnerFolder
+                    ? AppColors.primary
+                    : AppColors.borderColor,
+              ),
+            ),
             backgroundColor: AppColors.surfaceLight,
           ),
         ],
@@ -923,14 +984,18 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
   }
 
   /// Crea secciones agrupadas por propietario
-  List<Widget> _buildGroupedByOwnerSections(List<SharedItem> items, {bool byFolder = false}) {
+  List<Widget> _buildGroupedByOwnerSections(
+    List<SharedItem> items, {
+    bool byFolder = false,
+  }) {
     final Map<String, List<SharedItem>> byOwner = {};
     for (final it in items) {
       final key = it.ownerEmail.isNotEmpty ? it.ownerEmail : it.ownerId;
       byOwner.putIfAbsent(key, () => []).add(it);
     }
 
-    final owners = byOwner.keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final owners = byOwner.keys.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     final List<Widget> sections = [];
 
     for (final owner in owners) {
@@ -944,15 +1009,20 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         final Map<String, List<SharedItem>> byFolderMap = {};
         for (final it in list) {
           final folder = (it.metadata?['folderName'] as String?)?.trim();
-          final key = (folder == null || folder.isEmpty) ? 'Sin carpeta' : folder;
+          final key = (folder == null || folder.isEmpty)
+              ? 'Sin carpeta'
+              : folder;
           byFolderMap.putIfAbsent(key, () => []).add(it);
         }
-        final folders = byFolderMap.keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        final folders = byFolderMap.keys.toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
         for (final folder in folders) {
           final flist = byFolderMap[folder]!;
           sections.add(_buildFolderHeader(folder, flist.length));
           sections.add(const SizedBox(height: 6));
-          sections.addAll(flist.map((item) => _buildSharedItemCard(item, false)));
+          sections.addAll(
+            flist.map((item) => _buildSharedItemCard(item, false)),
+          );
           sections.add(const SizedBox(height: 12));
         }
       }
@@ -978,7 +1048,10 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
           Expanded(
             child: Text(
               folder,
-              style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -989,7 +1062,14 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: AppColors.borderColor),
             ),
-            child: Text('$count', style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -1011,14 +1091,21 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             backgroundColor: AppColors.primary.withValues(alpha: 0.2),
             child: Text(
               owner.substring(0, 1).toUpperCase(),
-              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 12),
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               owner,
-              style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -1031,7 +1118,11 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             ),
             child: Text(
               '$count',
-              style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 12),
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
             ),
           ),
         ],
@@ -1040,7 +1131,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
   }
 
   // ==================== TAB DE NOTIFICACIONES ====================
-  
+
   Widget _buildNotificationsTab() {
     if (_notificationsStream == null) {
       return _buildEmptyState(
@@ -1090,17 +1181,18 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
           );
         }
 
-        final notifications = snapshot.data?.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return {
-            'id': doc.id,
-            ...data,
-          };
-        }).toList() ?? [];
+        final notifications =
+            snapshot.data?.docs.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return {'id': doc.id, ...data};
+            }).toList() ??
+            [];
 
         // Actualizar contador de no leídas
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          final unread = notifications.where((n) => n['isRead'] == false).length;
+          final unread = notifications
+              .where((n) => n['isRead'] == false)
+              .length;
           if (_unreadNotifications != unread && mounted) {
             setState(() {
               _unreadNotifications = unread;
@@ -1140,7 +1232,8 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     final type = notification['type'] as String? ?? 'shareInvite';
     final title = notification['title'] as String? ?? 'Notificación';
     final message = notification['message'] as String? ?? '';
-    final createdAt = (notification['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final createdAt =
+        (notification['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
     final timeAgo = _getTimeAgo(createdAt);
 
     IconData icon;
@@ -1183,23 +1276,25 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isRead 
-            ? AppColors.surface 
+        color: isRead
+            ? AppColors.surface
             : AppColors.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isRead 
-              ? AppColors.borderColor 
+          color: isRead
+              ? AppColors.borderColor
               : AppColors.primary.withValues(alpha: 0.3),
           width: isRead ? 1 : 2,
         ),
-        boxShadow: isRead ? [] : [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: isRead
+            ? []
+            : [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -1232,7 +1327,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                             child: Text(
                               title,
                               style: TextStyle(
-                                fontWeight: isRead ? FontWeight.w600 : FontWeight.bold,
+                                fontWeight: isRead
+                                    ? FontWeight.w600
+                                    : FontWeight.bold,
                                 fontSize: 15,
                                 color: AppColors.textPrimary,
                               ),
@@ -1277,7 +1374,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                           ),
                         ],
                       ),
-                      
+
                       // Acciones rápidas para invitaciones
                       if (type == 'shareInvite' && !isRead)
                         _buildQuickActions(notification),
@@ -1291,12 +1388,12 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       ),
     );
   }
-  
+
   Widget _buildQuickActions(Map<String, dynamic> notification) {
     final shareId = notification['metadata']?['shareId'] as String?;
-    
+
     if (shareId == null) return const SizedBox.shrink();
-    
+
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Row(
@@ -1304,8 +1401,8 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         children: [
           // Botón Rechazar
           TextButton.icon(
-            onPressed: _isLoading 
-                ? null 
+            onPressed: _isLoading
+                ? null
                 : () => _rejectFromNotification(shareId, notification['id']),
             icon: Icon(Icons.close, size: 18),
             label: Text('Rechazar'),
@@ -1317,8 +1414,8 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
           const SizedBox(width: 8),
           // Botón Aceptar
           ElevatedButton.icon(
-            onPressed: _isLoading 
-                ? null 
+            onPressed: _isLoading
+                ? null
                 : () => _acceptFromNotification(shareId, notification['id']),
             icon: Icon(Icons.check, size: 18),
             label: Text('Aceptar'),
@@ -1333,17 +1430,20 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       ),
     );
   }
-  
-  Future<void> _acceptFromNotification(String shareId, String notificationId) async {
+
+  Future<void> _acceptFromNotification(
+    String shareId,
+    String notificationId,
+  ) async {
     setState(() => _isLoading = true);
-    
+
     try {
       final sharingService = SharingService();
       await sharingService.acceptSharing(shareId);
       await _markNotificationAsRead(notificationId);
-      
+
       ToastService.success('✅ Compartición aceptada');
-      
+
       // Recargar datos
       await _loadData();
     } catch (e) {
@@ -1353,17 +1453,20 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       setState(() => _isLoading = false);
     }
   }
-  
-  Future<void> _rejectFromNotification(String shareId, String notificationId) async {
+
+  Future<void> _rejectFromNotification(
+    String shareId,
+    String notificationId,
+  ) async {
     setState(() => _isLoading = true);
-    
+
     try {
       final sharingService = SharingService();
       await sharingService.rejectSharing(shareId);
       await _markNotificationAsRead(notificationId);
-      
+
       ToastService.info('❌ Compartición rechazada');
-      
+
       // Recargar datos
       await _loadData();
     } catch (e) {
@@ -1402,10 +1505,14 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
 
       // Actualizar localmente
       setState(() {
-        final index = _notifications.indexWhere((n) => n['id'] == notificationId);
+        final index = _notifications.indexWhere(
+          (n) => n['id'] == notificationId,
+        );
         if (index != -1) {
           _notifications[index]['isRead'] = true;
-          _unreadNotifications = _notifications.where((n) => n['isRead'] == false).length;
+          _unreadNotifications = _notifications
+              .where((n) => n['isRead'] == false)
+              .length;
         }
       });
 
@@ -1422,8 +1529,10 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       if (user == null) return;
 
       // Obtener todas las notificaciones no leídas
-      final unreadNotifications = _notifications.where((n) => n['isRead'] == false).toList();
-      
+      final unreadNotifications = _notifications
+          .where((n) => n['isRead'] == false)
+          .toList();
+
       if (unreadNotifications.isEmpty) {
         ToastService.info('No hay notificaciones sin leer');
         return;
@@ -1457,7 +1566,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
   Widget _buildSharedItemCard(SharedItem item, bool isSentByMe) {
     final isSelected = _selectedItems.contains(item.id);
     final statusColor = _getStatusColor(item.status);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Card(
@@ -1509,12 +1618,15 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                           ),
                         ),
                       ),
-                    
+
                     // Tipo de elemento
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: item.type == SharedItemType.note 
+                        color: item.type == SharedItemType.note
                             ? AppColors.info.withValues(alpha: 0.1)
                             : AppColors.secondary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -1523,21 +1635,23 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            item.type == SharedItemType.note 
+                            item.type == SharedItemType.note
                                 ? Icons.description_rounded
                                 : Icons.folder_rounded,
                             size: 16,
-                            color: item.type == SharedItemType.note 
+                            color: item.type == SharedItemType.note
                                 ? AppColors.info
                                 : AppColors.secondary,
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            item.type == SharedItemType.note ? 'Nota' : 'Carpeta',
+                            item.type == SharedItemType.note
+                                ? 'Nota'
+                                : 'Carpeta',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: item.type == SharedItemType.note 
+                              color: item.type == SharedItemType.note
                                   ? AppColors.info
                                   : AppColors.secondary,
                             ),
@@ -1545,16 +1659,16 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                         ],
                       ),
                     ),
-                    
+
                     const Spacer(),
-                    
+
                     // Estado
                     _buildStatusChip(item.status, statusColor),
                   ],
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Título y contenido
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1564,9 +1678,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            item.metadata?['noteTitle'] ?? 
-                            item.metadata?['folderName'] ?? 
-                            'Sin título',
+                            item.metadata?['noteTitle'] ??
+                                item.metadata?['folderName'] ??
+                                'Sin título',
                             style: TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 18,
@@ -1576,8 +1690,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          
-                          if (item.metadata?['noteContent']?.isNotEmpty == true) ...[
+
+                          if (item.metadata?['noteContent']?.isNotEmpty ==
+                              true) ...[
                             const SizedBox(height: 8),
                             Text(
                               item.metadata!['noteContent']!,
@@ -1593,9 +1708,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(width: 16),
-                    
+
                     // Avatar del usuario
                     CircleAvatar(
                       radius: 24,
@@ -1613,16 +1728,18 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Información del usuario
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.borderColor.withValues(alpha: 0.5)),
+                    border: Border.all(
+                      color: AppColors.borderColor.withValues(alpha: 0.5),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -1634,7 +1751,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          isSentByMe 
+                          isSentByMe
                               ? 'Para: ${item.recipientEmail}'
                               : 'De: ${item.ownerEmail}',
                           style: TextStyle(
@@ -1647,18 +1764,18 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // Información adicional
                 _buildItemInfo(item),
-                
+
                 // Mensaje si existe
                 if (item.message?.isNotEmpty == true) ...[
                   const SizedBox(height: 12),
                   _buildMessageBox(item.message!),
                 ],
-                
+
                 // Botones de acción
                 if (_shouldShowActions(item, isSentByMe)) ...[
                   const SizedBox(height: 16),
@@ -1717,11 +1834,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.borderColor),
               ),
-              child: Icon(
-                icon,
-                size: 48,
-                color: AppColors.textSecondary,
-              ),
+              child: Icon(icon, size: 48, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 24),
             Text(
@@ -1736,16 +1849,10 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             const SizedBox(height: 8),
             Text(
               subtitle,
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 16,
-              ),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
               textAlign: TextAlign.center,
             ),
-            if (action != null) ...[
-              const SizedBox(height: 24),
-              action,
-            ],
+            if (action != null) ...[const SizedBox(height: 24), action],
           ],
         ),
       ),
@@ -1817,18 +1924,12 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       decoration: BoxDecoration(
         color: AppColors.info.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.info.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.2)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.message_rounded,
-            size: 18,
-            color: AppColors.info,
-          ),
+          Icon(Icons.message_rounded, size: 18, color: AppColors.info),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -1847,11 +1948,13 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
 
   bool _shouldShowActions(SharedItem item, bool isSentByMe) {
     if (isSentByMe) {
-      return item.status == SharingStatus.pending || item.status == SharingStatus.accepted;
+      return item.status == SharingStatus.pending ||
+          item.status == SharingStatus.accepted;
     } else {
       // Para receptores, mostrar acciones cuando esté pendiente (aceptar/rechazar)
       // o aceptada (permitir "Salir").
-      return item.status == SharingStatus.pending || item.status == SharingStatus.accepted;
+      return item.status == SharingStatus.pending ||
+          item.status == SharingStatus.accepted;
     }
   }
 
@@ -1868,7 +1971,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               icon: const Icon(Icons.group_rounded, size: 16),
               label: const Text('Gestionar'),
               style: OutlinedButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           if (isFolder) const SizedBox(width: 8),
@@ -1885,11 +1990,72 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             ),
           ),
           const SizedBox(width: 8),
-          if (item.status == SharingStatus.revoked || item.status == SharingStatus.rejected)
+          ElevatedButton.icon(
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: AppColors.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  title: Text(
+                    'Revocar y eliminar',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  content: Text(
+                    'Esto revocará el acceso y eliminará la entrada de compartición. ¿Continuar?',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: Text(
+                        'Cancelar',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.danger,
+                        foregroundColor: AppColors.textPrimary,
+                      ),
+                      child: const Text('Revocar y eliminar'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                try {
+                  await SharingService().revokeAndDelete(item.id);
+                  ToastService.success('Compartición revocada y eliminada');
+                  await _loadData();
+                } catch (e) {
+                  ToastService.error('No se pudo completar: $e');
+                }
+              }
+            },
+            icon: const Icon(Icons.delete_forever_rounded, size: 16),
+            label: const Text('Revocar y eliminar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: AppColors.textPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (item.status == SharingStatus.revoked ||
+              item.status == SharingStatus.rejected)
             OutlinedButton.icon(
               onPressed: () async {
                 try {
-                  await FirebaseFirestore.instance.collection('shared_items').doc(item.id).delete();
+                  await SharingService().safeDeleteSharing(item.id);
                   ToastService.success('Eliminado');
                   _loadData();
                 } catch (e) {
@@ -1961,18 +2127,80 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               ),
             ),
           ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: AppColors.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  title: Text(
+                    'Salir y eliminar',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  content: Text(
+                    'Esto te sacará de la compartición y eliminará la entrada de tu lista. ¿Continuar?',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: Text(
+                        'Cancelar',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.warning,
+                        foregroundColor: AppColors.textPrimary,
+                      ),
+                      child: const Text('Salir y eliminar'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                try {
+                  await SharingService().leaveAndDelete(item.id);
+                  ToastService.success('Has salido y eliminado la entrada');
+                  await _loadData();
+                } catch (e) {
+                  ToastService.error('No se pudo completar: $e');
+                }
+              }
+            },
+            icon: const Icon(Icons.delete_sweep_rounded, size: 16),
+            label: const Text('Salir y eliminar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: AppColors.textPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
         ],
       );
     }
 
-    if (item.status == SharingStatus.left || item.status == SharingStatus.revoked || item.status == SharingStatus.rejected) {
+    if (item.status == SharingStatus.left ||
+        item.status == SharingStatus.revoked ||
+        item.status == SharingStatus.rejected) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           OutlinedButton.icon(
             onPressed: () async {
               try {
-                await FirebaseFirestore.instance.collection('shared_items').doc(item.id).delete();
+                await SharingService().safeDeleteSharing(item.id);
                 ToastService.success('Eliminado');
                 _loadData();
               } catch (e) {
@@ -2060,35 +2288,143 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     }
   }
 
-  void _openSharedItem(SharedItem item) {
+  void _openSharedItem(SharedItem item) async {
+    final currentUid = AuthService.instance.currentUser?.uid ?? '';
+    final isOwner = currentUid.isNotEmpty && currentUid == item.ownerId;
+
     if (item.type == SharedItemType.note) {
       if (item.itemId.isEmpty) {
         ToastService.error('❌ ID de nota no válido');
         return;
       }
-      
+      // Bloquear apertura si no está aceptada y no eres el propietario
+      if (item.status != SharingStatus.accepted && !isOwner) {
+        if (item.status == SharingStatus.pending) {
+          // Ofrecer aceptar/rechazar rápidamente
+          final action = await showModalBottomSheet<String>(
+            context: context,
+            showDragHandle: true,
+            backgroundColor: AppColors.surface,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (context) {
+              return SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.inbox_rounded, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Invitación pendiente',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Debes aceptar la compartición para abrir esta nota.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => Navigator.pop(context, 'reject'),
+                              icon: const Icon(Icons.close_rounded),
+                              label: const Text('Rechazar'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: () => Navigator.pop(context, 'accept'),
+                              icon: const Icon(Icons.check_rounded),
+                              label: const Text('Aceptar'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+
+          if (!mounted) return;
+          if (action == 'accept') {
+            try {
+              await SharingService().acceptSharing(item.id);
+              ToastService.success('Acceso concedido');
+              await _loadData();
+              // Buscar el item actualizado y abrirlo
+              final updated = _sharedWithMe.firstWhere(
+                (it) => it.id == item.id,
+                orElse: () => item,
+              );
+              if (updated.status == SharingStatus.accepted) {
+                _openSharedItem(updated);
+              }
+            } catch (e) {
+              ToastService.error('No se pudo aceptar: $e');
+            }
+          } else if (action == 'reject') {
+            try {
+              await SharingService().rejectSharing(item.id);
+              await _loadData();
+              ToastService.info('Invitación rechazada');
+            } catch (e) {
+              ToastService.error('No se pudo rechazar: $e');
+            }
+          }
+        } else {
+          // Estados: rechazado, revocado, left
+          ToastService.info(
+            'Este elemento no está disponible. Puedes eliminarlo de tu lista.',
+          );
+        }
+        return;
+      }
+
       try {
         // Navegar a SharedNoteViewerPage para ver/editar según permisos
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => SharedNoteViewerPage(
-              noteId: item.itemId,
-              sharingInfo: item,
-            ),
-          ),
-        ).then((_) {
-          _loadData();
-        });
+        Navigator.of(context)
+            .push(
+              MaterialPageRoute(
+                builder: (context) => SharedNoteViewerPage(
+                  noteId: item.itemId,
+                  sharingInfo: item,
+                ),
+              ),
+            )
+            .then((_) {
+              _loadData();
+            });
       } catch (e) {
         ToastService.error('❌ Error al abrir la nota: $e');
       }
     } else {
       try {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => SharedFolderViewerPage(folderShare: item),
-          ),
-        ).then((_) => _loadData());
+        Navigator.of(context)
+            .push(
+              MaterialPageRoute(
+                builder: (context) => SharedFolderViewerPage(folderShare: item),
+              ),
+            )
+            .then((_) => _loadData());
       } catch (e) {
         ToastService.error('❌ Error al abrir la carpeta: $e');
       }
@@ -2109,6 +2445,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             case 'revocar':
               await sharingService.revokeSharing(itemId);
               break;
+            case 'revocar_eliminar':
+              await sharingService.revokeAndDelete(itemId);
+              break;
             case 'aceptar':
               await sharingService.acceptSharing(itemId);
               break;
@@ -2117,6 +2456,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               break;
             case 'salir':
               await sharingService.leaveSharing(itemId);
+              break;
+            case 'salir_eliminar':
+              await sharingService.leaveAndDelete(itemId);
               break;
           }
           successful++;
@@ -2190,7 +2532,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.danger,
               foregroundColor: AppColors.textPrimary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('Revocar'),
           ),
@@ -2223,7 +2567,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         SharedItemType? tempType = _selectedType;
         DateTime? tempFrom = _dateFrom;
         DateTime? tempTo = _dateTo;
-        final TextEditingController tempUserCtrl = TextEditingController(text: _userFilterQuery);
+        final TextEditingController tempUserCtrl = TextEditingController(
+          text: _userFilterQuery,
+        );
 
         Future<void> pickDate({required bool isFrom}) async {
           final now = DateTime.now();
@@ -2252,7 +2598,12 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
           }
         }
 
-        Widget chip<T>({required String label, required T? value, required T? groupValue, required void Function(T?) onSelected}) {
+        Widget chip<T>({
+          required String label,
+          required T? value,
+          required T? groupValue,
+          required void Function(T?) onSelected,
+        }) {
           final bool selected = value == groupValue;
           return Padding(
             padding: const EdgeInsets.only(right: 8, bottom: 8),
@@ -2261,8 +2612,14 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               selected: selected,
               onSelected: (_) => onSelected(value),
               selectedColor: AppColors.primary.withValues(alpha: 0.15),
-              labelStyle: TextStyle(color: selected ? AppColors.primary : AppColors.textSecondary),
-              shape: StadiumBorder(side: BorderSide(color: selected ? AppColors.primary : AppColors.borderColor)),
+              labelStyle: TextStyle(
+                color: selected ? AppColors.primary : AppColors.textSecondary,
+              ),
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: selected ? AppColors.primary : AppColors.borderColor,
+                ),
+              ),
               backgroundColor: AppColors.surfaceLight,
             ),
           );
@@ -2283,9 +2640,19 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.tune_rounded, color: AppColors.textSecondary),
+                          Icon(
+                            Icons.tune_rounded,
+                            color: AppColors.textSecondary,
+                          ),
                           const SizedBox(width: 8),
-                          Text('Filtros', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                          Text(
+                            'Filtros',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
                           const Spacer(),
                           TextButton(
                             onPressed: () {
@@ -2297,38 +2664,140 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                                 tempTo = null;
                               });
                             },
-                            child: Text('Limpiar', style: TextStyle(color: AppColors.textSecondary)),
+                            child: Text(
+                              'Limpiar',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
                           ),
                         ],
                       ),
 
                       const SizedBox(height: 12),
-                      Text('Estado', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                      Text(
+                        'Estado',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Wrap(
                         children: [
-                          chip<SharingStatus?>(label: 'Todos', value: null, groupValue: tempStatus, onSelected: (v) { setModalState(() { tempStatus = v; }); }),
-                          chip<SharingStatus?>(label: 'Pendiente', value: SharingStatus.pending, groupValue: tempStatus, onSelected: (v) { setModalState(() { tempStatus = v; }); }),
-                          chip<SharingStatus?>(label: 'Aceptada', value: SharingStatus.accepted, groupValue: tempStatus, onSelected: (v) { setModalState(() { tempStatus = v; }); }),
-                          chip<SharingStatus?>(label: 'Rechazada', value: SharingStatus.rejected, groupValue: tempStatus, onSelected: (v) { setModalState(() { tempStatus = v; }); }),
-                          chip<SharingStatus?>(label: 'Revocada', value: SharingStatus.revoked, groupValue: tempStatus, onSelected: (v) { setModalState(() { tempStatus = v; }); }),
-                          chip<SharingStatus?>(label: 'Abandonada', value: SharingStatus.left, groupValue: tempStatus, onSelected: (v) { setModalState(() { tempStatus = v; }); }),
+                          chip<SharingStatus?>(
+                            label: 'Todos',
+                            value: null,
+                            groupValue: tempStatus,
+                            onSelected: (v) {
+                              setModalState(() {
+                                tempStatus = v;
+                              });
+                            },
+                          ),
+                          chip<SharingStatus?>(
+                            label: 'Pendiente',
+                            value: SharingStatus.pending,
+                            groupValue: tempStatus,
+                            onSelected: (v) {
+                              setModalState(() {
+                                tempStatus = v;
+                              });
+                            },
+                          ),
+                          chip<SharingStatus?>(
+                            label: 'Aceptada',
+                            value: SharingStatus.accepted,
+                            groupValue: tempStatus,
+                            onSelected: (v) {
+                              setModalState(() {
+                                tempStatus = v;
+                              });
+                            },
+                          ),
+                          chip<SharingStatus?>(
+                            label: 'Rechazada',
+                            value: SharingStatus.rejected,
+                            groupValue: tempStatus,
+                            onSelected: (v) {
+                              setModalState(() {
+                                tempStatus = v;
+                              });
+                            },
+                          ),
+                          chip<SharingStatus?>(
+                            label: 'Revocada',
+                            value: SharingStatus.revoked,
+                            groupValue: tempStatus,
+                            onSelected: (v) {
+                              setModalState(() {
+                                tempStatus = v;
+                              });
+                            },
+                          ),
+                          chip<SharingStatus?>(
+                            label: 'Abandonada',
+                            value: SharingStatus.left,
+                            groupValue: tempStatus,
+                            onSelected: (v) {
+                              setModalState(() {
+                                tempStatus = v;
+                              });
+                            },
+                          ),
                         ],
                       ),
 
                       const SizedBox(height: 12),
-                      Text('Tipo', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                      Text(
+                        'Tipo',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Wrap(
                         children: [
-                          chip<SharedItemType?>(label: 'Todos', value: null, groupValue: tempType, onSelected: (v) { setModalState(() { tempType = v; }); }),
-                          chip<SharedItemType?>(label: 'Notas', value: SharedItemType.note, groupValue: tempType, onSelected: (v) { setModalState(() { tempType = v; }); }),
-                          chip<SharedItemType?>(label: 'Carpetas', value: SharedItemType.folder, groupValue: tempType, onSelected: (v) { setModalState(() { tempType = v; }); }),
+                          chip<SharedItemType?>(
+                            label: 'Todos',
+                            value: null,
+                            groupValue: tempType,
+                            onSelected: (v) {
+                              setModalState(() {
+                                tempType = v;
+                              });
+                            },
+                          ),
+                          chip<SharedItemType?>(
+                            label: 'Notas',
+                            value: SharedItemType.note,
+                            groupValue: tempType,
+                            onSelected: (v) {
+                              setModalState(() {
+                                tempType = v;
+                              });
+                            },
+                          ),
+                          chip<SharedItemType?>(
+                            label: 'Carpetas',
+                            value: SharedItemType.folder,
+                            groupValue: tempType,
+                            onSelected: (v) {
+                              setModalState(() {
+                                tempType = v;
+                              });
+                            },
+                          ),
                         ],
                       ),
 
                       const SizedBox(height: 12),
-                      Text('Usuario', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                      Text(
+                        'Usuario',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       TextField(
                         controller: tempUserCtrl,
@@ -2338,40 +2807,70 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                           fillColor: AppColors.surfaceLight,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: AppColors.borderColor),
+                            borderSide: BorderSide(
+                              color: AppColors.borderColor,
+                            ),
                           ),
-                          prefixIcon: Icon(Icons.alternate_email_rounded, color: AppColors.textSecondary),
+                          prefixIcon: Icon(
+                            Icons.alternate_email_rounded,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                         onChanged: (_) => setModalState(() {}),
                       ),
 
                       const SizedBox(height: 12),
-                      Text('Fecha', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                      Text(
+                        'Fecha',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () async { await pickDate(isFrom: true); setModalState(() {}); },
-                              icon: const Icon(Icons.calendar_today_rounded, size: 16),
-                              label: Text(tempFrom != null ? _formatDate(tempFrom!) : 'Desde'),
+                              onPressed: () async {
+                                await pickDate(isFrom: true);
+                                setModalState(() {});
+                              },
+                              icon: const Icon(
+                                Icons.calendar_today_rounded,
+                                size: 16,
+                              ),
+                              label: Text(
+                                tempFrom != null
+                                    ? _formatDate(tempFrom!)
+                                    : 'Desde',
+                              ),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.textPrimary,
                                 side: BorderSide(color: AppColors.borderColor),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () async { await pickDate(isFrom: false); setModalState(() {}); },
+                              onPressed: () async {
+                                await pickDate(isFrom: false);
+                                setModalState(() {});
+                              },
                               icon: const Icon(Icons.event_rounded, size: 16),
-                              label: Text(tempTo != null ? _formatDate(tempTo!) : 'Hasta'),
+                              label: Text(
+                                tempTo != null ? _formatDate(tempTo!) : 'Hasta',
+                              ),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.textPrimary,
                                 side: BorderSide(color: AppColors.borderColor),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                             ),
                           ),
@@ -2398,7 +2897,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.textSecondary,
                                 side: BorderSide(color: AppColors.borderColor),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                               child: const Text('Limpiar todo'),
                             ),
@@ -2410,7 +2911,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                                 setState(() {
                                   _selectedStatus = tempStatus;
                                   _selectedType = tempType;
-                                  _userFilterQuery = tempUserCtrl.text.trim().toLowerCase();
+                                  _userFilterQuery = tempUserCtrl.text
+                                      .trim()
+                                      .toLowerCase();
                                   _userFilterController.text = _userFilterQuery;
                                   _dateFrom = tempFrom;
                                   _dateTo = tempTo;
@@ -2421,14 +2924,18 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 foregroundColor: AppColors.textPrimary,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                               child: const Text('Aplicar filtros'),
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+                      SizedBox(
+                        height: MediaQuery.of(context).padding.bottom + 8,
+                      ),
                     ],
                   ),
                 ),
@@ -2450,10 +2957,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       icon: const Icon(Icons.share_rounded, size: 24),
       label: const Text(
         'Compartir',
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 16,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
       ),
     );
   }
@@ -2467,12 +2971,16 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       }
 
       // Load minimal lists for picker
-      final notesFuture = FirestoreService.instance.listNotesSummary(uid: user.uid);
-      final foldersFuture = FirestoreService.instance.listFolders(uid: user.uid);
+      final notesFuture = FirestoreService.instance.listNotesSummary(
+        uid: user.uid,
+      );
+      final foldersFuture = FirestoreService.instance.listFolders(
+        uid: user.uid,
+      );
 
       final results = await Future.wait([notesFuture, foldersFuture]);
-  final notes = results[0];
-  final folders = results[1];
+      final notes = results[0];
+      final folders = results[1];
 
       if (!mounted) return;
 
@@ -2493,8 +3001,20 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
               List<Map<String, dynamic>> filteredFolders = folders;
               if (search.isNotEmpty) {
                 final q = search.toLowerCase();
-                filteredNotes = notes.where((n) => (n['title']?.toString() ?? '').toLowerCase().contains(q)).toList();
-                filteredFolders = folders.where((f) => (f['name']?.toString() ?? '').toLowerCase().contains(q)).toList();
+                filteredNotes = notes
+                    .where(
+                      (n) => (n['title']?.toString() ?? '')
+                          .toLowerCase()
+                          .contains(q),
+                    )
+                    .toList();
+                filteredFolders = folders
+                    .where(
+                      (f) => (f['name']?.toString() ?? '')
+                          .toLowerCase()
+                          .contains(q),
+                    )
+                    .toList();
               }
 
               return SafeArea(
@@ -2510,15 +3030,27 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                         child: Row(
                           children: [
-                            Icon(Icons.bolt_rounded, color: AppColors.textSecondary),
+                            Icon(
+                              Icons.bolt_rounded,
+                              color: AppColors.textSecondary,
+                            ),
                             const SizedBox(width: 8),
-                            Text('Compartir rápido', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                            Text(
+                              'Compartir rápido',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
                             const Spacer(),
                             Container(
                               decoration: BoxDecoration(
                                 color: AppColors.surfaceLight,
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: AppColors.borderColor),
+                                border: Border.all(
+                                  color: AppColors.borderColor,
+                                ),
                               ),
                               child: Row(
                                 children: [
@@ -2526,13 +3058,15 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                                     selected: showNotes,
                                     icon: Icons.description_rounded,
                                     label: 'Notas',
-                                    onTap: () => setModalState(() => showNotes = true),
+                                    onTap: () =>
+                                        setModalState(() => showNotes = true),
                                   ),
                                   _segmentedButton(
                                     selected: !showNotes,
                                     icon: Icons.folder_rounded,
                                     label: 'Carpetas',
-                                    onTap: () => setModalState(() => showNotes = false),
+                                    onTap: () =>
+                                        setModalState(() => showNotes = false),
                                   ),
                                 ],
                               ),
@@ -2549,13 +3083,19 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                             hintText: 'Buscar por título...',
                             filled: true,
                             fillColor: AppColors.surfaceLight,
-                            prefixIcon: Icon(Icons.search_rounded, color: AppColors.textSecondary),
+                            prefixIcon: Icon(
+                              Icons.search_rounded,
+                              color: AppColors.textSecondary,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: AppColors.borderColor),
+                              borderSide: BorderSide(
+                                color: AppColors.borderColor,
+                              ),
                             ),
                           ),
-                          onChanged: (v) => setModalState(() => search = v.trim()),
+                          onChanged: (v) =>
+                              setModalState(() => search = v.trim()),
                         ),
                       ),
 
@@ -2564,20 +3104,45 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                         child: ListView.separated(
                           shrinkWrap: true,
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                          itemCount: showNotes ? filteredNotes.length : filteredFolders.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemCount: showNotes
+                              ? filteredNotes.length
+                              : filteredFolders.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             if (showNotes) {
                               final n = filteredNotes[index];
-                              final title = (n['title']?.toString() ?? '').trim().isEmpty ? 'Sin título' : n['title'].toString();
+                              final title =
+                                  (n['title']?.toString() ?? '').trim().isEmpty
+                                  ? 'Sin título'
+                                  : n['title'].toString();
                               return ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: AppColors.info.withValues(alpha: 0.15),
-                                  child: Icon(Icons.description_rounded, color: AppColors.info),
+                                  backgroundColor: AppColors.info.withValues(
+                                    alpha: 0.15,
+                                  ),
+                                  child: Icon(
+                                    Icons.description_rounded,
+                                    color: AppColors.info,
+                                  ),
                                 ),
-                                title: Text(title, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-                                subtitle: (n['collectionName'] != null && (n['collectionName'].toString()).isNotEmpty)
-                                    ? Text(n['collectionName'].toString(), style: TextStyle(color: AppColors.textSecondary))
+                                title: Text(
+                                  title,
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle:
+                                    (n['collectionName'] != null &&
+                                        (n['collectionName'].toString())
+                                            .isNotEmpty)
+                                    ? Text(
+                                        n['collectionName'].toString(),
+                                        style: TextStyle(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      )
                                     : null,
                                 onTap: () async {
                                   Navigator.of(context).pop();
@@ -2594,13 +3159,26 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                               );
                             } else {
                               final f = filteredFolders[index];
-                              final name = (f['name']?.toString() ?? '').trim().isEmpty ? 'Sin nombre' : f['name'].toString();
+                              final name =
+                                  (f['name']?.toString() ?? '').trim().isEmpty
+                                  ? 'Sin nombre'
+                                  : f['name'].toString();
                               return ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: AppColors.secondary.withValues(alpha: 0.15),
-                                  child: Icon(Icons.folder_rounded, color: AppColors.secondary),
+                                  backgroundColor: AppColors.secondary
+                                      .withValues(alpha: 0.15),
+                                  child: Icon(
+                                    Icons.folder_rounded,
+                                    color: AppColors.secondary,
+                                  ),
                                 ),
-                                title: Text(name, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                                title: Text(
+                                  name,
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 onTap: () async {
                                   Navigator.of(context).pop();
                                   await showDialog(
@@ -2631,21 +3209,38 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     }
   }
 
-  Widget _segmentedButton({required bool selected, required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _segmentedButton({
+    required bool selected,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.15)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: selected ? AppColors.primary : AppColors.textSecondary),
+            Icon(
+              icon,
+              size: 16,
+              color: selected ? AppColors.primary : AppColors.textSecondary,
+            ),
             const SizedBox(width: 6),
-            Text(label, style: TextStyle(color: selected ? AppColors.primary : AppColors.textSecondary, fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.primary : AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),

@@ -24,7 +24,7 @@ class _TemplatePickerDialogState extends State<TemplatePickerDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Dialog(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 800, maxHeight: 600),
@@ -35,7 +35,9 @@ class _TemplatePickerDialogState extends State<TemplatePickerDialog> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                  bottom: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
                 ),
               ),
               child: Row(
@@ -54,14 +56,14 @@ class _TemplatePickerDialogState extends State<TemplatePickerDialog> {
                 ],
               ),
             ),
-            
+
             // Content
             Expanded(
               child: _selected == null
                   ? _buildTemplateGrid()
                   : _buildVariablesForm(),
             ),
-            
+
             // Actions
             if (_selected != null)
               Container(
@@ -126,7 +128,7 @@ class _TemplatePickerDialogState extends State<TemplatePickerDialog> {
 
   Widget _buildVariablesForm() {
     final template = _selected!;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -154,18 +156,18 @@ class _TemplatePickerDialogState extends State<TemplatePickerDialog> {
                     ),
                     Text(
                       template.description,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white70,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Variables form
           if (template.variables.isNotEmpty) ...[
             Text(
@@ -175,12 +177,12 @@ class _TemplatePickerDialogState extends State<TemplatePickerDialog> {
             const SizedBox(height: 8),
             Text(
               'Completa los campos para personalizar tu nota:',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.white70,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.white70),
             ),
             const SizedBox(height: 16),
-            
+
             ...template.variables.entries.map((entry) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
@@ -197,13 +199,10 @@ class _TemplatePickerDialogState extends State<TemplatePickerDialog> {
               );
             }),
           ],
-          
+
           // Preview
           const SizedBox(height: 24),
-          Text(
-            'Vista Previa',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('Vista Previa', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(16),
@@ -239,15 +238,17 @@ class _TemplatePickerDialogState extends State<TemplatePickerDialog> {
   void _createNote() {
     final values = <String, String>{};
     _variables.forEach((key, controller) {
-      values[key] = controller.text.isEmpty ? _getExampleFor(key) : controller.text;
+      values[key] = controller.text.isEmpty
+          ? _getExampleFor(key)
+          : controller.text;
     });
-    
+
     final result = {
       'title': _getTitleFor(_selected!),
       'content': _selected!.applyVariables(values),
       'tags': _selected!.tags,
     };
-    
+
     Navigator.pop(context, result);
   }
 
@@ -352,10 +353,7 @@ class _TemplateCard extends StatelessWidget {
   final NoteTemplate template;
   final VoidCallback onTap;
 
-  const _TemplateCard({
-    required this.template,
-    required this.onTap,
-  });
+  const _TemplateCard({required this.template, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -382,18 +380,18 @@ class _TemplateCard extends StatelessWidget {
               const Spacer(),
               Text(
                 template.name,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
               Text(
                 template.description,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white70,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.white70),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),

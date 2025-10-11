@@ -17,7 +17,8 @@ class SharedFolderViewerPage extends StatefulWidget {
 class _SharedFolderViewerPageState extends State<SharedFolderViewerPage> {
   bool _loadingMembers = true;
   List<SharedItem> _members = [];
-  bool get _isOwner => widget.folderShare.ownerId == SharingService().currentUserId;
+  bool get _isOwner =>
+      widget.folderShare.ownerId == SharingService().currentUserId;
   bool _loadingNotes = true;
   List<Map<String, dynamic>> _notes = [];
 
@@ -32,7 +33,9 @@ class _SharedFolderViewerPageState extends State<SharedFolderViewerPage> {
     setState(() => _loadingMembers = true);
     try {
       if (_isOwner) {
-        _members = await SharingService().getFolderMembers(folderId: widget.folderShare.itemId);
+        _members = await SharingService().getFolderMembers(
+          folderId: widget.folderShare.itemId,
+        );
       } else {
         // Como receptor, solo mostramos tu propia entrada
         _members = [widget.folderShare];
@@ -47,9 +50,13 @@ class _SharedFolderViewerPageState extends State<SharedFolderViewerPage> {
   Future<void> _loadNotes() async {
     setState(() => _loadingNotes = true);
     try {
-      final notes = await FirestoreService.instance.listNotes(uid: widget.folderShare.ownerId);
+      final notes = await FirestoreService.instance.listNotes(
+        uid: widget.folderShare.ownerId,
+      );
       final folderId = widget.folderShare.itemId;
-      _notes = notes.where((n) => (n['folderId']?.toString() ?? '') == folderId).toList();
+      _notes = notes
+          .where((n) => (n['folderId']?.toString() ?? '') == folderId)
+          .toList();
     } catch (e) {
       ToastService.error('No se pudieron cargar notas: $e');
     } finally {
@@ -66,10 +73,13 @@ class _SharedFolderViewerPageState extends State<SharedFolderViewerPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) {
-        Widget tile(PermissionLevel level, String label, IconData icon) => ListTile(
+        Widget tile(PermissionLevel level, String label, IconData icon) =>
+            ListTile(
               leading: Icon(icon),
               title: Text(label),
-              trailing: item.permission == level ? const Icon(Icons.check, color: AppColors.primary) : null,
+              trailing: item.permission == level
+                  ? const Icon(Icons.check, color: AppColors.primary)
+                  : null,
               onTap: () => Navigator.pop(context, level),
             );
         return SafeArea(
@@ -77,11 +87,31 @@ class _SharedFolderViewerPageState extends State<SharedFolderViewerPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 8),
-              Container(height: 4, width: 44, decoration: BoxDecoration(color: AppColors.borderColor, borderRadius: BorderRadius.circular(2))),
+              Container(
+                height: 4,
+                width: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.borderColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               const SizedBox(height: 8),
-              const ListTile(title: Text('Permisos de la carpeta', style: TextStyle(fontWeight: FontWeight.w700))),
-              tile(PermissionLevel.read, 'Solo lectura', Icons.visibility_rounded),
-              tile(PermissionLevel.comment, 'Comentarios', Icons.mode_comment_rounded),
+              const ListTile(
+                title: Text(
+                  'Permisos de la carpeta',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              tile(
+                PermissionLevel.read,
+                'Solo lectura',
+                Icons.visibility_rounded,
+              ),
+              tile(
+                PermissionLevel.comment,
+                'Comentarios',
+                Icons.mode_comment_rounded,
+              ),
               tile(PermissionLevel.edit, 'Edición', Icons.edit_rounded),
               const SizedBox(height: 12),
             ],
@@ -147,12 +177,16 @@ class _SharedFolderViewerPageState extends State<SharedFolderViewerPage> {
                         Expanded(
                           child: Text(
                             folderName,
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                         if (_isOwner)
                           FilledButton.icon(
-                            onPressed: () => _changePermission(widget.folderShare),
+                            onPressed: () =>
+                                _changePermission(widget.folderShare),
                             icon: const Icon(Icons.lock_open_rounded, size: 18),
                             label: const Text('Permisos'),
                           ),
@@ -161,7 +195,10 @@ class _SharedFolderViewerPageState extends State<SharedFolderViewerPage> {
                   ),
 
                   const SizedBox(height: 16),
-                  Text(_isOwner ? 'Miembros con acceso' : 'Tu acceso', style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(
+                    _isOwner ? 'Miembros con acceso' : 'Tu acceso',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   const SizedBox(height: 8),
                   Expanded(
                     child: ListView.separated(
@@ -169,13 +206,16 @@ class _SharedFolderViewerPageState extends State<SharedFolderViewerPage> {
                       separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (_, i) {
                         final m = _members[i];
-                        final isSelf = m.recipientId == SharingService().currentUserId;
+                        final isSelf =
+                            m.recipientId == SharingService().currentUserId;
                         return ListTile(
-                          leading: const CircleAvatar(child: Icon(Icons.person_rounded)),
-                          title: Text(_isOwner ? m.recipientEmail : m.ownerEmail),
-                          subtitle: Text(
-                            _permissionLabel(m.permission),
+                          leading: const CircleAvatar(
+                            child: Icon(Icons.person_rounded),
                           ),
+                          title: Text(
+                            _isOwner ? m.recipientEmail : m.ownerEmail,
+                          ),
+                          subtitle: Text(_permissionLabel(m.permission)),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -185,31 +225,170 @@ class _SharedFolderViewerPageState extends State<SharedFolderViewerPage> {
                                   onPressed: () => _changePermission(m),
                                   icon: const Icon(Icons.lock_open_rounded),
                                 ),
-                              if (_isOwner)
+                              if (_isOwner) ...[
                                 IconButton(
                                   tooltip: 'Revocar',
                                   onPressed: () async {
-                                    try {
-                                      await SharingService().revokeSharing(m.id);
-                                      ToastService.success('Acceso revocado');
-                                      await _loadMembers();
-                                    } catch (e) {
-                                      ToastService.error('No se pudo revocar: $e');
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        backgroundColor: AppColors.surface,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        title: const Text('Revocar acceso'),
+                                        content: Text(
+                                          '¿Revocar el acceso de ${m.recipientEmail}?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(
+                                              context,
+                                            ).pop(false),
+                                            child: const Text('Cancelar'),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(true),
+                                            style: FilledButton.styleFrom(
+                                              backgroundColor: AppColors.danger,
+                                            ),
+                                            child: const Text('Revocar'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirmed == true) {
+                                      try {
+                                        await SharingService().revokeSharing(
+                                          m.id,
+                                        );
+                                        ToastService.success('Acceso revocado');
+                                        await _loadMembers();
+                                      } catch (e) {
+                                        ToastService.error(
+                                          'No se pudo revocar: $e',
+                                        );
+                                      }
                                     }
                                   },
-                                  icon: const Icon(Icons.block_rounded, color: AppColors.danger),
+                                  icon: const Icon(
+                                    Icons.block_rounded,
+                                    color: AppColors.danger,
+                                  ),
                                 ),
+                                IconButton(
+                                  tooltip: 'Revocar y eliminar',
+                                  onPressed: () async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        backgroundColor: AppColors.surface,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        title: const Text('Revocar y eliminar'),
+                                        content: Text(
+                                          'Esto revocará el acceso y eliminará la entrada. ¿Continuar con ${m.recipientEmail}?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(
+                                              context,
+                                            ).pop(false),
+                                            child: const Text('Cancelar'),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(true),
+                                            style: FilledButton.styleFrom(
+                                              backgroundColor: AppColors.danger,
+                                            ),
+                                            child: const Text(
+                                              'Revocar y eliminar',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirmed == true) {
+                                      try {
+                                        await SharingService()
+                                            .safeDeleteSharing(m.id);
+                                        ToastService.success(
+                                          'Acceso revocado y entrada eliminada',
+                                        );
+                                        await _loadMembers();
+                                      } catch (e) {
+                                        ToastService.error(
+                                          'No se pudo completar: $e',
+                                        );
+                                      }
+                                    }
+                                  },
+                                  icon: const Icon(
+                                    Icons.delete_forever_rounded,
+                                    color: AppColors.danger,
+                                  ),
+                                ),
+                              ],
                               if (!_isOwner && isSelf)
                                 IconButton(
                                   tooltip: 'Salir',
                                   onPressed: () async {
-                                    try {
-                                      await SharingService().leaveSharing(m.id);
-                                      if (!context.mounted) return;
-                                      Navigator.pop(context);
-                                      ToastService.info('Has salido de la carpeta');
-                                    } catch (e) {
-                                      ToastService.error('No se pudo salir: $e');
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        backgroundColor: AppColors.surface,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        title: const Text('Salir y eliminar'),
+                                        content: const Text(
+                                          'Esto te sacará de la carpeta y eliminará la entrada de tu lista. ¿Continuar?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(
+                                              context,
+                                            ).pop(false),
+                                            child: const Text('Cancelar'),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(true),
+                                            style: FilledButton.styleFrom(
+                                              backgroundColor:
+                                                  AppColors.warning,
+                                            ),
+                                            child: const Text(
+                                              'Salir y eliminar',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirmed == true) {
+                                      try {
+                                        await SharingService().leaveAndDelete(
+                                          m.id,
+                                        );
+                                        if (!context.mounted) return;
+                                        Navigator.pop(context);
+                                        ToastService.success(
+                                          'Has salido y eliminado la entrada',
+                                        );
+                                      } catch (e) {
+                                        ToastService.error(
+                                          'No se pudo completar: $e',
+                                        );
+                                      }
                                     }
                                   },
                                   icon: const Icon(Icons.logout_rounded),
@@ -222,35 +401,42 @@ class _SharedFolderViewerPageState extends State<SharedFolderViewerPage> {
                   ),
 
                   const SizedBox(height: 16),
-                  const Text('Notas en esta carpeta', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const Text(
+                    'Notas en esta carpeta',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   const SizedBox(height: 8),
                   _loadingNotes
-                      ? const Center(child: Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: CircularProgressIndicator(),
-                        ))
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
                       : _notes.isEmpty
-                          ? const Padding(
-                              padding: EdgeInsets.all(8.0),
-                              child: Text('No hay notas en esta carpeta'),
-                            )
-                          : ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: _notes.length,
-                              itemBuilder: (_, i) {
-                                final n = _notes[i];
-                                return ListTile(
-                                  leading: const Icon(Icons.description_rounded),
-                                  title: Text(n['title']?.toString() ?? 'Sin título'),
-                                  subtitle: Text(
-                                    (n['updatedAt']?.toString() ?? ''),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                );
-                              },
-                            ),
+                      ? const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Text('No hay notas en esta carpeta'),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _notes.length,
+                          itemBuilder: (_, i) {
+                            final n = _notes[i];
+                            return ListTile(
+                              leading: const Icon(Icons.description_rounded),
+                              title: Text(
+                                n['title']?.toString() ?? 'Sin título',
+                              ),
+                              subtitle: Text(
+                                (n['updatedAt']?.toString() ?? ''),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          },
+                        ),
                 ],
               ),
             ),

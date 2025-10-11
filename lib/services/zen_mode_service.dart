@@ -35,7 +35,7 @@ class ZenModeService {
     if (_isZenModeActive || _context == null) return;
 
     _isZenModeActive = true;
-    
+
     // Cambiar a pantalla completa si está configurado
     if (_config.fullscreen) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
@@ -58,7 +58,7 @@ class ZenModeService {
     if (!_isZenModeActive) return;
 
     _isZenModeActive = false;
-    
+
     // Restaurar UI del sistema
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
@@ -147,15 +147,7 @@ class ZenModeConfig {
 }
 
 /// Tipos de sonidos ambientales
-enum AmbientSound {
-  none,
-  rain,
-  forest,
-  ocean,
-  cafe,
-  fireplace,
-  whitenoise,
-}
+enum AmbientSound { none, rain, forest, ocean, cafe, fireplace, whitenoise }
 
 /// Overlay del modo Zen
 class ZenModeOverlay extends StatefulWidget {
@@ -180,48 +172,48 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
   late AnimationController _breathingController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _breathingAnimation;
-  
+
   bool _showControls = false;
   final DateTime _startTime = DateTime.now();
   Duration _sessionTime = Duration.zero;
   Timer? _timer;
   Timer? _breakTimer;
-  
+
   @override
   void initState() {
     super.initState();
-    
+
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    
+
     _breathingController = AnimationController(
       duration: const Duration(seconds: 4),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
-    
+
     _breathingAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(parent: _breathingController, curve: Curves.easeInOut),
     );
-    
+
     _fadeController.forward();
-    
+
     if (widget.config.enableFocusMode) {
       _breathingController.repeat(reverse: true);
     }
-    
+
     // Iniciar temporizador de sesión
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         _sessionTime = DateTime.now().difference(_startTime);
       });
     });
-    
+
     // Configurar recordatorios de descanso
     if (widget.config.enableBreakReminders) {
       _breakTimer = Timer.periodic(widget.config.breakInterval, (timer) {
@@ -241,7 +233,7 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
 
   void _showBreakReminder() {
     if (!mounted) return;
-    
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -259,9 +251,9 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final backgroundColor = widget.config.backgroundColor ?? 
-                           theme.scaffoldBackgroundColor;
-    
+    final backgroundColor =
+        widget.config.backgroundColor ?? theme.scaffoldBackgroundColor;
+
     return Material(
       type: MaterialType.canvas,
       color: backgroundColor.withOpacityCompat(widget.config.opacity),
@@ -286,7 +278,7 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
                 );
               },
             ),
-          
+
           // Contenido del editor
           FadeTransition(
             opacity: _fadeAnimation,
@@ -299,8 +291,8 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
               child: Center(
                 child: Container(
                   constraints: BoxConstraints(
-                    maxWidth: widget.config.centerContent 
-                        ? widget.config.maxWidth 
+                    maxWidth: widget.config.centerContent
+                        ? widget.config.maxWidth
                         : double.infinity,
                   ),
                   padding: const EdgeInsets.symmetric(
@@ -312,7 +304,7 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
               ),
             ),
           ),
-          
+
           // Controles flotantes
           if (_showControls)
             Positioned(
@@ -332,7 +324,7 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
                 ),
               ),
             ),
-          
+
           // Indicador de progreso
           if (widget.config.showProgress)
             Positioned(
@@ -346,7 +338,7 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
                 ),
               ),
             ),
-          
+
           // Botón de salida siempre visible (discreto)
           Positioned(
             top: 20,
@@ -362,11 +354,7 @@ class _ZenModeOverlayState extends State<ZenModeOverlay>
                     color: Colors.black.withOpacityCompat(0.3),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 16,
-                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 16),
                 ),
               ),
             ),
@@ -397,7 +385,7 @@ class ZenModeControls extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-  color: Colors.black.withOpacityCompat(0.8),
+        color: Colors.black.withOpacityCompat(0.8),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -413,9 +401,9 @@ class ZenModeControls extends StatelessWidget {
               fontFamily: 'monospace',
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Controles rápidos
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -457,14 +445,14 @@ class ZenModeControls extends StatelessWidget {
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
     final seconds = duration.inSeconds % 60;
-    
+
     if (hours > 0) {
       return '${hours.toString().padLeft(2, '0')}:'
-             '${minutes.toString().padLeft(2, '0')}:'
-             '${seconds.toString().padLeft(2, '0')}';
+          '${minutes.toString().padLeft(2, '0')}:'
+          '${seconds.toString().padLeft(2, '0')}';
     } else {
       return '${minutes.toString().padLeft(2, '0')}:'
-             '${seconds.toString().padLeft(2, '0')}';
+          '${seconds.toString().padLeft(2, '0')}';
     }
   }
 }
@@ -483,13 +471,14 @@ class ZenModeProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = config.enableBreakReminders
-        ? (sessionTime.inMilliseconds / config.breakInterval.inMilliseconds).clamp(0.0, 1.0)
+        ? (sessionTime.inMilliseconds / config.breakInterval.inMilliseconds)
+              .clamp(0.0, 1.0)
         : (sessionTime.inMinutes / 60.0).clamp(0.0, 1.0);
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
       decoration: BoxDecoration(
-  color: Colors.black.withOpacityCompat(0.5),
+        color: Colors.black.withOpacityCompat(0.5),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -635,7 +624,7 @@ class _ZenModeSettingsDialogState extends State<ZenModeSettingsDialog> {
                   });
                 },
               ),
-              
+
               SwitchListTile(
                 title: const Text('Centrar contenido'),
                 value: _config.centerContent,
@@ -645,7 +634,7 @@ class _ZenModeSettingsDialogState extends State<ZenModeSettingsDialog> {
                   });
                 },
               ),
-              
+
               SwitchListTile(
                 title: const Text('Modo de enfoque'),
                 subtitle: const Text('Efecto de respiración sutil'),
@@ -656,7 +645,7 @@ class _ZenModeSettingsDialogState extends State<ZenModeSettingsDialog> {
                   });
                 },
               ),
-              
+
               SwitchListTile(
                 title: const Text('Mostrar progreso'),
                 value: _config.showProgress,
@@ -666,7 +655,7 @@ class _ZenModeSettingsDialogState extends State<ZenModeSettingsDialog> {
                   });
                 },
               ),
-              
+
               SwitchListTile(
                 title: const Text('Recordatorios de descanso'),
                 value: _config.enableBreakReminders,
@@ -676,7 +665,7 @@ class _ZenModeSettingsDialogState extends State<ZenModeSettingsDialog> {
                   });
                 },
               ),
-              
+
               if (_config.enableBreakReminders) ...[
                 ListTile(
                   title: const Text('Intervalo de descanso'),
@@ -696,7 +685,7 @@ class _ZenModeSettingsDialogState extends State<ZenModeSettingsDialog> {
                   ),
                 ),
               ],
-              
+
               ListTile(
                 title: const Text('Ancho máximo'),
                 subtitle: Slider(
@@ -712,7 +701,7 @@ class _ZenModeSettingsDialogState extends State<ZenModeSettingsDialog> {
                   },
                 ),
               ),
-              
+
               ListTile(
                 title: const Text('Opacidad'),
                 subtitle: Slider(
@@ -748,4 +737,3 @@ class _ZenModeSettingsDialogState extends State<ZenModeSettingsDialog> {
     );
   }
 }
-

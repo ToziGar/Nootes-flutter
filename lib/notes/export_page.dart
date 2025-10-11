@@ -58,7 +58,9 @@ class _ExportPageState extends State<ExportPage> {
       return;
     }
 
-    final selectedNotes = _notes.where((n) => _selectedNoteIds.contains(n['id'].toString())).toList();
+    final selectedNotes = _notes
+        .where((n) => _selectedNoteIds.contains(n['id'].toString()))
+        .toList();
     final buffer = StringBuffer();
 
     buffer.writeln('# Exportación de Notas - Nootes');
@@ -102,26 +104,32 @@ class _ExportPageState extends State<ExportPage> {
       return;
     }
 
-    final selectedNotes = _notes.where((n) => _selectedNoteIds.contains(n['id'].toString())).toList();
-    
+    final selectedNotes = _notes
+        .where((n) => _selectedNoteIds.contains(n['id'].toString()))
+        .toList();
+
     final exportData = {
       'version': '1.0',
       'exportDate': DateTime.now().toIso8601String(),
       'noteCount': selectedNotes.length,
-      'notes': selectedNotes.map((note) => {
-        'id': note['id'],
-        'title': note['title'],
-        'content': note['content'],
-        'tags': note['tags'],
-        'createdAt': note['createdAt'],
-        'updatedAt': note['updatedAt'],
-        'pinned': note['pinned'],
-        'links': note['links'],
-      }).toList(),
+      'notes': selectedNotes
+          .map(
+            (note) => {
+              'id': note['id'],
+              'title': note['title'],
+              'content': note['content'],
+              'tags': note['tags'],
+              'createdAt': note['createdAt'],
+              'updatedAt': note['updatedAt'],
+              'pinned': note['pinned'],
+              'links': note['links'],
+            },
+          )
+          .toList(),
     };
 
     final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
-    
+
     _showExportDialog(
       title: 'Exportar como JSON',
       content: jsonString,
@@ -135,26 +143,50 @@ class _ExportPageState extends State<ExportPage> {
       return;
     }
 
-    final selectedNotes = _notes.where((n) => _selectedNoteIds.contains(n['id'].toString())).toList();
+    final selectedNotes = _notes
+        .where((n) => _selectedNoteIds.contains(n['id'].toString()))
+        .toList();
     final buffer = StringBuffer();
 
     buffer.writeln('<!DOCTYPE html>');
     buffer.writeln('<html lang="es">');
     buffer.writeln('<head>');
     buffer.writeln('  <meta charset="UTF-8">');
-    buffer.writeln('  <meta name="viewport" content="width=device-width, initial-scale=1.0">');
+    buffer.writeln(
+      '  <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+    );
     buffer.writeln('  <title>Notas Exportadas - Nootes</title>');
     buffer.writeln('  <style>');
-    buffer.writeln('    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #0f172a; color: #e2e8f0; }');
-    buffer.writeln('    .header { border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px; }');
-    buffer.writeln('    .note { background: #1e293b; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }');
-    buffer.writeln('    .note-title { color: #3b82f6; font-size: 24px; font-weight: bold; margin: 0 0 12px 0; }');
-    buffer.writeln('    .note-meta { color: #94a3b8; font-size: 14px; margin-bottom: 16px; }');
-    buffer.writeln('    .note-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }');
-    buffer.writeln('    .tag { background: #3b82f6; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px; }');
-    buffer.writeln('    .note-content { line-height: 1.6; white-space: pre-wrap; }');
-    buffer.writeln('    pre { background: #0f172a; padding: 12px; border-radius: 4px; overflow-x: auto; }');
-    buffer.writeln('    code { background: #0f172a; padding: 2px 6px; border-radius: 3px; }');
+    buffer.writeln(
+      '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #0f172a; color: #e2e8f0; }',
+    );
+    buffer.writeln(
+      '    .header { border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px; }',
+    );
+    buffer.writeln(
+      '    .note { background: #1e293b; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }',
+    );
+    buffer.writeln(
+      '    .note-title { color: #3b82f6; font-size: 24px; font-weight: bold; margin: 0 0 12px 0; }',
+    );
+    buffer.writeln(
+      '    .note-meta { color: #94a3b8; font-size: 14px; margin-bottom: 16px; }',
+    );
+    buffer.writeln(
+      '    .note-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }',
+    );
+    buffer.writeln(
+      '    .tag { background: #3b82f6; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px; }',
+    );
+    buffer.writeln(
+      '    .note-content { line-height: 1.6; white-space: pre-wrap; }',
+    );
+    buffer.writeln(
+      '    pre { background: #0f172a; padding: 12px; border-radius: 4px; overflow-x: auto; }',
+    );
+    buffer.writeln(
+      '    code { background: #0f172a; padding: 2px 6px; border-radius: 3px; }',
+    );
     buffer.writeln('  </style>');
     buffer.writeln('</head>');
     buffer.writeln('<body>');
@@ -172,7 +204,7 @@ class _ExportPageState extends State<ExportPage> {
 
       buffer.writeln('  <div class="note">');
       buffer.writeln('    <h2 class="note-title">$title</h2>');
-      
+
       if (tags != null && tags.isNotEmpty) {
         buffer.writeln('    <div class="note-tags">');
         for (var tag in tags) {
@@ -180,11 +212,11 @@ class _ExportPageState extends State<ExportPage> {
         }
         buffer.writeln('    </div>');
       }
-      
+
       if (createdAt.isNotEmpty) {
         buffer.writeln('    <div class="note-meta">Creada: $createdAt</div>');
       }
-      
+
       buffer.writeln('    <div class="note-content">');
       buffer.writeln(_escapeHtml(content));
       buffer.writeln('    </div>');
@@ -210,7 +242,11 @@ class _ExportPageState extends State<ExportPage> {
         .replaceAll("'", '&#39;');
   }
 
-  void _showExportDialog({required String title, required String content, required String filename}) {
+  void _showExportDialog({
+    required String title,
+    required String content,
+    required String filename,
+  }) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -237,7 +273,9 @@ class _ExportPageState extends State<ExportPage> {
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
                   ),
                   child: SingleChildScrollView(
                     child: SelectableText(
@@ -259,7 +297,11 @@ class _ExportPageState extends State<ExportPage> {
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF3B82F6)),
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 16,
+                      color: Color(0xFF3B82F6),
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -284,9 +326,9 @@ class _ExportPageState extends State<ExportPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -298,7 +340,9 @@ class _ExportPageState extends State<ExportPage> {
           if (_selectedNoteIds.isNotEmpty)
             TextButton.icon(
               onPressed: _toggleSelectAll,
-              icon: Icon(_selectAll ? Icons.deselect : Icons.select_all_rounded),
+              icon: Icon(
+                _selectAll ? Icons.deselect : Icons.select_all_rounded,
+              ),
               label: Text(_selectAll ? 'Deseleccionar' : 'Todas'),
             ),
         ],
@@ -363,9 +407,9 @@ class _ExportPageState extends State<ExportPage> {
                     ],
                   ),
                 ),
-                
+
                 const Divider(height: 1),
-                
+
                 // Selected count
                 if (_selectedNoteIds.isNotEmpty)
                   Container(
@@ -373,7 +417,11 @@ class _ExportPageState extends State<ExportPage> {
                     color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                     child: Row(
                       children: [
-                        const Icon(Icons.check_circle_rounded, color: Color(0xFF3B82F6), size: 20),
+                        const Icon(
+                          Icons.check_circle_rounded,
+                          color: Color(0xFF3B82F6),
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           '${_selectedNoteIds.length} ${_selectedNoteIds.length == 1 ? 'nota seleccionada' : 'notas seleccionadas'}',
@@ -382,7 +430,7 @@ class _ExportPageState extends State<ExportPage> {
                       ],
                     ),
                   ),
-                
+
                 // Notes list
                 Expanded(
                   child: ListView.builder(
@@ -408,9 +456,13 @@ class _ExportPageState extends State<ExportPage> {
                                   spacing: 4,
                                   children: tags.take(3).map((tag) {
                                     return Chip(
-                                      label: Text(tag.toString(), style: const TextStyle(fontSize: 10)),
+                                      label: Text(
+                                        tag.toString(),
+                                        style: const TextStyle(fontSize: 10),
+                                      ),
                                       padding: EdgeInsets.zero,
-                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     );
                                   }).toList(),
                                 )
@@ -449,7 +501,9 @@ class _ExportFormatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: enabled ? color.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.05),
+      color: enabled
+          ? color.withValues(alpha: 0.1)
+          : Colors.white.withValues(alpha: 0.05),
       child: InkWell(
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(12),
@@ -457,11 +511,7 @@ class _ExportFormatCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              Icon(
-                icon,
-                color: enabled ? color : Colors.white30,
-                size: 32,
-              ),
+              Icon(icon, color: enabled ? color : Colors.white30, size: 32),
               const SizedBox(height: 8),
               Text(
                 title,

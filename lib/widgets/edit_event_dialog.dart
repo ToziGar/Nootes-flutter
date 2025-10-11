@@ -7,11 +7,7 @@ class EditEventDialog extends StatefulWidget {
   final CalendarEvent event;
   final Function(CalendarEvent) onSave;
 
-  const EditEventDialog({
-    super.key,
-    required this.event,
-    required this.onSave,
-  });
+  const EditEventDialog({super.key, required this.event, required this.onSave});
 
   @override
   State<EditEventDialog> createState() => _EditEventDialogState();
@@ -33,8 +29,12 @@ class _EditEventDialogState extends State<EditEventDialog> {
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.event.title);
-    _descriptionController = TextEditingController(text: widget.event.description);
-    _locationController = TextEditingController(text: widget.event.location ?? '');
+    _descriptionController = TextEditingController(
+      text: widget.event.description,
+    );
+    _locationController = TextEditingController(
+      text: widget.event.location ?? '',
+    );
     _startTime = widget.event.startTime;
     _endTime = widget.event.endTime;
     _eventType = widget.event.type;
@@ -59,13 +59,16 @@ class _EditEventDialogState extends State<EditEventDialog> {
                 // Header
                 Row(
                   children: [
-                    Icon(Icons.edit_calendar_rounded, color: AppColors.primary, size: 28),
+                    Icon(
+                      Icons.edit_calendar_rounded,
+                      color: AppColors.primary,
+                      size: 28,
+                    ),
                     const SizedBox(width: 12),
                     Text(
                       'Editar Evento',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const Spacer(),
                     IconButton(
@@ -84,7 +87,8 @@ class _EditEventDialogState extends State<EditEventDialog> {
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.title_rounded),
                   ),
-                  validator: (value) => value?.isEmpty ?? true ? 'El título es requerido' : null,
+                  validator: (value) =>
+                      value?.isEmpty ?? true ? 'El título es requerido' : null,
                 ),
                 const SizedBox(height: 16),
 
@@ -144,7 +148,10 @@ class _EditEventDialogState extends State<EditEventDialog> {
                 // Fecha y hora de inicio
                 Card(
                   child: ListTile(
-                    leading: Icon(Icons.schedule_rounded, color: AppColors.primary),
+                    leading: Icon(
+                      Icons.schedule_rounded,
+                      color: AppColors.primary,
+                    ),
                     title: const Text('Fecha y hora de inicio'),
                     subtitle: Text(_formatDateTime(_startTime)),
                     trailing: const Icon(Icons.edit_rounded),
@@ -157,9 +164,16 @@ class _EditEventDialogState extends State<EditEventDialog> {
                   const SizedBox(height: 8),
                   Card(
                     child: ListTile(
-                      leading: Icon(Icons.event_rounded, color: AppColors.primary),
+                      leading: Icon(
+                        Icons.event_rounded,
+                        color: AppColors.primary,
+                      ),
                       title: const Text('Fecha y hora de fin'),
-                      subtitle: Text(_endTime != null ? _formatDateTime(_endTime!) : 'No especificado'),
+                      subtitle: Text(
+                        _endTime != null
+                            ? _formatDateTime(_endTime!)
+                            : 'No especificado',
+                      ),
                       trailing: const Icon(Icons.edit_rounded),
                       onTap: _selectEndDateTime,
                     ),
@@ -188,13 +202,15 @@ class _EditEventDialogState extends State<EditEventDialog> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.notifications_rounded, color: AppColors.primary),
+                            Icon(
+                              Icons.notifications_rounded,
+                              color: AppColors.primary,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               'Recordatorios',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
@@ -226,7 +242,11 @@ class _EditEventDialogState extends State<EditEventDialog> {
                     FilledButton(
                       onPressed: _loading ? null : _saveEvent,
                       child: _loading
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
                           : const Text('Guardar cambios'),
                     ),
                   ],
@@ -293,7 +313,7 @@ class _EditEventDialogState extends State<EditEventDialog> {
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    
+
     if (date != null && mounted) {
       if (!_isAllDay) {
         final time = await showTimePicker(
@@ -302,7 +322,13 @@ class _EditEventDialogState extends State<EditEventDialog> {
         );
         if (time != null) {
           setState(() {
-            _startTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+            _startTime = DateTime(
+              date.year,
+              date.month,
+              date.day,
+              time.hour,
+              time.minute,
+            );
           });
         }
       } else {
@@ -320,15 +346,23 @@ class _EditEventDialogState extends State<EditEventDialog> {
       firstDate: _startTime,
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    
+
     if (date != null && mounted) {
       final time = await showTimePicker(
         context: context,
-        initialTime: TimeOfDay.fromDateTime(_endTime ?? _startTime.add(const Duration(hours: 1))),
+        initialTime: TimeOfDay.fromDateTime(
+          _endTime ?? _startTime.add(const Duration(hours: 1)),
+        ),
       );
       if (time != null) {
         setState(() {
-          _endTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+          _endTime = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            time.hour,
+            time.minute,
+          );
         });
       }
     }
@@ -353,7 +387,9 @@ class _EditEventDialogState extends State<EditEventDialog> {
         attendeeNames: widget.event.attendeeNames,
         createdBy: widget.event.createdBy,
         createdAt: widget.event.createdAt,
-        location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
+        location: _locationController.text.trim().isEmpty
+            ? null
+            : _locationController.text.trim(),
         isAllDay: _isAllDay,
         reminders: _reminders,
       );

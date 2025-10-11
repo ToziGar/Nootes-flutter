@@ -44,7 +44,7 @@ class TemplateService {
         tags: ['reunión', 'trabajo', 'agenda'],
         variables: ['fecha', 'contenido'],
       ),
-      
+
       NoteTemplate(
         id: 'todo',
         name: 'Lista de Tareas',
@@ -74,7 +74,7 @@ class TemplateService {
         tags: ['tareas', 'productividad', 'organizacion'],
         variables: ['titulo', 'fecha'],
       ),
-      
+
       NoteTemplate(
         id: 'daily_journal',
         name: 'Diario Personal',
@@ -102,9 +102,17 @@ class TemplateService {
 💭 *Reflexión:* {{reflexion}}
 ''',
         tags: ['diario', 'personal', 'reflexion'],
-        variables: ['fecha', 'estado_animo', 'mejor_momento', 'desafios', 'aprendizajes', 'objetivos_manana', 'reflexion'],
+        variables: [
+          'fecha',
+          'estado_animo',
+          'mejor_momento',
+          'desafios',
+          'aprendizajes',
+          'objetivos_manana',
+          'reflexion',
+        ],
       ),
-      
+
       NoteTemplate(
         id: 'project_plan',
         name: 'Plan de Proyecto',
@@ -157,7 +165,7 @@ class TemplateService {
         tags: ['proyecto', 'planificacion', 'trabajo'],
         variables: ['nombre_proyecto', 'objetivo', 'presupuesto'],
       ),
-      
+
       NoteTemplate(
         id: 'book_notes',
         name: 'Notas de Libro',
@@ -201,9 +209,17 @@ class TemplateService {
 - 
 ''',
         tags: ['libro', 'lectura', 'aprendizaje', 'notas'],
-        variables: ['titulo_libro', 'autor', 'fecha', 'resumen', 'cita_1', 'cita_2', 'reflexiones'],
+        variables: [
+          'titulo_libro',
+          'autor',
+          'fecha',
+          'resumen',
+          'cita_1',
+          'cita_2',
+          'reflexiones',
+        ],
       ),
-      
+
       NoteTemplate(
         id: 'recipe',
         name: 'Receta de Cocina',
@@ -241,9 +257,17 @@ class TemplateService {
 💡 **Tip:** {{tip}}
 ''',
         tags: ['receta', 'cocina', 'comida'],
-        variables: ['nombre_receta', 'tiempo_prep', 'tiempo_coccion', 'porciones', 'dificultad', 'notas_especiales', 'tip'],
+        variables: [
+          'nombre_receta',
+          'tiempo_prep',
+          'tiempo_coccion',
+          'porciones',
+          'dificultad',
+          'notas_especiales',
+          'tip',
+        ],
       ),
-      
+
       NoteTemplate(
         id: 'idea_capture',
         name: 'Captura de Ideas',
@@ -277,7 +301,13 @@ class TemplateService {
 *Estado: {{estado}}*
 ''',
         tags: ['idea', 'creatividad', 'brainstorming'],
-        variables: ['titulo_idea', 'descripcion_idea', 'valor', 'fecha_captura', 'estado'],
+        variables: [
+          'titulo_idea',
+          'descripcion_idea',
+          'valor',
+          'fecha_captura',
+          'estado',
+        ],
       ),
     ];
   }
@@ -305,11 +335,7 @@ class TemplateService {
     final uid = _authService.currentUser?.uid;
     if (uid == null) return;
 
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('templates')
-        .add({
+    await _firestore.collection('users').doc(uid).collection('templates').add({
       'name': template.name,
       'icon': template.icon,
       'description': template.description,
@@ -335,25 +361,28 @@ class TemplateService {
   }
 
   /// Crea una nota desde una plantilla
-  String createNoteFromTemplate(NoteTemplate template, Map<String, String> values) {
+  String createNoteFromTemplate(
+    NoteTemplate template,
+    Map<String, String> values,
+  ) {
     String content = template.content;
-    
+
     // Valores por defecto
     final defaultValues = {
       'fecha': DateTime.now().toString().substring(0, 10),
       'fecha_captura': DateTime.now().toString().substring(0, 16),
       'titulo': 'Nuevo documento',
     };
-    
+
     // Combinar valores proporcionados con valores por defecto
     final allValues = {...defaultValues, ...values};
-    
+
     // Reemplazar variables en el contenido
     for (final variable in template.variables) {
       final value = allValues[variable] ?? '{{$variable}}';
       content = content.replaceAll('{{$variable}}', value);
     }
-    
+
     return content;
   }
 
@@ -367,18 +396,20 @@ class TemplateService {
   /// Busca plantillas por categoría
   Future<List<NoteTemplate>> getTemplatesByCategory(String category) async {
     final allTemplates = await getAllTemplates();
-    return allTemplates.where((template) => template.category == category).toList();
+    return allTemplates
+        .where((template) => template.category == category)
+        .toList();
   }
 
   /// Busca plantillas por etiquetas
   Future<List<NoteTemplate>> searchTemplates(String query) async {
     final allTemplates = await getAllTemplates();
     query = query.toLowerCase();
-    
+
     return allTemplates.where((template) {
       return template.name.toLowerCase().contains(query) ||
-             template.description.toLowerCase().contains(query) ||
-             template.tags.any((tag) => tag.toLowerCase().contains(query));
+          template.description.toLowerCase().contains(query) ||
+          template.tags.any((tag) => tag.toLowerCase().contains(query));
     }).toList();
   }
 }

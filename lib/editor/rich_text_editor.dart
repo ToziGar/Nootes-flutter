@@ -26,7 +26,9 @@ class _RichTextEditorState extends State<RichTextEditor> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: _deltaToPlainText(widget.initialDeltaJson));
+    _controller = TextEditingController(
+      text: _deltaToPlainText(widget.initialDeltaJson),
+    );
     _controller.addListener(() {
       widget.onChanged?.call(_toDeltaJson(_controller.text));
     });
@@ -73,7 +75,9 @@ class _RichTextEditorState extends State<RichTextEditor> {
     final replace = '$left$selected${right.isEmpty ? left : right}';
     _controller.value = _controller.value.copyWith(
       text: text.replaceRange(start, end, replace),
-      selection: TextSelection.collapsed(offset: start + left.length + selected.length),
+      selection: TextSelection.collapsed(
+        offset: start + left.length + selected.length,
+      ),
       composing: TextRange.empty,
     );
   }
@@ -87,7 +91,9 @@ class _RichTextEditorState extends State<RichTextEditor> {
     final lineStart = (prevNewline < 0 ? -1 : prevNewline) + 1;
     _controller.value = _controller.value.copyWith(
       text: text.replaceRange(lineStart, lineStart, prefix),
-      selection: TextSelection.collapsed(offset: (sel.baseOffset + prefix.length)),
+      selection: TextSelection.collapsed(
+        offset: (sel.baseOffset + prefix.length),
+      ),
       composing: TextRange.empty,
     );
   }

@@ -11,14 +11,14 @@ class PresenceService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService.instance;
-  
+
   Timer? _heartbeatTimer;
   bool _isInitialized = false;
 
   /// Inicializa el servicio de presencia
   Future<void> initialize() async {
     if (_isInitialized) return;
-    
+
     final user = _authService.currentUser;
     if (user == null) return;
 
@@ -40,13 +40,11 @@ class PresenceService {
     if (user == null) return;
 
     try {
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .update({
+      // Usamos set(merge: true) para crear el doc si no existe y evitar errores de update
+      await _firestore.collection('users').doc(user.uid).set({
         'lastSeen': FieldValue.serverTimestamp(),
         'isOnline': true,
-      });
+      }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('❌ PresenceService: Error actualizando heartbeat - $e');
     }
@@ -58,14 +56,11 @@ class PresenceService {
     if (user == null) return;
 
     try {
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .set({
+      await _firestore.collection('users').doc(user.uid).set({
         'isOnline': isOnline,
         'lastSeen': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      
+
       debugPrint('✅ PresenceService: Estado en línea actualizado a $isOnline');
     } catch (e) {
       debugPrint('❌ PresenceService: Error estableciendo estado en línea - $e');
@@ -74,11 +69,7 @@ class PresenceService {
 
   /// Obtiene un stream del estado de presencia de un usuario
   Stream<UserPresence> getUserPresenceStream(String userId) {
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .snapshots()
-        .map((doc) {
+    return _firestore.collection('users').doc(userId).snapshots().map((doc) {
       if (!doc.exists) {
         return UserPresence(
           userId: userId,
@@ -94,8 +85,8 @@ class PresenceService {
 
       // Considerar offline si no hay heartbeat en los últimos 60 segundos
       final now = DateTime.now();
-      final isActuallyOnline = isOnline && 
-          now.difference(lastSeen).inSeconds < 60;
+      final isActuallyOnline =
+          isOnline && now.difference(lastSeen).inSeconds < 60;
 
       return UserPresence(
         userId: userId,
@@ -108,10 +99,7 @@ class PresenceService {
   /// Obtiene el estado de presencia de un usuario (snapshot único)
   Future<UserPresence> getUserPresence(String userId) async {
     try {
-      final doc = await _firestore
-          .collection('users')
-          .doc(userId)
-          .get();
+      final doc = await _firestore.collection('users').doc(userId).get();
 
       if (!doc.exists) {
         return UserPresence(
@@ -128,8 +116,8 @@ class PresenceService {
 
       // Considerar offline si no hay heartbeat en los últimos 60 segundos
       final now = DateTime.now();
-      final isActuallyOnline = isOnline && 
-          now.difference(lastSeen).inSeconds < 60;
+      final isActuallyOnline =
+          isOnline && now.difference(lastSeen).inSeconds < 60;
 
       return UserPresence(
         userId: userId,
@@ -147,14 +135,16 @@ class PresenceService {
   }
 
   /// Obtiene el estado de presencia de múltiples usuarios
-  Future<Map<String, UserPresence>> getMultipleUserPresence(List<String> userIds) async {
+  Future<Map<String, UserPresence>> getMultipleUserPresence(
+    List<String> userIds,
+  ) async {
     final Map<String, UserPresence> presenceMap = {};
-    
+
     try {
       // Firestore tiene límite de 10 para "in" queries, así que dividimos
       for (int i = 0; i < userIds.length; i += 10) {
         final batch = userIds.skip(i).take(10).toList();
-        
+
         final querySnapshot = await _firestore
             .collection('users')
             .where(FieldPath.documentId, whereIn: batch)
@@ -167,8 +157,8 @@ class PresenceService {
           final isOnline = data['isOnline'] as bool? ?? false;
 
           final now = DateTime.now();
-          final isActuallyOnline = isOnline && 
-              now.difference(lastSeen).inSeconds < 60;
+          final isActuallyOnline =
+              isOnline && now.difference(lastSeen).inSeconds < 60;
 
           presenceMap[doc.id] = UserPresence(
             userId: doc.id,
@@ -189,7 +179,9 @@ class PresenceService {
         }
       }
     } catch (e) {
-      debugPrint('❌ PresenceService: Error obteniendo presencias múltiples - $e');
+      debugPrint(
+        '❌ PresenceService: Error obteniendo presencias múltiples - $e',
+      );
     }
 
     return presenceMap;
@@ -304,26 +296,24 @@ class PresenceIndicator extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: presence.indicatorColor,
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: size * 0.15,
-                  ),
-                  boxShadow: presence.isOnline ? [
-                    BoxShadow(
-                      color: presence.indicatorColor.withValues(alpha: 0.4),
-                      blurRadius: 4,
-                      spreadRadius: 1,
-                    ),
-                  ] : [],
+                  border: Border.all(color: Colors.white, width: size * 0.15),
+                  boxShadow: presence.isOnline
+                      ? [
+                          BoxShadow(
+                            color: presence.indicatorColor.withValues(
+                              alpha: 0.4,
+                            ),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          ),
+                        ]
+                      : [],
                 ),
               ),
               SizedBox(width: 8),
               Text(
                 presence.statusText,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           );
@@ -335,17 +325,16 @@ class PresenceIndicator extends StatelessWidget {
           decoration: BoxDecoration(
             color: presence.indicatorColor,
             shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white,
-              width: size * 0.15,
-            ),
-            boxShadow: presence.isOnline ? [
-              BoxShadow(
-                color: presence.indicatorColor.withValues(alpha: 0.4),
-                blurRadius: 4,
-                spreadRadius: 1,
-              ),
-            ] : [],
+            border: Border.all(color: Colors.white, width: size * 0.15),
+            boxShadow: presence.isOnline
+                ? [
+                    BoxShadow(
+                      color: presence.indicatorColor.withValues(alpha: 0.4),
+                      blurRadius: 4,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : [],
           ),
         );
       },

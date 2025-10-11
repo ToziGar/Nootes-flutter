@@ -9,12 +9,15 @@ import '../services/auth_service.dart';
 /// - 📊 Análisis y reportes detallados
 /// - ⚡ Optimización de rendimiento
 class DuplicateCleanupService {
-  static const DuplicateCleanupService _instance = DuplicateCleanupService._internal();
+  static const DuplicateCleanupService _instance =
+      DuplicateCleanupService._internal();
   static const DuplicateCleanupService instance = _instance;
   const DuplicateCleanupService._internal();
 
   /// 🔍 Detecta y limpia duplicados de carpetas
-  Future<DuplicateCleanupResult> cleanFolderDuplicates({bool dryRun = false}) async {
+  Future<DuplicateCleanupResult> cleanFolderDuplicates({
+    bool dryRun = false,
+  }) async {
     final uid = AuthService.instance.currentUser?.uid;
     if (uid == null) {
       return DuplicateCleanupResult(
@@ -26,50 +29,54 @@ class DuplicateCleanupService {
     }
 
     try {
-  debugPrint('🧹 Iniciando limpieza avanzada de duplicados...');
-      
+      debugPrint('🧹 Iniciando limpieza avanzada de duplicados...');
+
       // 1. Obtener todas las carpetas
       final allFolders = await FirestoreService.instance.listFolders(uid: uid);
-  debugPrint('📁 Total carpetas encontradas: ${allFolders.length}');
-      
+      debugPrint('📁 Total carpetas encontradas: ${allFolders.length}');
+
       // 2. Agrupar por folderId lógico
       final folderGroups = <String, List<Map<String, dynamic>>>{};
       for (var folder in allFolders) {
-        final folderId = folder['folderId']?.toString() ?? folder['id']?.toString() ?? '';
+        final folderId =
+            folder['folderId']?.toString() ?? folder['id']?.toString() ?? '';
         if (folderId.isNotEmpty) {
           folderGroups.putIfAbsent(folderId, () => []).add(folder);
         }
       }
-      
+
       // 3. Identificar grupos con duplicados
       final duplicateGroups = folderGroups.entries
           .where((entry) => entry.value.length > 1)
           .toList();
-      
-  debugPrint('⚠️ Grupos con duplicados: ${duplicateGroups.length}');
-      
+
+      debugPrint('⚠️ Grupos con duplicados: ${duplicateGroups.length}');
+
       int totalDuplicatesFound = 0;
       int totalDuplicatesRemoved = 0;
       final List<String> removedDocIds = [];
       final List<DuplicateGroup> detailedGroups = [];
-      
+
       // 4. Procesar cada grupo de duplicados
       for (var group in duplicateGroups) {
         final folderId = group.key;
         final duplicates = group.value;
-        totalDuplicatesFound += duplicates.length - 1; // -1 porque uno se conserva
-        
-  debugPrint('🔍 Procesando grupo $folderId con ${duplicates.length} duplicados');
-        
+        totalDuplicatesFound +=
+            duplicates.length - 1; // -1 porque uno se conserva
+
+        debugPrint(
+          '🔍 Procesando grupo $folderId con ${duplicates.length} duplicados',
+        );
+
         // Ordenar por fecha de actualización (más reciente primero)
         duplicates.sort((a, b) {
           final aTime = a['updatedAt'] ?? a['createdAt'];
           final bTime = b['updatedAt'] ?? b['createdAt'];
-          
+
           if (aTime == null && bTime == null) return 0;
           if (aTime == null) return 1;
           if (bTime == null) return -1;
-          
+
           try {
             final aDate = DateTime.parse(aTime.toString());
             final bDate = DateTime.parse(bTime.toString());
@@ -78,27 +85,32 @@ class DuplicateCleanupService {
             return 0;
           }
         });
-        
+
         // Mantener el más reciente, eliminar el resto
         final toKeep = duplicates.first;
         final toRemove = duplicates.skip(1).toList();
-        
+
         final duplicateGroup = DuplicateGroup(
           folderId: folderId,
           folderName: toKeep['name']?.toString() ?? 'Sin nombre',
           totalCount: duplicates.length,
           keptDocument: DuplicateDocument.fromMap(toKeep),
-          removedDocuments: toRemove.map((d) => DuplicateDocument.fromMap(d)).toList(),
+          removedDocuments: toRemove
+              .map((d) => DuplicateDocument.fromMap(d))
+              .toList(),
         );
         detailedGroups.add(duplicateGroup);
-        
+
         if (!dryRun) {
           // Eliminar duplicados
           for (var duplicate in toRemove) {
             final docId = duplicate['id']?.toString();
             if (docId != null) {
               try {
-                await FirestoreService.instance.deleteFolder(uid: uid, folderId: docId);
+                await FirestoreService.instance.deleteFolder(
+                  uid: uid,
+                  folderId: docId,
+                );
                 removedDocIds.add(docId);
                 totalDuplicatesRemoved++;
                 debugPrint('🗑️ Eliminado duplicado: $docId');
@@ -109,30 +121,35 @@ class DuplicateCleanupService {
           }
         }
       }
-      
+
       // 5. Verificación final
       if (!dryRun && totalDuplicatesRemoved > 0) {
-  debugPrint('✅ Esperando sincronización...');
+        debugPrint('✅ Esperando sincronización...');
         await Future.delayed(const Duration(seconds: 2));
-        
+
         // Verificar que se eliminaron correctamente
-        final remainingFolders = await FirestoreService.instance.listFolders(uid: uid);
+        final remainingFolders = await FirestoreService.instance.listFolders(
+          uid: uid,
+        );
         final remainingGroups = <String, List<Map<String, dynamic>>>{};
-        
+
         for (var folder in remainingFolders) {
-          final folderId = folder['folderId']?.toString() ?? folder['id']?.toString() ?? '';
+          final folderId =
+              folder['folderId']?.toString() ?? folder['id']?.toString() ?? '';
           if (folderId.isNotEmpty) {
             remainingGroups.putIfAbsent(folderId, () => []).add(folder);
           }
         }
-        
+
         final stillDuplicated = remainingGroups.entries
             .where((entry) => entry.value.length > 1)
             .length;
-        
-  debugPrint('🔍 Verificación: $stillDuplicated grupos aún tienen duplicados');
+
+        debugPrint(
+          '🔍 Verificación: $stillDuplicated grupos aún tienen duplicados',
+        );
       }
-      
+
       final result = DuplicateCleanupResult(
         success: true,
         duplicatesFound: totalDuplicatesFound,
@@ -141,12 +158,11 @@ class DuplicateCleanupService {
         removedDocumentIds: removedDocIds,
         dryRun: dryRun,
       );
-      
+
       _printCleanupReport(result);
       return result;
-      
     } catch (e) {
-  debugPrint('❌ Error en limpieza de duplicados: $e');
+      debugPrint('❌ Error en limpieza de duplicados: $e');
       return DuplicateCleanupResult(
         success: false,
         error: e.toString(),
@@ -157,7 +173,9 @@ class DuplicateCleanupService {
   }
 
   /// 🔍 Detecta duplicados de notas
-  Future<DuplicateCleanupResult> cleanNoteDuplicates({bool dryRun = false}) async {
+  Future<DuplicateCleanupResult> cleanNoteDuplicates({
+    bool dryRun = false,
+  }) async {
     final uid = AuthService.instance.currentUser?.uid;
     if (uid == null) {
       return DuplicateCleanupResult(
@@ -169,11 +187,11 @@ class DuplicateCleanupService {
     }
 
     try {
-  debugPrint('🧹 Iniciando limpieza de duplicados de notas...');
-      
+      debugPrint('🧹 Iniciando limpieza de duplicados de notas...');
+
       final allNotes = await FirestoreService.instance.listNotes(uid: uid);
-  debugPrint('📝 Total notas encontradas: ${allNotes.length}');
-      
+      debugPrint('📝 Total notas encontradas: ${allNotes.length}');
+
       // Agrupar por contenido similar (hash del título + primeras 100 chars)
       final noteGroups = <String, List<Map<String, dynamic>>>{};
       for (var note in allNotes) {
@@ -182,29 +200,29 @@ class DuplicateCleanupService {
         final hash = _generateContentHash(title, content);
         noteGroups.putIfAbsent(hash, () => []).add(note);
       }
-      
+
       final duplicateGroups = noteGroups.entries
           .where((entry) => entry.value.length > 1)
           .toList();
-      
-  debugPrint('⚠️ Grupos de notas duplicadas: ${duplicateGroups.length}');
-      
+
+      debugPrint('⚠️ Grupos de notas duplicadas: ${duplicateGroups.length}');
+
       int totalDuplicatesFound = 0;
       int totalDuplicatesRemoved = 0;
-      
+
       for (var group in duplicateGroups) {
         final duplicates = group.value;
         totalDuplicatesFound += duplicates.length - 1;
-        
+
         // Mantener la más reciente
         duplicates.sort((a, b) {
           final aTime = a['updatedAt'] ?? a['createdAt'];
           final bTime = b['updatedAt'] ?? b['createdAt'];
-          
+
           if (aTime == null && bTime == null) return 0;
           if (aTime == null) return 1;
           if (bTime == null) return -1;
-          
+
           try {
             final aDate = DateTime.parse(aTime.toString());
             final bDate = DateTime.parse(bTime.toString());
@@ -213,14 +231,17 @@ class DuplicateCleanupService {
             return 0;
           }
         });
-        
+
         if (!dryRun) {
           final toRemove = duplicates.skip(1);
           for (var duplicate in toRemove) {
             final noteId = duplicate['id']?.toString();
             if (noteId != null) {
               try {
-                await FirestoreService.instance.deleteNote(uid: uid, noteId: noteId);
+                await FirestoreService.instance.deleteNote(
+                  uid: uid,
+                  noteId: noteId,
+                );
                 totalDuplicatesRemoved++;
                 debugPrint('🗑️ Nota duplicada eliminada: $noteId');
               } catch (e) {
@@ -230,16 +251,15 @@ class DuplicateCleanupService {
           }
         }
       }
-      
+
       return DuplicateCleanupResult(
         success: true,
         duplicatesFound: totalDuplicatesFound,
         duplicatesRemoved: totalDuplicatesRemoved,
         dryRun: dryRun,
       );
-      
     } catch (e) {
-  debugPrint('❌ Error en limpieza de duplicados de notas: $e');
+      debugPrint('❌ Error en limpieza de duplicados de notas: $e');
       return DuplicateCleanupResult(
         success: false,
         error: e.toString(),
@@ -250,37 +270,46 @@ class DuplicateCleanupService {
   }
 
   /// 🔧 Limpieza completa del sistema
-  Future<ComprehensiveCleanupResult> performComprehensiveCleanup({bool dryRun = false}) async {
-  debugPrint('🧹 🚀 Iniciando limpieza completa del sistema...');
-    
+  Future<ComprehensiveCleanupResult> performComprehensiveCleanup({
+    bool dryRun = false,
+  }) async {
+    debugPrint('🧹 🚀 Iniciando limpieza completa del sistema...');
+
     final folderResult = await cleanFolderDuplicates(dryRun: dryRun);
     await Future.delayed(const Duration(seconds: 1));
-    
+
     final noteResult = await cleanNoteDuplicates(dryRun: dryRun);
     await Future.delayed(const Duration(seconds: 1));
-    
+
     return ComprehensiveCleanupResult(
       folderCleanup: folderResult,
       noteCleanup: noteResult,
-      totalDuplicatesFound: folderResult.duplicatesFound + noteResult.duplicatesFound,
-      totalDuplicatesRemoved: folderResult.duplicatesRemoved + noteResult.duplicatesRemoved,
+      totalDuplicatesFound:
+          folderResult.duplicatesFound + noteResult.duplicatesFound,
+      totalDuplicatesRemoved:
+          folderResult.duplicatesRemoved + noteResult.duplicatesRemoved,
     );
   }
 
   /// 📊 Genera hash de contenido para detectar similitudes
   String _generateContentHash(String title, String content) {
-    final combined = '$title${content.length > 100 ? content.substring(0, 100) : content}';
-    return combined.toLowerCase().replaceAll(RegExp(r'\s+'), '').hashCode.toString();
+    final combined =
+        '$title${content.length > 100 ? content.substring(0, 100) : content}';
+    return combined
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), '')
+        .hashCode
+        .toString();
   }
 
   /// 📋 Imprime reporte detallado
   void _printCleanupReport(DuplicateCleanupResult result) {
-  debugPrint('\n📊 === REPORTE DE LIMPIEZA ===');
-  debugPrint('✅ Éxito: ${result.success}');
-  debugPrint('🔍 Duplicados encontrados: ${result.duplicatesFound}');
-  debugPrint('🗑️ Duplicados eliminados: ${result.duplicatesRemoved}');
-  debugPrint('🧪 Modo prueba: ${result.dryRun}');
-    
+    debugPrint('\n📊 === REPORTE DE LIMPIEZA ===');
+    debugPrint('✅ Éxito: ${result.success}');
+    debugPrint('🔍 Duplicados encontrados: ${result.duplicatesFound}');
+    debugPrint('🗑️ Duplicados eliminados: ${result.duplicatesRemoved}');
+    debugPrint('🧪 Modo prueba: ${result.dryRun}');
+
     if (result.groups != null && result.groups!.isNotEmpty) {
       debugPrint('\n📁 Grupos procesados:');
       for (var group in result.groups!) {
@@ -290,7 +319,7 @@ class DuplicateCleanupService {
         debugPrint('    Eliminados: ${group.removedDocuments.length}');
       }
     }
-    
+
     if (result.error != null) {
       debugPrint('❌ Error: ${result.error}');
     }
@@ -371,10 +400,10 @@ class DuplicateDocument {
     return DuplicateDocument(
       documentId: map['id']?.toString() ?? '',
       name: map['name']?.toString(),
-      createdAt: map['createdAt'] != null 
+      createdAt: map['createdAt'] != null
           ? DateTime.tryParse(map['createdAt'].toString())
           : null,
-      updatedAt: map['updatedAt'] != null 
+      updatedAt: map['updatedAt'] != null
           ? DateTime.tryParse(map['updatedAt'].toString())
           : null,
     );

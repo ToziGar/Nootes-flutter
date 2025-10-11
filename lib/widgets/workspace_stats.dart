@@ -3,19 +3,15 @@ import '../theme/app_theme.dart';
 
 /// Widget para mostrar estadísticas del workspace
 class WorkspaceStats extends StatelessWidget {
-  const WorkspaceStats({
-    super.key,
-    required this.notes,
-    required this.folders,
-  });
-  
+  const WorkspaceStats({super.key, required this.notes, required this.folders});
+
   final List<Map<String, dynamic>> notes;
   final int folders;
-  
+
   @override
   Widget build(BuildContext context) {
     final stats = _calculateStats();
-    
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -49,14 +45,14 @@ class WorkspaceStats extends StatelessWidget {
               const SizedBox(width: AppColors.space12),
               Text(
                 'Estadísticas del Workspace',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
           ),
           const SizedBox(height: AppColors.space20),
-          
+
           // Grid de estadísticas
           GridView.count(
             shrinkWrap: true,
@@ -97,7 +93,7 @@ class WorkspaceStats extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppColors.space16),
-          
+
           // Estadísticas adicionales
           _buildInfoRow(
             context,
@@ -111,37 +107,38 @@ class WorkspaceStats extends StatelessWidget {
             _formatNumber(stats['totalChars']),
           ),
           const SizedBox(height: AppColors.space8),
-          _buildInfoRow(
-            context,
-            'Nota más reciente',
-            stats['lastCreated'],
-          ),
+          _buildInfoRow(context, 'Nota más reciente', stats['lastCreated']),
         ],
       ),
     );
   }
-  
+
   Map<String, dynamic> _calculateStats() {
     var pinnedNotes = 0;
     var totalWords = 0;
     var totalChars = 0;
     final allTags = <String>{};
     DateTime? lastCreated;
-    
+
     for (final note in notes) {
       // Tags
-      final tags = List<String>.from((note['tags'] as List?)?.whereType<String>() ?? []);
+      final tags = List<String>.from(
+        (note['tags'] as List?)?.whereType<String>() ?? [],
+      );
       allTags.addAll(tags);
-      
+
       // Pinned
       if (note['pinned'] == true) pinnedNotes++;
-      
+
       // Words and chars
       final content = note['content']?.toString() ?? '';
-      final words = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+      final words = content
+          .split(RegExp(r'\s+'))
+          .where((w) => w.isNotEmpty)
+          .length;
       totalWords += words;
       totalChars += content.length;
-      
+
       // Last created
       final createdAt = note['createdAt'];
       DateTime? noteDate;
@@ -150,16 +147,16 @@ class WorkspaceStats extends StatelessWidget {
       } else if (createdAt is int) {
         noteDate = DateTime.fromMillisecondsSinceEpoch(createdAt);
       }
-      
+
       if (noteDate != null) {
         if (lastCreated == null || noteDate.isAfter(lastCreated)) {
           lastCreated = noteDate;
         }
       }
     }
-    
+
     final avgWords = notes.isEmpty ? 0 : (totalWords / notes.length).round();
-    
+
     String lastCreatedStr = 'N/A';
     if (lastCreated != null) {
       final diff = DateTime.now().difference(lastCreated);
@@ -173,7 +170,7 @@ class WorkspaceStats extends StatelessWidget {
         lastCreatedStr = 'Hace ${(diff.inDays / 7).floor()} semanas';
       }
     }
-    
+
     return {
       'totalNotes': notes.length,
       'totalTags': allTags.length,
@@ -183,7 +180,7 @@ class WorkspaceStats extends StatelessWidget {
       'lastCreated': lastCreatedStr,
     };
   }
-  
+
   Widget _buildStatCard(
     BuildContext context,
     String label,
@@ -245,27 +242,27 @@ class WorkspaceStats extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildInfoRow(BuildContext context, String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColors.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
         Text(
           value,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
       ],
     );
   }
-  
+
   String _formatNumber(int number) {
     if (number >= 1000000) {
       return '${(number / 1000000).toStringAsFixed(1)}M';

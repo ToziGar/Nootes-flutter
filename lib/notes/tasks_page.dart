@@ -11,7 +11,8 @@ class TasksPage extends StatefulWidget {
   State<TasksPage> createState() => _TasksPageState();
 }
 
-class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMixin {
+class _TasksPageState extends State<TasksPage>
+    with SingleTickerProviderStateMixin {
   late Future<void> _init;
   List<Task> _tasks = [];
   late TabController _tabController;
@@ -33,52 +34,52 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
   Future<void> _loadTasks() async {
     final notes = await FirestoreService.instance.listNotes(uid: _uid);
     final tasks = <Task>[];
-    
+
     for (var note in notes) {
       final content = note['content']?.toString() ?? '';
       final noteId = note['id'].toString();
       final noteTitle = note['title']?.toString() ?? 'Sin título';
-      
+
       // Buscar checkboxes en el contenido
       final checkboxes = _extractCheckboxes(content);
-      
+
       for (var cb in checkboxes) {
-        tasks.add(Task(
-          id: '${noteId}_${tasks.length}',
-          noteId: noteId,
-          noteTitle: noteTitle,
-          description: cb['text'] ?? '',
-          completed: cb['checked'] ?? false,
-          line: cb['line'] ?? 0,
-        ));
+        tasks.add(
+          Task(
+            id: '${noteId}_${tasks.length}',
+            noteId: noteId,
+            noteTitle: noteTitle,
+            description: cb['text'] ?? '',
+            completed: cb['checked'] ?? false,
+            line: cb['line'] ?? 0,
+          ),
+        );
       }
     }
-    
+
     setState(() => _tasks = tasks);
   }
 
   List<Map<String, dynamic>> _extractCheckboxes(String content) {
     final lines = content.split('\n');
     final checkboxes = <Map<String, dynamic>>[];
-    
+
     for (var i = 0; i < lines.length; i++) {
       final line = lines[i];
-      
+
       // Detectar checkbox markdown: - [ ] o - [x]
       if (line.contains(RegExp(r'^\s*-\s*\[[ xX]\]'))) {
         final checked = line.contains(RegExp(r'\[[xX]\]'));
-        final text = line.replaceAll(RegExp(r'^\s*-\s*\[[ xX]\]\s*'), '').trim();
-        
+        final text = line
+            .replaceAll(RegExp(r'^\s*-\s*\[[ xX]\]\s*'), '')
+            .trim();
+
         if (text.isNotEmpty) {
-          checkboxes.add({
-            'text': text,
-            'checked': checked,
-            'line': i,
-          });
+          checkboxes.add({'text': text, 'checked': checked, 'line': i});
         }
       }
     }
-    
+
     return checkboxes;
   }
 
@@ -126,7 +127,7 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
             if (snapshot.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
             }
-            
+
             return TabBarView(
               controller: _tabController,
               children: [
@@ -146,7 +147,11 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildTaskList(List<Task> tasks, {bool showCompleted = false, bool showAll = false}) {
+  Widget _buildTaskList(
+    List<Task> tasks, {
+    bool showCompleted = false,
+    bool showAll = false,
+  }) {
     if (tasks.isEmpty) {
       return Center(
         child: Column(
@@ -162,9 +167,9 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
               showCompleted
                   ? '¡Sin tareas completadas aún!'
                   : '¡No hay tareas pendientes!',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.white60,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: Colors.white60),
             ),
             const SizedBox(height: 8),
             Text(
@@ -180,7 +185,7 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
         ),
       );
     }
-    
+
     // Agrupar por nota
     final groupedTasks = <String, List<Task>>{};
     for (var task in tasks) {
@@ -189,7 +194,7 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
       }
       groupedTasks[task.noteId]!.add(task);
     }
-    
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: groupedTasks.length,
@@ -197,11 +202,11 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
         final noteId = groupedTasks.keys.elementAt(index);
         final noteTasks = groupedTasks[noteId]!;
         final noteTitle = noteTasks.first.noteTitle;
-        
+
         final completedCount = noteTasks.where((t) => t.completed).length;
         final totalCount = noteTasks.length;
         final progress = totalCount > 0 ? completedCount / totalCount : 0.0;
-        
+
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: Theme(
@@ -210,7 +215,9 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
               leading: CircularProgressIndicator(
                 value: progress,
                 backgroundColor: Colors.white.withValues(alpha: 0.1),
-                color: progress == 1.0 ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
+                color: progress == 1.0
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFF3B82F6),
               ),
               title: Text(
                 noteTitle,
@@ -242,8 +249,10 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
     final total = _tasks.length;
     final completed = _completedTasks.length;
     final pending = _pendingTasks.length;
-    final completionRate = total > 0 ? (completed / total * 100).toStringAsFixed(1) : '0';
-    
+    final completionRate = total > 0
+        ? (completed / total * 100).toStringAsFixed(1)
+        : '0';
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -292,7 +301,10 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.trending_up_rounded, color: Color(0xFF10B981)),
+                  const Icon(
+                    Icons.trending_up_rounded,
+                    color: Color(0xFF10B981),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Tasa de completitud: $completionRate%',
@@ -340,10 +352,7 @@ class _TaskTile extends StatelessWidget {
   final Task task;
   final ValueChanged<bool?> onChanged;
 
-  const _TaskTile({
-    required this.task,
-    required this.onChanged,
-  });
+  const _TaskTile({required this.task, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -366,9 +375,9 @@ class _TaskTile extends StatelessWidget {
         tooltip: 'Abrir nota',
         onPressed: () {
           // Aquí se abriría la nota específica
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Abrir: ${task.noteTitle}')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Abrir: ${task.noteTitle}')));
         },
       ),
     );

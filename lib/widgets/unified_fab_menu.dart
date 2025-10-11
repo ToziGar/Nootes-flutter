@@ -71,7 +71,7 @@ class _UnifiedFABMenuState extends State<UnifiedFABMenu>
       children: [
         // Botones expandibles
         ..._buildActionButtons(),
-        
+
         // Botón principal
         ScaleTransition(
           scale: Tween<double>(begin: 1.0, end: 0.95).animate(_expandAnimation),
@@ -166,10 +166,12 @@ class _UnifiedFABMenuState extends State<UnifiedFABMenu>
     ];
 
     return buttons
-        .map((btn) => Padding(
-              padding: const EdgeInsets.only(bottom: AppColors.space12),
-              child: btn,
-            ))
+        .map(
+          (btn) => Padding(
+            padding: const EdgeInsets.only(bottom: AppColors.space12),
+            child: btn,
+          ),
+        )
         .toList();
   }
 }
@@ -195,10 +197,7 @@ class _FabMenuItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Animación escalonada: cada botón aparece con un pequeño delay
-    final delayedAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(
+    final delayedAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: animation,
         curve: Interval(
@@ -237,7 +236,7 @@ class _FabMenuItem extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppColors.space12),
-            
+
             // Botón
             FloatingActionButton.small(
               heroTag: 'fab_$label',

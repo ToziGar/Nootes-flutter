@@ -19,33 +19,46 @@ class AutoCompleteService {
   Future<void> _loadUserWords() async {
     final raw = await PreferencesService.getUserWords();
     _userWords = raw
-        .map((e) => _UserWord(
-              text: (e['text'] ?? '').toString(),
-              freq: e['freq'] is int ? e['freq'] as int : int.tryParse('${e['freq']}') ?? 1,
-              lastUsed: DateTime.tryParse('${e['lastUsed']}') ?? DateTime.fromMillisecondsSinceEpoch(0),
-            ))
+        .map(
+          (e) => _UserWord(
+            text: (e['text'] ?? '').toString(),
+            freq: e['freq'] is int
+                ? e['freq'] as int
+                : int.tryParse('${e['freq']}') ?? 1,
+            lastUsed:
+                DateTime.tryParse('${e['lastUsed']}') ??
+                DateTime.fromMillisecondsSinceEpoch(0),
+          ),
+        )
         .where((w) => w.text.isNotEmpty)
         .toList(growable: false);
     _userWords.sort();
   }
 
   /// Lista de sugerencias actuales
-  Future<List<AutoCompleteSuggestion>> getSuggestions(String text, int cursorPosition) async {
-    final query = text.substring(0, cursorPosition).split(RegExp(r"\s+")).lastOrNull ?? '';
+  Future<List<AutoCompleteSuggestion>> getSuggestions(
+    String text,
+    int cursorPosition,
+  ) async {
+    final query =
+        text.substring(0, cursorPosition).split(RegExp(r"\s+")).lastOrNull ??
+        '';
     final q = query.toLowerCase();
 
     // Sugerencias personalizadas por palabras del usuario
     final personal = _userWords
         .where((w) => q.isEmpty ? true : w.text.toLowerCase().startsWith(q))
         .take(8)
-        .map((w) => AutoCompleteSuggestion(
-              text: w.text,
-              description: 'Frecuencia ${w.freq}',
-              type: SuggestionType.keyword,
-              icon: Icons.person,
-              color: Colors.teal,
-              frequency: w.freq,
-            ))
+        .map(
+          (w) => AutoCompleteSuggestion(
+            text: w.text,
+            description: 'Frecuencia ${w.freq}',
+            type: SuggestionType.keyword,
+            icon: Icons.person,
+            color: Colors.teal,
+            frequency: w.freq,
+          ),
+        )
         .toList();
 
     // Sugerencias base (ejemplo)
@@ -92,15 +105,23 @@ class AutoCompleteService {
     // Persistir y actualizar cache
     PreferencesService.addOrBumpUserWord(word);
     // También reflejar en memoria para disponibilidad inmediata
-    final idx = _userWords.indexWhere((w) => w.text.toLowerCase() == word!.toLowerCase());
+    final idx = _userWords.indexWhere(
+      (w) => w.text.toLowerCase() == word!.toLowerCase(),
+    );
     if (idx >= 0) {
-      final updated = _userWords[idx].copyWith(freq: _userWords[idx].freq + 1, lastUsed: DateTime.now());
+      final updated = _userWords[idx].copyWith(
+        freq: _userWords[idx].freq + 1,
+        lastUsed: DateTime.now(),
+      );
       final list = [..._userWords];
       list[idx] = updated;
       list.sort();
       _userWords = list;
     } else {
-  final list = [..._userWords, _UserWord(text: word, freq: 1, lastUsed: DateTime.now())];
+      final list = [
+        ..._userWords,
+        _UserWord(text: word, freq: 1, lastUsed: DateTime.now()),
+      ];
       list.sort();
       _userWords = list;
     }
@@ -112,10 +133,18 @@ class _UserWord implements Comparable<_UserWord> {
   final String text;
   final int freq;
   final DateTime lastUsed;
-  const _UserWord({required this.text, required this.freq, required this.lastUsed});
+  const _UserWord({
+    required this.text,
+    required this.freq,
+    required this.lastUsed,
+  });
 
   _UserWord copyWith({String? text, int? freq, DateTime? lastUsed}) =>
-      _UserWord(text: text ?? this.text, freq: freq ?? this.freq, lastUsed: lastUsed ?? this.lastUsed);
+      _UserWord(
+        text: text ?? this.text,
+        freq: freq ?? this.freq,
+        lastUsed: lastUsed ?? this.lastUsed,
+      );
 
   @override
   int compareTo(_UserWord other) {
@@ -162,8 +191,4 @@ class CodeSnippet {
 }
 
 /// Tipos de sugerencias
-enum SuggestionType {
-  text,
-  snippet,
-  keyword,
-}
+enum SuggestionType { text, snippet, keyword }

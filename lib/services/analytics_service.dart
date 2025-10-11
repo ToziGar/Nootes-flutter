@@ -11,15 +11,14 @@ class AnalyticsService {
   final AuthService _authService = AuthService.instance;
 
   /// Registra un evento de uso
-  Future<void> trackEvent(String eventName, Map<String, dynamic> properties) async {
+  Future<void> trackEvent(
+    String eventName,
+    Map<String, dynamic> properties,
+  ) async {
     final uid = _authService.currentUser?.uid;
     if (uid == null) return;
 
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('analytics')
-        .add({
+    await _firestore.collection('users').doc(uid).collection('analytics').add({
       'event': eventName,
       'properties': properties,
       'timestamp': FieldValue.serverTimestamp(),
@@ -109,7 +108,7 @@ class AnalyticsService {
     if (uid == null) return [];
 
     final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
-    
+
     final snapshot = await _firestore
         .collection('users')
         .doc(uid)
@@ -119,7 +118,7 @@ class AnalyticsService {
         .get();
 
     final Map<String, DailyActivity> activityMap = {};
-    
+
     // Inicializar todos los días con 0 actividad
     for (int i = 0; i < 30; i++) {
       final date = DateTime.now().subtract(Duration(days: 29 - i));
@@ -141,17 +140,18 @@ class AnalyticsService {
       if (date != null && activityMap.containsKey(date)) {
         activityMap[date] = activityMap[date]!.copyWith(
           totalEvents: activityMap[date]!.totalEvents + 1,
-          notesCreated: event == 'note_created' 
-              ? activityMap[date]!.notesCreated + 1 
+          notesCreated: event == 'note_created'
+              ? activityMap[date]!.notesCreated + 1
               : activityMap[date]!.notesCreated,
-          notesEdited: event == 'note_edited' 
-              ? activityMap[date]!.notesEdited + 1 
+          notesEdited: event == 'note_edited'
+              ? activityMap[date]!.notesEdited + 1
               : activityMap[date]!.notesEdited,
         );
       }
     }
 
-    return activityMap.values.toList()..sort((a, b) => a.date.compareTo(b.date));
+    return activityMap.values.toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
   }
 
   /// Obtiene estadísticas de las carpetas más utilizadas
@@ -190,8 +190,11 @@ class AnalyticsService {
           final content = noteData['content'] as String? ?? '';
           final updatedAt = (noteData['updatedAt'] as Timestamp?)?.toDate();
 
-          totalWords += content.split(' ').where((word) => word.isNotEmpty).length;
-          
+          totalWords += content
+              .split(' ')
+              .where((word) => word.isNotEmpty)
+              .length;
+
           if (updatedAt != null) {
             if (lastActivity == null || updatedAt.isAfter(lastActivity)) {
               lastActivity = updatedAt;
@@ -199,13 +202,15 @@ class AnalyticsService {
           }
         }
 
-        folderStats.add(FolderStats(
-          folderId: folderId,
-          folderName: folderName,
-          noteCount: notesSnapshot.docs.length,
-          totalWords: totalWords,
-          lastActivity: lastActivity,
-        ));
+        folderStats.add(
+          FolderStats(
+            folderId: folderId,
+            folderName: folderName,
+            noteCount: notesSnapshot.docs.length,
+            totalWords: totalWords,
+            lastActivity: lastActivity,
+          ),
+        );
       }
     }
 
@@ -230,7 +235,7 @@ class AnalyticsService {
     for (final doc in notesSnapshot.docs) {
       final data = doc.data();
       final tags = data['tags'] as List<dynamic>? ?? [];
-      
+
       for (final tag in tags) {
         if (tag is String && tag.isNotEmpty) {
           tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
@@ -260,7 +265,7 @@ class AnalyticsService {
         .get();
 
     final Map<int, int> hourlyActivity = {};
-    
+
     // Inicializar todas las horas
     for (int i = 0; i < 24; i++) {
       hourlyActivity[i] = 0;
@@ -269,7 +274,7 @@ class AnalyticsService {
     for (final doc in snapshot.docs) {
       final data = doc.data();
       final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
-      
+
       if (timestamp != null) {
         final hour = timestamp.hour;
         hourlyActivity[hour] = (hourlyActivity[hour] ?? 0) + 1;
@@ -279,7 +284,7 @@ class AnalyticsService {
     return hourlyActivity.entries
         .map((entry) => HourlyActivity(hour: entry.key, activity: entry.value))
         .toList()
-        ..sort((a, b) => a.hour.compareTo(b.hour));
+      ..sort((a, b) => a.hour.compareTo(b.hour));
   }
 
   // Métodos para registrar eventos específicos
@@ -345,8 +350,9 @@ class UserStats {
   }
 
   int get averageWordsPerNote => totalNotes > 0 ? totalWords ~/ totalNotes : 0;
-  int get averageCharactersPerNote => totalNotes > 0 ? totalCharacters ~/ totalNotes : 0;
-  
+  int get averageCharactersPerNote =>
+      totalNotes > 0 ? totalCharacters ~/ totalNotes : 0;
+
   int get daysSinceFirstNote {
     if (firstNoteDate == null) return 0;
     return DateTime.now().difference(firstNoteDate!).inDays;
@@ -404,10 +410,7 @@ class TagStats {
   final String tag;
   final int count;
 
-  const TagStats({
-    required this.tag,
-    required this.count,
-  });
+  const TagStats({required this.tag, required this.count});
 }
 
 /// Clase para actividad por hora
@@ -415,10 +418,7 @@ class HourlyActivity {
   final int hour;
   final int activity;
 
-  const HourlyActivity({
-    required this.hour,
-    required this.activity,
-  });
+  const HourlyActivity({required this.hour, required this.activity});
 
   String get hourLabel {
     if (hour == 0) return '12 AM';

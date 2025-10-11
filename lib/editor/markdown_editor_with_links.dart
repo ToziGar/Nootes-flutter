@@ -23,7 +23,8 @@ class MarkdownEditorWithLinks extends StatefulWidget {
   final TextEditingController controller;
   final String uid;
   final ValueChanged<String>? onChanged;
-  final ValueChanged<List<String>>? onLinksChanged; // Callback cuando cambian los links
+  final ValueChanged<List<String>>?
+  onLinksChanged; // Callback cuando cambian los links
   final void Function(String noteId)? onNoteOpen; // Callback para abrir nota
   final int minLines;
   final bool splitEnabled;
@@ -32,7 +33,8 @@ class MarkdownEditorWithLinks extends StatefulWidget {
   final String? previewTitle;
 
   @override
-  State<MarkdownEditorWithLinks> createState() => _MarkdownEditorWithLinksState();
+  State<MarkdownEditorWithLinks> createState() =>
+      _MarkdownEditorWithLinksState();
 }
 
 class _MarkdownEditorWithLinksState extends State<MarkdownEditorWithLinks> {
@@ -59,7 +61,9 @@ class _MarkdownEditorWithLinksState extends State<MarkdownEditorWithLinks> {
 
   Future<void> _loadAllNotes() async {
     try {
-      final notes = await FirestoreService.instance.listNotesSummary(uid: widget.uid);
+      final notes = await FirestoreService.instance.listNotesSummary(
+        uid: widget.uid,
+      );
       if (!mounted) return;
       setState(() {
         _allNotes = notes.map((n) => NoteSuggestion.fromMap(n)).toList();
@@ -74,7 +78,8 @@ class _MarkdownEditorWithLinksState extends State<MarkdownEditorWithLinks> {
     final cursorPos = widget.controller.selection.baseOffset;
 
     // Verificar si hay un link incompleto
-    if (NoteLinksParser.hasIncompleteLink(text) && NoteLinksParser.isCursorInLink(text, cursorPos)) {
+    if (NoteLinksParser.hasIncompleteLink(text) &&
+        NoteLinksParser.isCursorInLink(text, cursorPos)) {
       final query = NoteLinksParser.getIncompleteLinkQuery(text) ?? '';
       _linkStartPosition = NoteLinksParser.getCurrentLinkStart(text, cursorPos);
       _showAutocomplete(query);
@@ -93,7 +98,9 @@ class _MarkdownEditorWithLinksState extends State<MarkdownEditorWithLinks> {
 
     for (final name in linkedNames) {
       // Buscar la nota por título
-      final note = _allNotes.where((n) => n.title.toLowerCase() == name.toLowerCase()).firstOrNull;
+      final note = _allNotes
+          .where((n) => n.title.toLowerCase() == name.toLowerCase())
+          .firstOrNull;
       if (note != null) {
         linkedIds.add(note.id);
       }
@@ -138,7 +145,7 @@ class _MarkdownEditorWithLinksState extends State<MarkdownEditorWithLinks> {
     final q = query.toLowerCase();
     final filtered = _allNotes.where((note) {
       return note.title.toLowerCase().contains(q) ||
-             note.tags.any((tag) => tag.toLowerCase().contains(q));
+          note.tags.any((tag) => tag.toLowerCase().contains(q));
     }).toList();
 
     // Ordenar por relevancia (coincidencia al inicio)
@@ -173,7 +180,9 @@ class _MarkdownEditorWithLinksState extends State<MarkdownEditorWithLinks> {
 
     widget.controller.value = widget.controller.value.copyWith(
       text: newText,
-      selection: TextSelection.collapsed(offset: _linkStartPosition! + replacement.length),
+      selection: TextSelection.collapsed(
+        offset: _linkStartPosition! + replacement.length,
+      ),
       composing: TextRange.empty,
     );
 

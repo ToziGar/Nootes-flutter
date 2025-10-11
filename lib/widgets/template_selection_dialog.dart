@@ -6,14 +6,12 @@ import '../theme/color_utils.dart';
 /// Dialog para seleccionar y usar plantillas de notas
 class TemplateSelectionDialog extends StatefulWidget {
   final Function(String content) onTemplateSelected;
-  
-  const TemplateSelectionDialog({
-    super.key,
-    required this.onTemplateSelected,
-  });
+
+  const TemplateSelectionDialog({super.key, required this.onTemplateSelected});
 
   @override
-  State<TemplateSelectionDialog> createState() => _TemplateSelectionDialogState();
+  State<TemplateSelectionDialog> createState() =>
+      _TemplateSelectionDialogState();
 }
 
 class _TemplateSelectionDialogState extends State<TemplateSelectionDialog> {
@@ -55,7 +53,9 @@ class _TemplateSelectionDialogState extends State<TemplateSelectionDialog> {
 
     // Filtrar por categoría
     if (_selectedCategory != 'Todas') {
-      filtered = filtered.where((template) => template.category == _selectedCategory).toList();
+      filtered = filtered
+          .where((template) => template.category == _selectedCategory)
+          .toList();
     }
 
     // Filtrar por búsqueda
@@ -63,8 +63,8 @@ class _TemplateSelectionDialogState extends State<TemplateSelectionDialog> {
       final query = _searchQuery.toLowerCase();
       filtered = filtered.where((template) {
         return template.name.toLowerCase().contains(query) ||
-               template.description.toLowerCase().contains(query) ||
-               template.tags.any((tag) => tag.toLowerCase().contains(query));
+            template.description.toLowerCase().contains(query) ||
+            template.tags.any((tag) => tag.toLowerCase().contains(query));
       }).toList();
     }
 
@@ -114,11 +114,18 @@ class _TemplateSelectionDialogState extends State<TemplateSelectionDialog> {
                     style: const TextStyle(color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Buscar plantillas...',
-                      hintStyle: const TextStyle(color: AppColors.textSecondary),
-                      prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
+                      hintStyle: const TextStyle(
+                        color: AppColors.textSecondary,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: AppColors.textSecondary,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppColors.borderColor),
+                        borderSide: const BorderSide(
+                          color: AppColors.borderColor,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -132,7 +139,7 @@ class _TemplateSelectionDialogState extends State<TemplateSelectionDialog> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                
+
                 // Category filter
                 Expanded(
                   child: DropdownButtonFormField<String>(
@@ -142,7 +149,9 @@ class _TemplateSelectionDialogState extends State<TemplateSelectionDialog> {
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppColors.borderColor),
+                        borderSide: const BorderSide(
+                          color: AppColors.borderColor,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -174,28 +183,29 @@ class _TemplateSelectionDialogState extends State<TemplateSelectionDialog> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _filteredTemplates.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No se encontraron plantillas',
-                            style: TextStyle(color: AppColors.textSecondary),
-                          ),
-                        )
-                      : GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  ? const Center(
+                      child: Text(
+                        'No se encontraron plantillas',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    )
+                  : GridView.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
                             crossAxisSpacing: 16,
                             mainAxisSpacing: 16,
                             childAspectRatio: 1.2,
                           ),
-                          itemCount: _filteredTemplates.length,
-                          itemBuilder: (context, index) {
-                            final template = _filteredTemplates[index];
-                            return _TemplateCard(
-                              template: template,
-                              onTap: () => _selectTemplate(template),
-                            );
-                          },
-                        ),
+                      itemCount: _filteredTemplates.length,
+                      itemBuilder: (context, index) {
+                        final template = _filteredTemplates[index];
+                        return _TemplateCard(
+                          template: template,
+                          onTap: () => _selectTemplate(template),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -221,7 +231,10 @@ class _TemplateSelectionDialogState extends State<TemplateSelectionDialog> {
       builder: (context) => _VariableDialog(
         template: template,
         onConfirm: (values) {
-          final content = _templateService.createNoteFromTemplate(template, values);
+          final content = _templateService.createNoteFromTemplate(
+            template,
+            values,
+          );
           widget.onTemplateSelected(content);
           Navigator.of(context).pop(); // Close variable dialog
           Navigator.of(context).pop(); // Close template dialog
@@ -236,10 +249,7 @@ class _TemplateCard extends StatelessWidget {
   final NoteTemplate template;
   final VoidCallback onTap;
 
-  const _TemplateCard({
-    required this.template,
-    required this.onTap,
-  });
+  const _TemplateCard({required this.template, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -256,13 +266,13 @@ class _TemplateCard extends StatelessWidget {
               // Icon and category
               Row(
                 children: [
-                  Text(
-                    template.icon,
-                    style: const TextStyle(fontSize: 24),
-                  ),
+                  Text(template.icon, style: const TextStyle(fontSize: 24)),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacityCompat(0.2),
                       borderRadius: BorderRadius.circular(12),
@@ -279,7 +289,7 @@ class _TemplateCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              
+
               // Template name
               Text(
                 template.name,
@@ -292,7 +302,7 @@ class _TemplateCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
-              
+
               // Description
               Expanded(
                 child: Text(
@@ -305,7 +315,7 @@ class _TemplateCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              
+
               // Tags
               if (template.tags.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -313,7 +323,10 @@ class _TemplateCard extends StatelessWidget {
                   spacing: 4,
                   children: template.tags.take(3).map((tag) {
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceHover,
                         borderRadius: BorderRadius.circular(8),
@@ -342,10 +355,7 @@ class _VariableDialog extends StatefulWidget {
   final NoteTemplate template;
   final Function(Map<String, String>) onConfirm;
 
-  const _VariableDialog({
-    required this.template,
-    required this.onConfirm,
-  });
+  const _VariableDialog({required this.template, required this.onConfirm});
 
   @override
   State<_VariableDialog> createState() => _VariableDialogState();

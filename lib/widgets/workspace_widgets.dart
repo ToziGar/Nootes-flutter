@@ -29,18 +29,18 @@ class NotesSidebarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = (note['title']?.toString() ?? '').isEmpty 
-        ? 'Sin título' 
+    final title = (note['title']?.toString() ?? '').isEmpty
+        ? 'Sin título'
         : note['title'].toString();
     final isPinned = note['pinned'] == true;
-  final preview = (note['content']?.toString() ?? '').isEmpty
+    final preview = (note['content']?.toString() ?? '').isEmpty
         ? 'Nota vacía'
         : note['content'].toString();
     final noteId = note['id']?.toString() ?? '';
-  final iconName = note['icon']?.toString();
-  final iconColorInt = note['iconColor'] as int?;
-  final Color? iconColor = iconColorInt != null ? Color(iconColorInt) : null;
-  final IconData? noteIcon = NoteIconRegistry.iconFromName(iconName);
+    final iconName = note['icon']?.toString();
+    final iconColorInt = note['iconColor'] as int?;
+    final Color? iconColor = iconColorInt != null ? Color(iconColorInt) : null;
+    final IconData? noteIcon = NoteIconRegistry.iconFromName(iconName);
 
     final cardWidget = Container(
       margin: const EdgeInsets.only(bottom: AppColors.space8),
@@ -48,7 +48,10 @@ class NotesSidebarCard extends StatelessWidget {
         color: isSelected ? AppColors.activeNote : Colors.transparent,
         borderRadius: BorderRadius.circular(AppColors.radiusMd),
         border: isSelected
-            ? Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1)
+            ? Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                width: 1,
+              )
             : null,
       ),
       child: Material(
@@ -58,7 +61,9 @@ class NotesSidebarCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppColors.radiusMd),
           hoverColor: AppColors.surfaceHover,
           child: Padding(
-            padding: EdgeInsets.all(compact ? AppColors.space8 : AppColors.space12),
+            padding: EdgeInsets.all(
+              compact ? AppColors.space8 : AppColors.space12,
+            ),
             child: Row(
               children: [
                 // Pin indicator
@@ -82,14 +87,20 @@ class NotesSidebarCard extends StatelessWidget {
                     height: 28,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: (iconColor ?? AppColors.primary).withValues(alpha: 0.12),
+                      color: (iconColor ?? AppColors.primary).withValues(
+                        alpha: 0.12,
+                      ),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Icon(noteIcon, size: 16, color: iconColor ?? AppColors.primary),
+                    child: Icon(
+                      noteIcon,
+                      size: 16,
+                      color: iconColor ?? AppColors.primary,
+                    ),
                   ),
                   const SizedBox(width: AppColors.space8),
                 ],
-                
+
                 // Content
                 Expanded(
                   child: Column(
@@ -100,11 +111,16 @@ class NotesSidebarCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               title,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontSize: compact ? 14 : null,
-                                color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    fontSize: compact ? 14 : null,
+                                    color: isSelected
+                                        ? AppColors.textPrimary
+                                        : AppColors.textSecondary,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                  ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -121,22 +137,23 @@ class NotesSidebarCard extends StatelessWidget {
                       if (!compact)
                         Text(
                           preview,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textMuted,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textMuted),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                     ],
                   ),
                 ),
-                
+
                 // Actions
                 PopupMenuButton<String>(
                   icon: Icon(
                     Icons.more_vert_rounded,
                     size: 18,
-                    color: isSelected ? AppColors.textSecondary : AppColors.textMuted,
+                    color: isSelected
+                        ? AppColors.textSecondary
+                        : AppColors.textMuted,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppColors.radiusMd),
@@ -159,7 +176,9 @@ class NotesSidebarCard extends StatelessWidget {
                       child: Row(
                         children: [
                           Icon(
-                            isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
+                            isPinned
+                                ? Icons.push_pin_outlined
+                                : Icons.push_pin_rounded,
                             size: 18,
                             color: AppColors.textPrimary,
                           ),
@@ -173,7 +192,11 @@ class NotesSidebarCard extends StatelessWidget {
                       value: 'setIcon',
                       child: Row(
                         children: [
-                          const Icon(Icons.brush_rounded, size: 18, color: AppColors.textPrimary),
+                          const Icon(
+                            Icons.brush_rounded,
+                            size: 18,
+                            color: AppColors.textPrimary,
+                          ),
                           const SizedBox(width: AppColors.space8),
                           const Text('Cambiar icono'),
                         ],
@@ -184,9 +207,16 @@ class NotesSidebarCard extends StatelessWidget {
                       enabled: iconName != null,
                       child: Row(
                         children: [
-                          Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.danger),
+                          Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: AppColors.danger,
+                          ),
                           SizedBox(width: AppColors.space8),
-                          Text('Quitar icono', style: TextStyle(color: AppColors.danger)),
+                          Text(
+                            'Quitar icono',
+                            style: TextStyle(color: AppColors.danger),
+                          ),
                         ],
                       ),
                     ),
@@ -195,9 +225,16 @@ class NotesSidebarCard extends StatelessWidget {
                       value: 'delete',
                       child: Row(
                         children: const [
-                          Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.danger),
+                          Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: AppColors.danger,
+                          ),
                           SizedBox(width: AppColors.space8),
-                          Text('Eliminar', style: TextStyle(color: AppColors.danger)),
+                          Text(
+                            'Eliminar',
+                            style: TextStyle(color: AppColors.danger),
+                          ),
                         ],
                       ),
                     ),
@@ -221,7 +258,9 @@ class NotesSidebarCard extends StatelessWidget {
             opacity: 0.8,
             child: Container(
               width: 250,
-              constraints: const BoxConstraints(maxWidth: 250), // Restricción de ancho
+              constraints: const BoxConstraints(
+                maxWidth: 250,
+              ), // Restricción de ancho
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(AppColors.radiusMd),
@@ -232,9 +271,14 @@ class NotesSidebarCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min, // Evitar overflow
                   children: [
-                    const Icon(Icons.drag_indicator_rounded, color: AppColors.primary, size: 20),
+                    const Icon(
+                      Icons.drag_indicator_rounded,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
                     const SizedBox(width: AppColors.space8),
-                    Flexible( // Cambio de Expanded a Flexible
+                    Flexible(
+                      // Cambio de Expanded a Flexible
                       child: Text(
                         title,
                         style: const TextStyle(
@@ -251,10 +295,7 @@ class NotesSidebarCard extends StatelessWidget {
             ),
           ),
         ),
-        childWhenDragging: Opacity(
-          opacity: 0.3,
-          child: cardWidget,
-        ),
+        childWhenDragging: Opacity(opacity: 0.3, child: cardWidget),
         child: cardWidget,
       );
     }
@@ -315,7 +356,11 @@ class WorkspaceHeader extends StatelessWidget {
                         gradient: AppTheme.gradientPrimary,
                         borderRadius: BorderRadius.circular(AppColors.radiusSm),
                       ),
-                      child: const Icon(Icons.edit_note_rounded, color: Colors.white, size: 20),
+                      child: const Icon(
+                        Icons.edit_note_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     );
                   },
                 ),
@@ -330,9 +375,9 @@ class WorkspaceHeader extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const Spacer(),
-          
+
           // Save button
           if (saving)
             const SizedBox(
@@ -363,21 +408,27 @@ class WorkspaceHeader extends StatelessWidget {
                 foregroundColor: AppColors.success,
               ),
             ),
-          
+
           const SizedBox(width: AppColors.space8),
-          
+
           // Focus mode
           IconButton(
             tooltip: focusMode ? 'Salir del modo enfoque' : 'Modo enfoque',
             onPressed: onToggleFocus,
-            icon: Icon(focusMode ? Icons.fullscreen_exit_rounded : Icons.center_focus_strong_rounded),
+            icon: Icon(
+              focusMode
+                  ? Icons.fullscreen_exit_rounded
+                  : Icons.center_focus_strong_rounded,
+            ),
             style: IconButton.styleFrom(
-              backgroundColor: focusMode ? AppColors.primary.withValues(alpha: 0.15) : null,
-              foregroundColor: focusMode ? AppColors.primary : AppColors.textSecondary,
+              backgroundColor: focusMode
+                  ? AppColors.primary.withValues(alpha: 0.15)
+                  : null,
+              foregroundColor: focusMode
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
             ),
           ),
-          
-
         ],
       ),
     );
@@ -402,7 +453,11 @@ class EmptyNotesState extends StatelessWidget {
               color: AppColors.primary,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.note_add_rounded, size: 48, color: Colors.white),
+            child: const Icon(
+              Icons.note_add_rounded,
+              size: 48,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: AppColors.space24),
           Text(
@@ -412,9 +467,9 @@ class EmptyNotesState extends StatelessWidget {
           const SizedBox(height: AppColors.space8),
           Text(
             'Crea tu primera nota y organiza tus ideas',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppColors.space32),

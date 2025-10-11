@@ -40,17 +40,17 @@ class CodeFoldingService {
   /// Detecta secciones de Markdown
   void _detectMarkdownSections(List<String> lines) {
     final Stack<FoldableRegion> stack = Stack();
-    
+
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i].trimLeft();
-      
+
       // Detectar encabezados
       if (line.startsWith('#')) {
         final level = line.indexOf(' ');
         if (level > 0) {
           final headerLevel = level;
           final title = line.substring(level + 1).trim();
-          
+
           // Cerrar encabezados de nivel igual o mayor
           while (stack.isNotEmpty && stack.last.level >= headerLevel) {
             final region = stack.removeLast();
@@ -59,7 +59,7 @@ class CodeFoldingService {
               _regions[region.id] = region;
             }
           }
-          
+
           // Crear nueva región
           final region = FoldableRegion(
             id: 'header_${i}_$headerLevel',
@@ -70,12 +70,12 @@ class CodeFoldingService {
             title: title,
             preview: _generatePreview(lines, i, Math.min(i + 3, lines.length)),
           );
-          
+
           stack.add(region);
         }
       }
     }
-    
+
     // Cerrar regiones restantes
     while (stack.isNotEmpty) {
       final region = stack.removeLast();
@@ -90,10 +90,10 @@ class CodeFoldingService {
     bool inCodeBlock = false;
     int startLine = -1;
     String language = '';
-    
+
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i].trim();
-      
+
       if (line.startsWith('```')) {
         if (!inCodeBlock) {
           // Inicio de bloque de código
@@ -111,7 +111,11 @@ class CodeFoldingService {
               endLine: i,
               level: 1,
               title: language.isNotEmpty ? language : 'Código',
-              preview: _generatePreview(lines, startLine + 1, Math.min(startLine + 4, i)),
+              preview: _generatePreview(
+                lines,
+                startLine + 1,
+                Math.min(startLine + 4, i),
+              ),
             );
             _regions[region.id] = region;
           }
@@ -124,18 +128,19 @@ class CodeFoldingService {
   void _detectLists(List<String> lines) {
     int? listStart;
     int lastIndent = -1;
-    
+
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];
       final trimmed = line.trimLeft();
       final indent = line.length - trimmed.length;
-      
+
       // Detectar elementos de lista
-      final isListItem = trimmed.startsWith('- ') || 
-                        trimmed.startsWith('* ') || 
-                        trimmed.startsWith('+ ') ||
-                        RegExp(r'^\d+\. ').hasMatch(trimmed);
-      
+      final isListItem =
+          trimmed.startsWith('- ') ||
+          trimmed.startsWith('* ') ||
+          trimmed.startsWith('+ ') ||
+          RegExp(r'^\d+\. ').hasMatch(trimmed);
+
       if (isListItem) {
         if (listStart == null) {
           listStart = i;
@@ -159,7 +164,7 @@ class CodeFoldingService {
         listStart = null;
       }
     }
-    
+
     // Lista hasta el final
     if (listStart != null && lines.length - listStart > 2) {
       _createListRegion(lines, listStart, lines.length - 1);
@@ -185,15 +190,15 @@ class CodeFoldingService {
     for (int i = 0; i < lines.length - 1; i++) {
       final line = lines[i];
       if (line.trim().isEmpty) continue;
-      
+
       final baseIndent = line.length - line.trimLeft().length;
       int blockEnd = i;
-      
+
       // Buscar líneas con mayor indentación
       for (int j = i + 1; j < lines.length; j++) {
         final nextLine = lines[j];
         if (nextLine.trim().isEmpty) continue;
-        
+
         final nextIndent = nextLine.length - nextLine.trimLeft().length;
         if (nextIndent > baseIndent) {
           blockEnd = j;
@@ -201,7 +206,7 @@ class CodeFoldingService {
           break;
         }
       }
-      
+
       // Crear región si hay suficientes líneas
       if (blockEnd - i >= 3) {
         final region = FoldableRegion(
@@ -211,7 +216,11 @@ class CodeFoldingService {
           endLine: blockEnd,
           level: baseIndent ~/ 2 + 1,
           title: 'Bloque indentado',
-          preview: _generatePreview(lines, i + 1, Math.min(i + 4, blockEnd + 1)),
+          preview: _generatePreview(
+            lines,
+            i + 1,
+            Math.min(i + 4, blockEnd + 1),
+          ),
         );
         _regions[region.id] = region;
       }
@@ -222,7 +231,7 @@ class CodeFoldingService {
   void _detectCustomRegions(List<String> lines) {
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i].trim();
-      
+
       // Región personalizada con comentarios
       if (line.contains('// region ') || line.contains('/* region ')) {
         final regionName = _extractRegionName(line);
@@ -247,7 +256,9 @@ class CodeFoldingService {
 
   /// Extrae el nombre de una región personalizada
   String _extractRegionName(String line) {
-    final match = RegExp(r'(?://|/\*)\s*region\s+(.+?)(?:\*/)?$').firstMatch(line);
+    final match = RegExp(
+      r'(?://|/\*)\s*region\s+(.+?)(?:\*/)?$',
+    ).firstMatch(line);
     return match?.group(1)?.trim() ?? '';
   }
 
@@ -255,7 +266,7 @@ class CodeFoldingService {
   int _findRegionEnd(List<String> lines, int start, String regionName) {
     for (int i = start; i < lines.length; i++) {
       final line = lines[i].trim();
-      if (line.contains('// endregion') || 
+      if (line.contains('// endregion') ||
           line.contains('/* endregion') ||
           line.contains('// end region') ||
           line.contains('/* end region')) {
@@ -268,7 +279,11 @@ class CodeFoldingService {
   /// Genera vista previa de una región
   String _generatePreview(List<String> lines, int start, int end) {
     final preview = <String>[];
-    for (int i = start; i < end && i < lines.length && preview.length < 2; i++) {
+    for (
+      int i = start;
+      i < end && i < lines.length && preview.length < 2;
+      i++
+    ) {
       final line = lines[i].trim();
       if (line.isNotEmpty) {
         preview.add(line.length > 50 ? '${line.substring(0, 47)}...' : line);
@@ -280,7 +295,7 @@ class CodeFoldingService {
   /// Pliega una región
   bool foldRegion(String regionId) {
     if (!_regions.containsKey(regionId)) return false;
-    
+
     _foldedRegions.add(regionId);
     return true;
   }
@@ -331,8 +346,8 @@ class CodeFoldingService {
   bool isLineInFoldedRegion(int lineNumber) {
     for (final regionId in _foldedRegions) {
       final region = _regions[regionId];
-      if (region != null && 
-          lineNumber > region.startLine && 
+      if (region != null &&
+          lineNumber > region.startLine &&
           lineNumber <= region.endLine) {
         return true;
       }
@@ -353,16 +368,16 @@ class CodeFoldingService {
   /// Genera texto con regiones plegadas
   String getFoldedText() {
     if (_controller == null) return '';
-    
+
     final text = _controller!.text;
     final lines = text.split('\n');
     final result = <String>[];
-    
+
     for (int i = 0; i < lines.length; i++) {
       if (isLineInFoldedRegion(i)) {
         continue; // Omitir líneas en regiones plegadas
       }
-      
+
       // Verificar si esta línea es el inicio de una región plegada
       final region = _getFoldedRegionStartingAt(i);
       if (region != null) {
@@ -372,7 +387,7 @@ class CodeFoldingService {
         result.add(lines[i]);
       }
     }
-    
+
     return result.join('\n');
   }
 
@@ -479,7 +494,7 @@ class _CodeFoldingPanelState extends State<CodeFoldingPanel> {
   Widget build(BuildContext context) {
     final regions = _filteredRegions;
     final theme = Theme.of(context);
-    
+
     return Container(
       width: 300,
       height: 400,
@@ -497,10 +512,7 @@ class _CodeFoldingPanelState extends State<CodeFoldingPanel> {
             children: [
               Icon(Icons.unfold_less, color: theme.primaryColor),
               const SizedBox(width: 8),
-              Text(
-                'Plegado de Código',
-                style: theme.textTheme.titleMedium,
-              ),
+              Text('Plegado de Código', style: theme.textTheme.titleMedium),
               const Spacer(),
               IconButton(
                 onPressed: widget.onClose,
@@ -509,9 +521,9 @@ class _CodeFoldingPanelState extends State<CodeFoldingPanel> {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Controles globales
           Row(
             children: [
@@ -534,7 +546,7 @@ class _CodeFoldingPanelState extends State<CodeFoldingPanel> {
               ),
             ],
           ),
-          
+
           // Filtros por tipo
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -550,24 +562,26 @@ class _CodeFoldingPanelState extends State<CodeFoldingPanel> {
                   },
                 ),
                 const SizedBox(width: 4),
-                ...FoldableType.values.map((type) => Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: FilterChip(
-                    label: Text(_getTypeLabel(type)),
-                    selected: _filterType == type,
-                    onSelected: (selected) {
-                      setState(() {
-                        _filterType = selected ? type : null;
-                      });
-                    },
+                ...FoldableType.values.map(
+                  (type) => Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: FilterChip(
+                      label: Text(_getTypeLabel(type)),
+                      selected: _filterType == type,
+                      onSelected: (selected) {
+                        setState(() {
+                          _filterType = selected ? type : null;
+                        });
+                      },
+                    ),
                   ),
-                )),
+                ),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Lista de regiones
           Expanded(
             child: regions.isEmpty
@@ -583,8 +597,10 @@ class _CodeFoldingPanelState extends State<CodeFoldingPanel> {
                     itemCount: regions.length,
                     itemBuilder: (context, index) {
                       final region = regions[index];
-                      final isFolded = widget.service.foldedRegions.contains(region.id);
-                      
+                      final isFolded = widget.service.foldedRegions.contains(
+                        region.id,
+                      );
+
                       return Card(
                         margin: const EdgeInsets.only(bottom: 4),
                         child: ListTile(

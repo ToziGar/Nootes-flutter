@@ -13,7 +13,8 @@ class ForgotPasswordPage extends StatefulWidget {
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
 }
 
-class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProviderStateMixin {
+class _ForgotPasswordPageState extends State<ForgotPasswordPage>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _sending = false;
@@ -29,34 +30,28 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
   @override
   void initState() {
     super.initState();
-    
+
     // Configurar animaciones
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    
+
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOut,
-    ));
-    
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutBack,
-    ));
-    
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutBack),
+        );
+
     // Iniciar animaciones
     _fadeController.forward();
     _slideController.forward();
@@ -88,13 +83,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
   Future<void> _sendReset() async {
     if (_sending || _cooldown > 0) return; // prevent spam
     if (!_formKey.currentState!.validate()) return;
-    
+
     // Feedback háptico
     HapticFeedback.lightImpact();
-    
+
     setState(() => _sending = true);
     try {
-      await AuthService.instance.sendPasswordResetEmail(_emailController.text.trim());
+      await AuthService.instance.sendPasswordResetEmail(
+        _emailController.text.trim(),
+      );
       _startCooldown();
       if (mounted) {
         // Feedback de éxito
@@ -111,10 +108,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
     } catch (e) {
       // Feedback de error
       HapticFeedback.heavyImpact();
-      
+
       String msg = 'No se pudo enviar el correo';
       final errorStr = e.toString().toLowerCase();
-      
+
       if (errorStr.contains('user-not-found')) {
         msg = 'No hay cuenta registrada con ese email';
       } else if (errorStr.contains('invalid-email')) {
@@ -122,7 +119,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
       } else if (errorStr.contains('network')) {
         msg = 'Error de conexión. Verifica tu internet';
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -186,12 +183,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [AppColors.accent, AppColors.accent.withOpacityCompat(0.7)],
+                                  colors: [
+                                    AppColors.accent,
+                                    AppColors.accent.withOpacityCompat(0.7),
+                                  ],
                                 ),
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppColors.accent.withOpacityCompat(0.3),
+                                    color: AppColors.accent.withOpacityCompat(
+                                      0.3,
+                                    ),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
                                   ),
@@ -204,31 +206,42 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                               ),
                             ),
                             const SizedBox(height: 24),
-                            
+
                             // Título mejorado
                             ShaderMask(
                               shaderCallback: (bounds) => LinearGradient(
-                                colors: [AppColors.accent, AppColors.accent.withOpacityCompat(0.7)],
+                                colors: [
+                                  AppColors.accent,
+                                  AppColors.accent.withOpacityCompat(0.7),
+                                ],
                               ).createShader(bounds),
                               child: Text(
                                 'Recuperar Contraseña',
                                 textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               'Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña',
                               textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacityCompat(0.7),
-                              ),
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color
+                                        ?.withOpacityCompat(0.7),
+                                  ),
                             ),
                             const SizedBox(height: 32),
-                            
+
                             // Campo email mejorado
                             _buildModernTextField(
                               key: const Key('forgot_email_field'),
@@ -238,19 +251,22 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                               keyboardType: TextInputType.emailAddress,
                               autofillHints: const [AutofillHints.email],
                               validator: (value) {
-                                if (value?.isEmpty ?? true) return 'Ingresa tu email';
-                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value!)) {
+                                if (value?.isEmpty ?? true)
+                                  return 'Ingresa tu email';
+                                if (!RegExp(
+                                  r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                                ).hasMatch(value!)) {
                                   return 'Email inválido';
                                 }
                                 return null;
                               },
                             ),
                             const SizedBox(height: 32),
-                            
+
                             // Botón de enviar mejorado
                             _buildModernButton(),
                             const SizedBox(height: 20),
-                            
+
                             // Botón de volver
                             TextButton(
                               onPressed: () => Navigator.pop(context),
@@ -322,7 +338,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
           filled: true,
           fillColor: Colors.transparent,
           labelStyle: TextStyle(color: AppColors.accent.withOpacityCompat(0.8)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
         ),
       ),
     );
@@ -341,7 +360,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
           onPressed: disabled ? null : _sendReset,
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
           ),
           icon: _sending
               ? const SizedBox(
@@ -350,7 +371,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.send_rounded),
-          label: Text(_cooldown > 0 ? 'Reintentar en $_cooldown s' : 'Enviar enlace'),
+          label: Text(
+            _cooldown > 0 ? 'Reintentar en $_cooldown s' : 'Enviar enlace',
+          ),
         ),
       ),
     );

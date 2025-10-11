@@ -30,7 +30,7 @@ class UnifiedContextMenu extends StatelessWidget {
         if (action.isDivider) {
           return const PopupMenuDivider();
         }
-        
+
         return PopupMenuItem<T>(
           value: action.value as T?,
           enabled: action.enabled,
@@ -39,23 +39,25 @@ class UnifiedContextMenu extends StatelessWidget {
               Icon(
                 action.icon,
                 size: 20,
-                color: action.isDanger 
-                    ? AppColors.danger 
-                    : action.enabled 
-                        ? AppColors.textPrimary 
-                        : AppColors.textMuted,
+                color: action.isDanger
+                    ? AppColors.danger
+                    : action.enabled
+                    ? AppColors.textPrimary
+                    : AppColors.textMuted,
               ),
               const SizedBox(width: AppColors.space12),
               Expanded(
                 child: Text(
                   action.label,
                   style: TextStyle(
-                    color: action.isDanger 
-                        ? AppColors.danger 
-                        : action.enabled 
-                            ? AppColors.textPrimary 
-                            : AppColors.textMuted,
-                    fontWeight: action.isDanger ? FontWeight.w600 : FontWeight.normal,
+                    color: action.isDanger
+                        ? AppColors.danger
+                        : action.enabled
+                        ? AppColors.textPrimary
+                        : AppColors.textMuted,
+                    fontWeight: action.isDanger
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                 ),
               ),
@@ -63,10 +65,7 @@ class UnifiedContextMenu extends StatelessWidget {
                 const SizedBox(width: AppColors.space12),
                 Text(
                   action.shortcut!,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
-                  ),
+                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
                 ),
               ],
             ],
@@ -136,7 +135,7 @@ enum ContextMenuActionType {
   addTags,
   copyNoteLink,
   viewHistory,
-  
+
   // Acciones de carpeta
   newFolder,
   editFolder,
@@ -144,17 +143,17 @@ enum ContextMenuActionType {
   exportFolder,
   shareFolder,
   colorFolder,
-  
+
   // Acciones de plantilla
   newFromTemplate,
-  
+
   // Acciones de inserción
   insertImage,
   insertAudio,
   insertLink,
   insertTable,
   insertCodeBlock,
-  
+
   // Otras acciones
   openDashboard,
   refresh,
@@ -219,19 +218,23 @@ class ContextMenuBuilder {
       ContextMenuAction(
         label: isPinned ? 'Desfijar' : 'Fijar',
         icon: isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-        value: isPinned ? ContextMenuActionType.unpinNote : ContextMenuActionType.pinNote,
+        value: isPinned
+            ? ContextMenuActionType.unpinNote
+            : ContextMenuActionType.pinNote,
       ),
       ContextMenuAction(
         label: isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos',
         icon: isFavorite ? Icons.star : Icons.star_border_rounded,
-        value: isFavorite ? ContextMenuActionType.unfavoriteNote : ContextMenuActionType.favoriteNote,
+        value: isFavorite
+            ? ContextMenuActionType.unfavoriteNote
+            : ContextMenuActionType.favoriteNote,
       ),
       ContextMenuAction.divider,
       ContextMenuAction(
         label: isInFolder ? 'Quitar de carpeta' : 'Mover a carpeta',
         icon: isInFolder ? Icons.folder_off_rounded : Icons.folder_rounded,
-        value: isInFolder 
-            ? ContextMenuActionType.removeFromFolder 
+        value: isInFolder
+            ? ContextMenuActionType.removeFromFolder
             : ContextMenuActionType.moveToFolder,
       ),
       ContextMenuAction(
@@ -264,7 +267,9 @@ class ContextMenuBuilder {
       ContextMenuAction(
         label: isArchived ? 'Desarchivar' : 'Archivar',
         icon: isArchived ? Icons.unarchive_rounded : Icons.archive_rounded,
-        value: isArchived ? ContextMenuActionType.unarchiveNote : ContextMenuActionType.archiveNote,
+        value: isArchived
+            ? ContextMenuActionType.unarchiveNote
+            : ContextMenuActionType.archiveNote,
       ),
       ContextMenuAction(
         label: 'Eliminar',

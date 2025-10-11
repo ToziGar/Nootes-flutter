@@ -16,7 +16,7 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
   List<Map<String, dynamic>> _allNotes = [];
   List<Map<String, dynamic>> _filteredNotes = [];
   bool _isLoading = false;
-  
+
   // Filtros
   String _searchQuery = '';
   final Set<String> _selectedTags = {};
@@ -24,11 +24,11 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
   String _sortBy = 'updated'; // updated, created, title, relevance
   bool _caseSensitive = false;
   bool _wholeWord = false;
-  
+
   // Estadísticas
   int _totalWords = 0;
   int _totalCharacters = 0;
-  
+
   String get _uid => AuthService.instance.currentUser!.uid;
 
   @override
@@ -45,7 +45,7 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
 
   Future<void> _loadAllNotes() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final notes = await FirestoreService.instance.listNotes(uid: _uid);
       setState(() {
@@ -56,9 +56,9 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar notas: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al cargar notas: $e')));
       }
     }
   }
@@ -71,15 +71,15 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
           final title = note['title']?.toString() ?? '';
           final content = note['content']?.toString() ?? '';
           final searchIn = '$title $content';
-          
+
           String query = _searchQuery;
           String text = searchIn;
-          
+
           if (!_caseSensitive) {
             query = query.toLowerCase();
             text = text.toLowerCase();
           }
-          
+
           if (_wholeWord) {
             final regex = RegExp(r'\b' + RegExp.escape(query) + r'\b');
             if (!regex.hasMatch(text)) return false;
@@ -87,27 +87,29 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
             if (!text.contains(query)) return false;
           }
         }
-        
+
         // Filtro de tags
         if (_selectedTags.isNotEmpty) {
-          final noteTags = (note['tags'] as List?)?.map((t) => t.toString()).toSet() ?? {};
+          final noteTags =
+              (note['tags'] as List?)?.map((t) => t.toString()).toSet() ?? {};
           if (!_selectedTags.any((tag) => noteTags.contains(tag))) {
             return false;
           }
         }
-        
+
         // Filtro de fecha
         if (_dateRange != null) {
           final updated = note['updated'] as DateTime?;
           if (updated == null) return false;
-          if (updated.isBefore(_dateRange!.start) || updated.isAfter(_dateRange!.end)) {
+          if (updated.isBefore(_dateRange!.start) ||
+              updated.isAfter(_dateRange!.end)) {
             return false;
           }
         }
-        
+
         return true;
       }).toList();
-      
+
       // Ordenar
       _filteredNotes.sort((a, b) {
         if (_sortBy == 'title') {
@@ -131,14 +133,17 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
           return updatedB.compareTo(updatedA);
         }
       });
-      
+
       // Calcular estadísticas
       _totalWords = 0;
       _totalCharacters = 0;
       for (var note in _filteredNotes) {
         final content = note['content']?.toString() ?? '';
         _totalCharacters += content.length;
-        _totalWords += content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+        _totalWords += content
+            .split(RegExp(r'\s+'))
+            .where((w) => w.isNotEmpty)
+            .length;
       }
     });
   }
@@ -147,20 +152,20 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
     final title = note['title']?.toString().toLowerCase() ?? '';
     final content = note['content']?.toString().toLowerCase() ?? '';
     final query = _searchQuery.toLowerCase();
-    
+
     int score = 0;
-    
+
     // Título tiene más peso
     if (title.contains(query)) {
       score += 10;
       if (title == query) score += 20;
       if (title.startsWith(query)) score += 5;
     }
-    
+
     // Contar ocurrencias en contenido
     final occurrences = query.allMatches(content).length;
     score += occurrences;
-    
+
     return score;
   }
 
@@ -177,7 +182,7 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
 
   String _highlightText(String text, String query) {
     if (query.isEmpty) return text;
-    
+
     // Limitar a primeros 200 caracteres
     if (text.length > 200) {
       final index = text.toLowerCase().indexOf(query.toLowerCase());
@@ -189,7 +194,7 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
         text = '${text.substring(0, 200)}...';
       }
     }
-    
+
     return text;
   }
 
@@ -239,7 +244,7 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // Filtros rápidos
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -247,11 +252,14 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
                       children: [
                         FilterChip(
                           label: const Text('Filtros'),
-                          avatar: const Icon(Icons.filter_list_rounded, size: 18),
+                          avatar: const Icon(
+                            Icons.filter_list_rounded,
+                            size: 18,
+                          ),
                           onSelected: (_) => _showFiltersDialog(),
                         ),
                         const SizedBox(width: 8),
-                        
+
                         if (_dateRange != null)
                           FilterChip(
                             label: Text(
@@ -262,26 +270,34 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
                               setState(() => _dateRange = null);
                               _applyFilters();
                             },
-                            deleteIcon: const Icon(Icons.close_rounded, size: 16),
+                            deleteIcon: const Icon(
+                              Icons.close_rounded,
+                              size: 16,
+                            ),
                           ),
-                        
+
                         if (_selectedTags.isNotEmpty)
-                          ..._selectedTags.map((tag) => Padding(
-                                padding: const EdgeInsets.only(left: 8),
-                                child: FilterChip(
-                                  label: Text('#$tag'),
-                                  onSelected: (_) {},
-                                  onDeleted: () {
-                                    setState(() => _selectedTags.remove(tag));
-                                    _applyFilters();
-                                  },
-                                  deleteIcon: const Icon(Icons.close_rounded, size: 16),
+                          ..._selectedTags.map(
+                            (tag) => Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: FilterChip(
+                                label: Text('#$tag'),
+                                onSelected: (_) {},
+                                onDeleted: () {
+                                  setState(() => _selectedTags.remove(tag));
+                                  _applyFilters();
+                                },
+                                deleteIcon: const Icon(
+                                  Icons.close_rounded,
+                                  size: 16,
                                 ),
-                              )),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                  
+
                   // Estadísticas
                   if (_filteredNotes.isNotEmpty)
                     Padding(
@@ -307,44 +323,44 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
                 ],
               ),
             ),
-            
+
             const Divider(height: 1),
-            
+
             // Resultados
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _filteredNotes.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.search_off_rounded,
-                                size: 64,
-                                color: Colors.white.withValues(alpha: 0.3),
-                              ),
-                              const SizedBox(height: 16),
-                              const Text('No se encontraron resultados'),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Intenta con otros términos o filtros',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                ),
-                              ),
-                            ],
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.search_off_rounded,
+                            size: 64,
+                            color: Colors.white.withValues(alpha: 0.3),
                           ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _filteredNotes.length,
-                          itemBuilder: (context, index) {
-                            final note = _filteredNotes[index];
-                            return _buildNoteCard(note);
-                          },
-                        ),
+                          const SizedBox(height: 16),
+                          const Text('No se encontraron resultados'),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Intenta con otros términos o filtros',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _filteredNotes.length,
+                      itemBuilder: (context, index) {
+                        final note = _filteredNotes[index];
+                        return _buildNoteCard(note);
+                      },
+                    ),
             ),
           ],
         ),
@@ -355,12 +371,13 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
   Widget _buildNoteCard(Map<String, dynamic> note) {
     final title = note['title']?.toString() ?? 'Sin título';
     final content = note['content']?.toString() ?? '';
-    final tags = (note['tags'] as List?)?.map((t) => t.toString()).toList() ?? [];
+    final tags =
+        (note['tags'] as List?)?.map((t) => t.toString()).toList() ?? [];
     final updated = note['updated'] as DateTime?;
     final id = note['id'] as String;
-    
+
     final preview = _highlightText(content, _searchQuery);
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -388,7 +405,10 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
                   ),
                   if (_sortBy == 'relevance' && _searchQuery.isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.primaryContainer,
                         borderRadius: BorderRadius.circular(8),
@@ -398,13 +418,15 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
                         ),
                       ),
                     ),
                 ],
               ),
-              
+
               if (preview.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
@@ -417,32 +439,45 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
-              
+
               if (tags.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
-                  children: tags.map((tag) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                    ),
-                    child: Text(
-                      '#$tag',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                  )).toList(),
+                  children: tags
+                      .map(
+                        (tag) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Text(
+                            '#$tag',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
               ],
-              
+
               if (updated != null) ...[
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.update_rounded, size: 14, color: Colors.white.withValues(alpha: 0.5)),
+                    Icon(
+                      Icons.update_rounded,
+                      size: 14,
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       _formatDate(updated),
@@ -464,7 +499,7 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
-    
+
     if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes}m';
     if (diff.inHours < 24) return 'Hace ${diff.inHours}h';
     if (diff.inDays < 30) return 'Hace ${diff.inDays}d';
@@ -484,7 +519,10 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Ordenar por
-                const Text('Ordenar por:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Ordenar por:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -511,59 +549,76 @@ class _AdvancedSearchPageState extends State<AdvancedSearchPage> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 16),
                 const Divider(),
-                
+
                 // Opciones de búsqueda
-                const Text('Opciones:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Opciones:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 CheckboxListTile(
                   title: const Text('Sensible a mayúsculas'),
                   value: _caseSensitive,
-                  onChanged: (value) => setState(() => _caseSensitive = value ?? false),
+                  onChanged: (value) =>
+                      setState(() => _caseSensitive = value ?? false),
                   dense: true,
                 ),
                 CheckboxListTile(
                   title: const Text('Palabra completa'),
                   value: _wholeWord,
-                  onChanged: (value) => setState(() => _wholeWord = value ?? false),
+                  onChanged: (value) =>
+                      setState(() => _wholeWord = value ?? false),
                   dense: true,
                 ),
-                
+
                 const SizedBox(height: 16),
                 const Divider(),
-                
+
                 // Tags
-                const Text('Tags:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Tags:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
-                  children: _getAllTags().map((tag) => FilterChip(
-                    label: Text('#$tag'),
-                    selected: _selectedTags.contains(tag),
-                    onSelected: (selected) {
-                      setState(() {
-                        if (selected) {
-                          _selectedTags.add(tag);
-                        } else {
-                          _selectedTags.remove(tag);
-                        }
-                      });
-                    },
-                  )).toList(),
+                  children: _getAllTags()
+                      .map(
+                        (tag) => FilterChip(
+                          label: Text('#$tag'),
+                          selected: _selectedTags.contains(tag),
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedTags.add(tag);
+                              } else {
+                                _selectedTags.remove(tag);
+                              }
+                            });
+                          },
+                        ),
+                      )
+                      .toList(),
                 ),
-                
+
                 const SizedBox(height: 16),
                 const Divider(),
-                
+
                 // Rango de fechas
-                const Text('Rango de fechas:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Rango de fechas:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.calendar_today_rounded),
-                  label: Text(_dateRange == null 
-                      ? 'Seleccionar rango' 
-                      : '${_dateRange!.start.day}/${_dateRange!.start.month} - ${_dateRange!.end.day}/${_dateRange!.end.month}'),
+                  label: Text(
+                    _dateRange == null
+                        ? 'Seleccionar rango'
+                        : '${_dateRange!.start.day}/${_dateRange!.start.month} - ${_dateRange!.end.day}/${_dateRange!.end.month}',
+                  ),
                   onPressed: () async {
                     final range = await showDateRangePicker(
                       context: context,

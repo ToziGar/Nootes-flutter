@@ -41,7 +41,9 @@ class _ProfilesListPageState extends State<ProfilesListPage> {
                 return ListTile(
                   title: Text(name.isEmpty ? email : name),
                   subtitle: Text('@$user  •  $email'),
-                  leading: const CircleAvatar(child: Icon(Icons.person_outline_rounded)),
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.person_outline_rounded),
+                  ),
                 );
               },
               separatorBuilder: (_, __) => const Divider(height: 1),
@@ -53,4 +55,3 @@ class _ProfilesListPageState extends State<ProfilesListPage> {
     );
   }
 }
-

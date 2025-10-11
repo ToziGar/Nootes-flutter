@@ -7,10 +7,26 @@ extension ColorUtils on Color {
   /// Change individual channels; values are 0.0..1.0
   Color withValues({double? a, double? r, double? g, double? b}) {
     // New Color API provides normalized channels (.a,.r,.g,.b) as doubles.
-    final intA = (a != null ? (a.clamp(0.0, 1.0) * 255).round() : (this.a * 255).round()) & 0xff;
-    final intR = (r != null ? (r.clamp(0.0, 1.0) * 255).round() : (this.r * 255).round()) & 0xff;
-    final intG = (g != null ? (g.clamp(0.0, 1.0) * 255).round() : (this.g * 255).round()) & 0xff;
-    final intB = (b != null ? (b.clamp(0.0, 1.0) * 255).round() : (this.b * 255).round()) & 0xff;
+    final intA =
+        (a != null
+            ? (a.clamp(0.0, 1.0) * 255).round()
+            : (this.a * 255).round()) &
+        0xff;
+    final intR =
+        (r != null
+            ? (r.clamp(0.0, 1.0) * 255).round()
+            : (this.r * 255).round()) &
+        0xff;
+    final intG =
+        (g != null
+            ? (g.clamp(0.0, 1.0) * 255).round()
+            : (this.g * 255).round()) &
+        0xff;
+    final intB =
+        (b != null
+            ? (b.clamp(0.0, 1.0) * 255).round()
+            : (this.b * 255).round()) &
+        0xff;
     return Color.fromARGB(intA, intR, intG, intB);
   }
 

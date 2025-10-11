@@ -25,16 +25,13 @@ class UserAvatar extends StatelessWidget {
       children: [
         // Avatar principal
         _buildAvatar(),
-        
+
         // Indicador de presencia
         if (showPresence)
           Positioned(
             right: 0,
             bottom: 0,
-            child: PresenceIndicator(
-              userId: userId,
-              size: size * 0.25,
-            ),
+            child: PresenceIndicator(userId: userId, size: size * 0.25),
           ),
       ],
     );
@@ -71,16 +68,16 @@ class UserAvatar extends StatelessWidget {
 
   String _getInitials(String text) {
     if (text.isEmpty) return '?';
-    
+
     final parts = text.split('@').first.split('.');
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
-    
+
     if (text.length >= 2) {
       return text.substring(0, 2).toUpperCase();
     }
-    
+
     return text[0].toUpperCase();
   }
 
@@ -119,10 +116,7 @@ class UserAvatarWithInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get(),
+      future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return _buildSkeleton();
@@ -148,10 +142,7 @@ class UserAvatarWithInfo extends StatelessWidget {
                 children: [
                   Text(
                     email.split('@').first,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (showPresence)
@@ -248,9 +239,10 @@ class _AnimatedBadgeState extends State<AnimatedBadge>
       vsync: this,
     )..repeat(reverse: true);
 
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.2,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -327,9 +319,10 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
       vsync: this,
     )..repeat(reverse: true);
 
-    _animation = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: 0.3,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -373,26 +366,54 @@ class SharedNoteCardSkeleton extends StatelessWidget {
         children: [
           Row(
             children: [
-              SkeletonLoader(width: 80, height: 24, borderRadius: BorderRadius.circular(8)),
+              SkeletonLoader(
+                width: 80,
+                height: 24,
+                borderRadius: BorderRadius.circular(8),
+              ),
               Spacer(),
-              SkeletonLoader(width: 60, height: 24, borderRadius: BorderRadius.circular(12)),
+              SkeletonLoader(
+                width: 60,
+                height: 24,
+                borderRadius: BorderRadius.circular(12),
+              ),
             ],
           ),
           const SizedBox(height: 16),
-          SkeletonLoader(width: double.infinity, height: 20, borderRadius: BorderRadius.circular(4)),
+          SkeletonLoader(
+            width: double.infinity,
+            height: 20,
+            borderRadius: BorderRadius.circular(4),
+          ),
           const SizedBox(height: 8),
-          SkeletonLoader(width: 200, height: 16, borderRadius: BorderRadius.circular(4)),
+          SkeletonLoader(
+            width: 200,
+            height: 16,
+            borderRadius: BorderRadius.circular(4),
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
-              SkeletonLoader(width: 40, height: 40, borderRadius: BorderRadius.circular(20)),
+              SkeletonLoader(
+                width: 40,
+                height: 40,
+                borderRadius: BorderRadius.circular(20),
+              ),
               const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SkeletonLoader(width: 100, height: 14, borderRadius: BorderRadius.circular(4)),
+                  SkeletonLoader(
+                    width: 100,
+                    height: 14,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                   const SizedBox(height: 4),
-                  SkeletonLoader(width: 60, height: 12, borderRadius: BorderRadius.circular(4)),
+                  SkeletonLoader(
+                    width: 60,
+                    height: 12,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ],
               ),
             ],
@@ -429,21 +450,17 @@ class _FadeInSlideUpState extends State<FadeInSlideUp>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    );
+    _controller = AnimationController(duration: widget.duration, vsync: this);
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     Future.delayed(widget.delay, () {
       if (mounted) {
@@ -462,10 +479,7 @@ class _FadeInSlideUpState extends State<FadeInSlideUp>
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: widget.child,
-      ),
+      child: SlideTransition(position: _slideAnimation, child: widget.child),
     );
   }
 }

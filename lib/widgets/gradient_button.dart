@@ -24,7 +24,8 @@ class GradientButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disabled = onPressed == null;
-    final gradientColors = colors ?? [AppColors.primary, AppColors.primaryLight];
+    final gradientColors =
+        colors ?? [AppColors.primary, AppColors.primaryLight];
     final btnChild = icon == null
         ? child
         : Row(

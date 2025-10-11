@@ -1,7 +1,8 @@
 // Minimal Firebase options for web only, based on your provided config.
 // For mobile/desktop, configure via FlutterFire CLI or add platform options.
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
@@ -53,7 +54,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '479471329501',
     projectId: 'smartnotes-d0bdd',
     storageBucket: 'smartnotes-d0bdd.firebasestorage.app',
-    iosClientId: '479471329501-misbtbm73ag6pcd7hm7hb0n3q8br3u5c.apps.googleusercontent.com',
+    iosClientId:
+        '479471329501-misbtbm73ag6pcd7hm7hb0n3q8br3u5c.apps.googleusercontent.com',
     iosBundleId: 'Nootes-IOS',
   );
 

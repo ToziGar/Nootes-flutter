@@ -33,19 +33,15 @@ class FakeSharingService {
     // Simulate document lookup
     final data = _publicLinks[token];
     if (data == null) return null; // Document doesn't exist
-    
+
     if (data['enabled'] != true) return null; // Not enabled
-    
+
     final ownerId = data['ownerId']?.toString() ?? '';
     final noteId = data['noteId']?.toString() ?? '';
-    
+
     if (ownerId.isEmpty || noteId.isEmpty) return null; // Invalid data
-    
-    return {
-      'ownerId': ownerId,
-      'noteId': noteId,
-      'token': token,
-    };
+
+    return {'ownerId': ownerId, 'noteId': noteId, 'token': token};
   }
 }
 
@@ -59,7 +55,7 @@ void main() {
 
     test('returns correct data for valid enabled token', () async {
       final result = await service.resolvePublicToken('valid_token_123');
-      
+
       expect(result, isNotNull);
       expect(result!['ownerId'], 'user123');
       expect(result['noteId'], 'note456');
@@ -68,25 +64,25 @@ void main() {
 
     test('returns null for non-existent token', () async {
       final result = await service.resolvePublicToken('nonexistent_token');
-      
+
       expect(result, isNull);
     });
 
     test('returns null for disabled token', () async {
       final result = await service.resolvePublicToken('disabled_token_456');
-      
+
       expect(result, isNull);
     });
 
     test('returns null for token with empty ownerId', () async {
       final result = await service.resolvePublicToken('incomplete_token_789');
-      
+
       expect(result, isNull);
     });
 
     test('returns null for token with missing fields', () async {
       final result = await service.resolvePublicToken('missing_fields_token');
-      
+
       expect(result, isNull);
     });
 
@@ -100,14 +96,14 @@ void main() {
 
       final result1 = await service.resolvePublicToken('valid_token_123');
       final result2 = await service.resolvePublicToken('another_valid_token');
-      
+
       expect(result1!['ownerId'], 'user123');
       expect(result2!['ownerId'], 'user999');
     });
 
     test('validates return structure for valid tokens', () async {
       final result = await service.resolvePublicToken('valid_token_123');
-      
+
       expect(result, isA<Map<String, String>>());
       expect(result!.keys, containsAll(['ownerId', 'noteId', 'token']));
       expect(result.keys, hasLength(3));
