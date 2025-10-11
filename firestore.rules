@@ -14,16 +14,26 @@ service cloud.firestore {
       allow create, update, delete: if isOwner(uid);
     }
 
-    // Notes: owner or accepted shared recipient can read; only owner edits (simpler)
+    // Helper function to check if user has access to a folder
+    function hasAccessToFolder(uid, folderId) {
+      return isOwner(uid) || 
+        (exists(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + folderId)) &&
+         get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + folderId)).data.status == 'accepted');
+    }
+
+    // Notes: owner or accepted shared recipient can read; only owner edits
     match /users/{uid}/notes/{noteId} {
-      allow read: if isOwner(uid) || exists(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + noteId)) &&
-        get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + noteId)).data.status == 'accepted';
+      allow read: if isOwner(uid) || 
+        // Direct note sharing
+        (exists(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + noteId)) &&
+         get(/databases/$(database)/documents/shared_items/$(request.auth.uid + '_' + uid + '_' + noteId)).data.status == 'accepted');
       allow create, update, delete: if isOwner(uid);
     }
 
-    // Folders basic
+    // Folders: owner can read/write, shared users can read
     match /users/{uid}/folders/{folderId} {
-      allow read, write: if isOwner(uid);
+      allow read: if hasAccessToFolder(uid, folderId);
+      allow create, update, delete: if isOwner(uid);
     }
 
     // Handles lookup
@@ -62,7 +72,12 @@ service cloud.firestore {
         (resource.data.recipientId == request.auth.uid && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status','updatedAt']))
       );
 
-      allow delete: if isAuthed() && resource.data.ownerId == request.auth.uid;
+      // Owner can always delete; recipient can delete if status is rejected, left, or revoked
+      allow delete: if isAuthed() && (
+        resource.data.ownerId == request.auth.uid ||
+        (resource.data.recipientId == request.auth.uid && 
+         resource.data.status in ['rejected', 'left', 'revoked'])
+      );
     }
 
     // Public links: readable by anyone, writable by owner

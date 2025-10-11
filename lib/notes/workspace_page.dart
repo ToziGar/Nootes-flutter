@@ -351,31 +351,61 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         return;
       }
 
-      // Cargar notas propias
-      List<Map<String, dynamic>> allNotes = await svc.listNotesSummary(uid: _uid);
+      // Cargar notas propias y marcarlas como "no compartidas"
+      List<Map<String, dynamic>> myNotes = await svc.listNotesSummary(uid: _uid);
+      // Marcar explícitamente las notas propias
+      myNotes = myNotes.map((note) => {...note, 'isShared': false, 'isOwn': true}).toList();
+      debugPrint('📝 Notas propias cargadas: ${myNotes.length}');
       
-      // Cargar notas de carpetas compartidas (para todas las carpetas compartidas)
-      final sharedFoldersData = await SharingService().getSharedFolders();
-      for (final folderData in sharedFoldersData) {
-        final folderId = folderData['id'] as String;
-        final ownerId = folderData['ownerId'] as String;
-        final notesInSharedFolder = await SharingService().getNotesInSharedFolder(
-          folderId: folderId,
-          ownerId: ownerId,
-        );
-        allNotes.addAll(notesInSharedFolder);
+      List<Map<String, dynamic>> sharedNotesFromFolders = [];
+      List<Map<String, dynamic>> sharedNotesIndividual = [];
+      
+      try {
+        // Cargar notas de carpetas compartidas (usar _sharedFoldersInfo del estado)
+        for (final folderId in _sharedFoldersInfo.keys) {
+          final folderInfo = _sharedFoldersInfo[folderId]!;
+          final ownerId = folderInfo['ownerId'] as String;
+          debugPrint('📂 Intentando cargar notas de carpeta compartida: $folderId');
+          
+          final notesInSharedFolder = await SharingService().getNotesInSharedFolder(
+            folderId: folderId,
+            ownerId: ownerId,
+          );
+          debugPrint('   ✅ Notas encontradas: ${notesInSharedFolder.length}');
+          sharedNotesFromFolders.addAll(notesInSharedFolder);
+        }
+      } catch (e) {
+        debugPrint('❌ Error cargando notas de carpetas compartidas: $e');
       }
       
-      // Cargar notas compartidas individuales (no en carpetas)
-      final sharedNotes = await SharingService().getSharedNotes();
-      allNotes.addAll(sharedNotes);
+      try {
+        // Cargar notas compartidas individuales (no en carpetas)
+        sharedNotesIndividual = await SharingService().getSharedNotes();
+        debugPrint('📝 Notas compartidas individuales: ${sharedNotesIndividual.length}');
+      } catch (e) {
+        debugPrint('❌ Error cargando notas compartidas individuales: $e');
+      }
+      
+      // Combinar todas las notas
+      List<Map<String, dynamic>> allNotes = [
+        ...myNotes,
+        ...sharedNotesFromFolders,
+        ...sharedNotesIndividual,
+      ];
       
       if (!mounted) return;
       
-      debugPrint('📝 Notas cargadas (propias + compartidas): ${allNotes.length}');
+      debugPrint('📝 Total notas cargadas: ${allNotes.length} (${myNotes.length} propias + ${sharedNotesFromFolders.length + sharedNotesIndividual.length} compartidas)');
       
       // Aplicar filtros
       var filteredNotes = List<Map<String, dynamic>>.from(allNotes);
+      
+      // FILTRO PRINCIPAL: En vista normal (sin filtro virtual), solo mostrar notas PROPIAS
+      if (_selectedFolderId == null) {
+        // Vista "Todas mis notas" - solo propias
+        filteredNotes = filteredNotes.where((note) => note['isOwn'] == true).toList();
+        debugPrint('🔍 Filtro aplicado: Solo notas propias (${filteredNotes.length})');
+      }
       
       // Filtro por carpeta (excluye virtuales)
       if (_selectedFolderId != null &&
@@ -383,13 +413,29 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           _selectedFolderId != '__SHARED_BY_ME__') {
         try {
           final folder = _folders.firstWhere((f) => f.id == _selectedFolderId);
+          
+          // Si la carpeta es propia, mostrar solo notas propias de esa carpeta
+          // Si la carpeta es compartida, mostrar notas compartidas de esa carpeta
+          final isSharedFolder = _sharedFoldersInfo.containsKey(folder.id);
+          
           filteredNotes = filteredNotes.where((note) {
             final noteId = note['id'].toString();
-            return folder.noteIds.contains(noteId);
+            final inFolder = folder.noteIds.contains(noteId);
+            
+            if (isSharedFolder) {
+              // Carpeta compartida: solo mostrar notas compartidas
+              return inFolder && (note['isShared'] == true || note['isInSharedFolder'] == true);
+            } else {
+              // Carpeta propia: solo mostrar notas propias
+              return inFolder && note['isOwn'] == true;
+            }
           }).toList();
+          
+          debugPrint('🔍 Filtro aplicado: Carpeta ${isSharedFolder ? 'compartida' : 'propia'} (${filteredNotes.length} notas)');
         } catch (e) {
-          // Si no se encuentra la carpeta, mostrar todas las notas
+          // Si no se encuentra la carpeta, mostrar todas las notas propias
           _selectedFolderId = null;
+          filteredNotes = filteredNotes.where((note) => note['isOwn'] == true).toList();
         }
       }
       
@@ -3102,15 +3148,29 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         ),
                         child: Builder(
                           builder: (context) {
-                            // En secciones virtuales de "Compartidas", no mostramos carpetas
+                            // En secciones virtuales de "Compartidas", mostramos filtros específicos
                             final bool inVirtualShared = _selectedFolderId == '__SHARED_WITH_ME__' || _selectedFolderId == '__SHARED_BY_ME__';
+                            
+                            // Determinar qué carpetas mostrar según el contexto
+                            List<Folder> foldersToShow;
+                            if (inVirtualShared) {
+                              // En vista compartida, no mostramos carpetas en el sidebar
+                              foldersToShow = [];
+                            } else if (_selectedFolderId == null) {
+                              // Vista normal: solo carpetas propias (sin marca de compartida)
+                              foldersToShow = _folders.where((f) => !_sharedFoldersInfo.containsKey(f.id)).toList();
+                            } else {
+                              // Vista de carpeta específica: mostrar todas las carpetas para navegación
+                              foldersToShow = _folders;
+                            }
+                            
                             final List<Map<String, dynamic>> notesWithoutFolder;
                             if (inVirtualShared) {
                               notesWithoutFolder = List<Map<String, dynamic>>.from(_notes);
                             } else {
                               // Obtener IDs de notas que están en carpetas
                               final Set<String> notesInFolders = {};
-                              for (final folder in _folders) {
+                              for (final folder in foldersToShow) {
                                 notesInFolders.addAll(folder.noteIds);
                               }
                               // Filtrar notas que NO están en carpetas
@@ -3121,7 +3181,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                             
                             return ListView.builder(
                               padding: const EdgeInsets.all(AppColors.space12),
-                              itemCount: (inVirtualShared ? 0 : _folders.length) + notesWithoutFolder.length + 2,
+                              itemCount: foldersToShow.length + notesWithoutFolder.length + 2,
                               itemBuilder: (context, i) {
                                 // Sección "Compartidas"
                                 if (i == 0) {
@@ -3158,14 +3218,14 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                 }
                                 // Sección de carpetas con sus notas
                                 final baseIndex = 2; // virtual header + tiles
-                                if (!inVirtualShared && i - baseIndex < _folders.length) {
-                                  final folder = _folders[i - baseIndex];
+                                if (i - baseIndex < foldersToShow.length) {
+                                  final folder = foldersToShow[i - baseIndex];
                                   final noteCount = folder.noteIds.length;
                                   return _buildFolderCard(folder, noteCount);
                                 }
                                 
                                 // Notas sin carpeta (con menú contextual)
-                                final noteIndex = i - (inVirtualShared ? 0 : _folders.length) - baseIndex;
+                                final noteIndex = i - foldersToShow.length - baseIndex;
                                 final note = notesWithoutFolder[noteIndex];
                                 final id = note['id'].toString();
                                 return EnhancedContextMenuRegion(
