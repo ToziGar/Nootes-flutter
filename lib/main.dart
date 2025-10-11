@@ -21,6 +21,7 @@ import 'pages/toast_demo_page.dart';
 import 'services/preferences_service.dart';
 import 'services/app_service.dart';
 import 'services/toast_service.dart';
+import 'services/presence_service.dart';
 import 'public_note_page.dart';
 import 'theme/app_theme.dart';
 
@@ -170,11 +171,32 @@ class AuthGate extends StatelessWidget {
           );
         }
         if (snapshot.hasData) {
+          // Inicializar PresenceService cuando el usuario está autenticado
+          _initializePresenceService();
           return const HomePage();
+        } else {
+          // Limpiar PresenceService cuando el usuario sale
+          _cleanupPresenceService();
         }
         return const LoginPage();
       },
     );
+  }
+  
+  void _initializePresenceService() async {
+    try {
+      await PresenceService().initialize();
+    } catch (e) {
+      debugPrint('❌ Error inicializando PresenceService: $e');
+    }
+  }
+  
+  void _cleanupPresenceService() async {
+    try {
+      await PresenceService().goOffline();
+    } catch (e) {
+      debugPrint('❌ Error limpiando PresenceService: $e');
+    }
   }
 }
 

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/sharing_service.dart';
 import '../services/toast_service.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../widgets/share_dialog.dart';
+import 'shared_note_viewer_page.dart';
 
 /// Tipos de actividad en el log
 enum ActivityType {
@@ -151,7 +153,12 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
   // Estado
   List<SharedItem> _sharedByMe = [];
   List<SharedItem> _sharedWithMe = [];
+  List<Map<String, dynamic>> _notifications = [];
+  int _unreadNotifications = 0;
   bool _isLoading = false;
+  
+  // Streams para tiempo real
+  Stream<QuerySnapshot>? _notificationsStream;
   String _searchQuery = '';
   SharingStatus? _selectedStatus;
   SharedItemType? _selectedType;
@@ -174,7 +181,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this); // 3 tabs ahora
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -187,8 +194,22 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       curve: Curves.easeOutCubic,
     ));
     
+    _initializeStreams();
     _loadData();
     _animationController.forward();
+  }
+  
+  void _initializeStreams() {
+    final user = AuthService.instance.currentUser;
+    if (user == null) return;
+    
+    // Stream de notificaciones en tiempo real
+    _notificationsStream = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('userId', isEqualTo: user.uid)
+        .orderBy('createdAt', descending: true)
+        .limit(50)
+        .snapshots();
   }
 
   @override
@@ -472,6 +493,46 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                         ],
                       ),
                     ),
+                    Tab(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              const Icon(Icons.notifications_rounded, size: 18),
+                              if (_unreadNotifications > 0)
+                                Positioned(
+                                  right: -4,
+                                  top: -4,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: Text(
+                                      _unreadNotifications > 9 ? '9+' : '$_unreadNotifications',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(width: 8),
+                          Text('Notificaciones'),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -485,6 +546,13 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
 
   List<Widget> _buildNormalActions() {
     return [
+      // Botón de marcar todas las notificaciones como leídas (solo en tab de notificaciones)
+      if (_tabController.index == 2 && _unreadNotifications > 0)
+        IconButton(
+          icon: const Icon(Icons.done_all_rounded),
+          tooltip: 'Marcar todas como leídas',
+          onPressed: _markAllAsRead,
+        ),
       IconButton(
         icon: const Icon(Icons.checklist_rounded),
         tooltip: 'Selección múltiple',
@@ -725,6 +793,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       children: [
         _buildSharedByMeTab(),
         _buildSharedWithMeTab(),
+        _buildNotificationsTab(),
       ],
     );
   }
@@ -967,6 +1036,421 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         ],
       ),
     );
+  }
+
+  // ==================== TAB DE NOTIFICACIONES ====================
+  
+  Widget _buildNotificationsTab() {
+    if (_notificationsStream == null) {
+      return _buildEmptyState(
+        icon: Icons.notifications_off_rounded,
+        title: 'Sin notificaciones',
+        subtitle: 'Las notificaciones de compartición aparecerán aquí',
+        action: null,
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: _notificationsStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Error: ${snapshot.error}'),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _initializeStreams();
+                    });
+                  },
+                  icon: Icon(Icons.refresh),
+                  label: Text('Reintentar'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text('Cargando notificaciones...'),
+              ],
+            ),
+          );
+        }
+
+        final notifications = snapshot.data?.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return {
+            'id': doc.id,
+            ...data,
+          };
+        }).toList() ?? [];
+
+        // Actualizar contador de no leídas
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final unread = notifications.where((n) => n['isRead'] == false).length;
+          if (_unreadNotifications != unread && mounted) {
+            setState(() {
+              _unreadNotifications = unread;
+            });
+          }
+        });
+
+        if (notifications.isEmpty) {
+          return _buildEmptyState(
+            icon: Icons.notifications_off_rounded,
+            title: 'Sin notificaciones',
+            subtitle: 'Las notificaciones de compartición aparecerán aquí',
+            action: null,
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            // El stream se actualiza automáticamente, solo mostramos feedback
+            await Future.delayed(Duration(milliseconds: 500));
+          },
+          child: ListView.builder(
+            padding: const EdgeInsets.all(20),
+            itemCount: notifications.length,
+            itemBuilder: (context, index) {
+              final notification = notifications[index];
+              return _buildNotificationCard(notification);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationCard(Map<String, dynamic> notification) {
+    final isRead = notification['isRead'] == true;
+    final type = notification['type'] as String? ?? 'shareInvite';
+    final title = notification['title'] as String? ?? 'Notificación';
+    final message = notification['message'] as String? ?? '';
+    final createdAt = (notification['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final timeAgo = _getTimeAgo(createdAt);
+
+    IconData icon;
+    Color iconColor;
+
+    switch (type) {
+      case 'shareInvite':
+        icon = Icons.share_rounded;
+        iconColor = Colors.blue;
+        break;
+      case 'shareAccepted':
+        icon = Icons.check_circle_rounded;
+        iconColor = Colors.green;
+        break;
+      case 'shareRejected':
+        icon = Icons.cancel_rounded;
+        iconColor = Colors.red;
+        break;
+      case 'shareRevoked':
+        icon = Icons.block_rounded;
+        iconColor = Colors.orange;
+        break;
+      case 'permissionChanged':
+        icon = Icons.edit_rounded;
+        iconColor = Colors.purple;
+        break;
+      case 'noteUpdated':
+        icon = Icons.update_rounded;
+        iconColor = Colors.teal;
+        break;
+      case 'commentAdded':
+        icon = Icons.comment_rounded;
+        iconColor = Colors.indigo;
+        break;
+      default:
+        icon = Icons.notifications_rounded;
+        iconColor = Colors.grey;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isRead 
+            ? AppColors.surface 
+            : AppColors.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isRead 
+              ? AppColors.borderColor 
+              : AppColors.primary.withValues(alpha: 0.3),
+          width: isRead ? 1 : 2,
+        ),
+        boxShadow: isRead ? [] : [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _markNotificationAsRead(notification['id']),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Ícono
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 24),
+                ),
+                const SizedBox(width: 16),
+                // Contenido
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: TextStyle(
+                                fontWeight: isRead ? FontWeight.w600 : FontWeight.bold,
+                                fontSize: 15,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (!isRead)
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        message,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time_rounded,
+                            size: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            timeAgo,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      // Acciones rápidas para invitaciones
+                      if (type == 'shareInvite' && !isRead)
+                        _buildQuickActions(notification),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildQuickActions(Map<String, dynamic> notification) {
+    final shareId = notification['metadata']?['shareId'] as String?;
+    
+    if (shareId == null) return const SizedBox.shrink();
+    
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          // Botón Rechazar
+          TextButton.icon(
+            onPressed: _isLoading 
+                ? null 
+                : () => _rejectFromNotification(shareId, notification['id']),
+            icon: Icon(Icons.close, size: 18),
+            label: Text('Rechazar'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Botón Aceptar
+          ElevatedButton.icon(
+            onPressed: _isLoading 
+                ? null 
+                : () => _acceptFromNotification(shareId, notification['id']),
+            icon: Icon(Icons.check, size: 18),
+            label: Text('Aceptar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              elevation: 2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _acceptFromNotification(String shareId, String notificationId) async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final sharingService = SharingService();
+      await sharingService.acceptSharing(shareId);
+      await _markNotificationAsRead(notificationId);
+      
+      ToastService.success('✅ Compartición aceptada');
+      
+      // Recargar datos
+      await _loadData();
+    } catch (e) {
+      debugPrint('❌ Error aceptando compartición: $e');
+      ToastService.error('Error al aceptar: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+  
+  Future<void> _rejectFromNotification(String shareId, String notificationId) async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final sharingService = SharingService();
+      await sharingService.rejectSharing(shareId);
+      await _markNotificationAsRead(notificationId);
+      
+      ToastService.info('❌ Compartición rechazada');
+      
+      // Recargar datos
+      await _loadData();
+    } catch (e) {
+      debugPrint('❌ Error rechazando compartición: $e');
+      ToastService.error('Error al rechazar: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 365) {
+      return 'Hace ${(difference.inDays / 365).floor()} año${(difference.inDays / 365).floor() > 1 ? 's' : ''}';
+    } else if (difference.inDays > 30) {
+      return 'Hace ${(difference.inDays / 30).floor()} mes${(difference.inDays / 30).floor() > 1 ? 'es' : ''}';
+    } else if (difference.inDays > 0) {
+      return 'Hace ${difference.inDays} día${difference.inDays > 1 ? 's' : ''}';
+    } else if (difference.inHours > 0) {
+      return 'Hace ${difference.inHours} hora${difference.inHours > 1 ? 's' : ''}';
+    } else if (difference.inMinutes > 0) {
+      return 'Hace ${difference.inMinutes} minuto${difference.inMinutes > 1 ? 's' : ''}';
+    } else {
+      return 'Ahora mismo';
+    }
+  }
+
+  Future<void> _markNotificationAsRead(String notificationId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('notifications')
+          .doc(notificationId)
+          .update({'isRead': true});
+
+      // Actualizar localmente
+      setState(() {
+        final index = _notifications.indexWhere((n) => n['id'] == notificationId);
+        if (index != -1) {
+          _notifications[index]['isRead'] = true;
+          _unreadNotifications = _notifications.where((n) => n['isRead'] == false).length;
+        }
+      });
+
+      ToastService.success('Notificación marcada como leída');
+    } catch (e) {
+      debugPrint('Error marcando notificación: $e');
+      ToastService.error('Error al marcar notificación');
+    }
+  }
+
+  Future<void> _markAllAsRead() async {
+    try {
+      final user = AuthService.instance.currentUser;
+      if (user == null) return;
+
+      // Obtener todas las notificaciones no leídas
+      final unreadNotifications = _notifications.where((n) => n['isRead'] == false).toList();
+      
+      if (unreadNotifications.isEmpty) {
+        ToastService.info('No hay notificaciones sin leer');
+        return;
+      }
+
+      // Actualizar en Firestore en lote
+      final batch = FirebaseFirestore.instance.batch();
+      for (final notification in unreadNotifications) {
+        final docRef = FirebaseFirestore.instance
+            .collection('notifications')
+            .doc(notification['id'] as String);
+        batch.update(docRef, {'isRead': true});
+      }
+      await batch.commit();
+
+      // Actualizar localmente
+      setState(() {
+        for (final notification in _notifications) {
+          notification['isRead'] = true;
+        }
+        _unreadNotifications = 0;
+      });
+
+      ToastService.success('Todas las notificaciones marcadas como leídas');
+    } catch (e) {
+      debugPrint('Error marcando todas las notificaciones: $e');
+      ToastService.error('Error al marcar todas las notificaciones');
+    }
   }
 
   Widget _buildSharedItemCard(SharedItem item, bool isSentByMe) {
@@ -1536,14 +2020,14 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       }
       
       try {
-        Navigator.of(context).pushNamed(
-          '/note',
-          arguments: {
-            'noteId': item.itemId,
-            'ownerId': item.ownerId,
-            'isShared': true,
-            'permission': item.permission.name,
-          },
+        // Navegar a SharedNoteViewerPage para ver/editar según permisos
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => SharedNoteViewerPage(
+              noteId: item.itemId,
+              sharingInfo: item,
+            ),
+          ),
         ).then((_) {
           _loadData();
         });
