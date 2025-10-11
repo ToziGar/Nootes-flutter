@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../widgets/glass.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../pages/app_shell.dart';
@@ -224,6 +223,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Editar perfil'),
         leading: IconButton(
@@ -240,15 +240,17 @@ class _ProfilePageState extends State<ProfilePage> {
           },
         ),
       ),
-      body: GlassBackground(
-        child: SafeArea(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: GlassCard(
+      body: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
                   child: _loading
                       ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
                       : Form(

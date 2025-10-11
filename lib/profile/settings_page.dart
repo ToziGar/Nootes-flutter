@@ -570,12 +570,40 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           FilledButton(
             onPressed: () async {
-              await _authService.signOut();
-              if (!ctx.mounted) return;
-              // Cerrar diálogo
-              Navigator.pop(ctx);
-              // Cerrar página de ajustes usando el contexto del State
-              if (mounted) Navigator.of(context).pop();
+              try {
+                // Cerrar el diálogo primero
+                Navigator.pop(ctx);
+                
+                // Mostrar loading
+                if (mounted) {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                
+                // Cerrar sesión
+                await _authService.signOut();
+                
+                // Cerrar loading y navegar al login
+                if (mounted) {
+                  Navigator.of(context).pop(); // Cerrar loading
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/login',
+                    (route) => false, // Eliminar todas las rutas anteriores
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  Navigator.of(context).pop(); // Cerrar loading si hay error
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error al cerrar sesión: $e')),
+                  );
+                }
+              }
             },
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             child: const Text('Cerrar sesión'),
