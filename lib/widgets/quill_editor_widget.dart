@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_math_fork/flutter_math.dart' as math;
@@ -56,7 +57,6 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   Timer? _autoSaveTimer;
   bool _hasUnsavedChanges = false;
   DateTime? _lastSaveTime;
-  Timer? _statusUpdateTimer;
   
   // Editor state
   double _editorFontSize = 16.0;
@@ -82,9 +82,10 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
         _applyMarkdownShortcuts();
       }
       // Marcar cambios no guardados y programar auto-guardado
+      // NO hacer setState aquí - solo marcar flag
       _hasUnsavedChanges = true;
       _scheduleAutoSave();
-      _scheduleStatusUpdate();
+      // Eliminado: _scheduleStatusUpdate() - causa pérdida de focus en web
     });
     
     // Dar foco inicial al editor
@@ -96,7 +97,6 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
   @override
   void dispose() {
     _autoSaveTimer?.cancel();
-    _statusUpdateTimer?.cancel();
     _mathPreviewTimer?.cancel();
     _editorFocusNode.dispose();
     _changesSub?.cancel();
@@ -112,19 +112,12 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     });
   }
   
-  void _scheduleStatusUpdate() {
-    // Cancelar timer anterior
-    _statusUpdateTimer?.cancel();
-    // Actualizar UI solo si realmente cambió el estado
-    _statusUpdateTimer = Timer(const Duration(milliseconds: 800), () {
-      if (mounted && _hasUnsavedChanges) {
-        setState(() {}); // Solo actualizar UI del estado
-      }
-    });
-  }
-  
   Future<void> _performAutoSave() async {
     if (!mounted) return;
+    
+    // En web, guardar el estado de focus antes del guardado
+    final hadFocus = kIsWeb ? _editorFocusNode.hasFocus : false;
+    final selection = kIsWeb ? _controller.selection : const TextSelection.collapsed(offset: 0);
     
     final json = jsonEncode(_controller.document.toDelta().toJson());
     widget.onChanged(json);
@@ -136,7 +129,19 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
           _hasUnsavedChanges = false;
           _lastSaveTime = DateTime.now();
         });
-        // NO interrumpir el foco del usuario - el guardado es silencioso
+        
+        // En web, restaurar focus SOLO si lo tenía antes (fix específico web)
+        if (kIsWeb && hadFocus && !_editorFocusNode.hasFocus) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && !_editorFocusNode.hasFocus) {
+              _editorFocusNode.requestFocus();
+              // Restaurar selección solo si es válida
+              if (selection.isValid) {
+                _controller.updateSelection(selection, ChangeSource.local);
+              }
+            }
+          });
+        }
       }
     } catch (e) {
       debugPrint('Error auto-guardando: $e');
@@ -373,7 +378,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     if (caret > plain.length) return;
 
     // Check for block math $$...$$
-    final lb = plain.lastIndexOf('\$\$', caret - 1);
+    final lb = caret > 0 ? plain.lastIndexOf('\$\$', caret - 1) : -1;
     final rb = plain.indexOf('\$\$', caret);
     if (lb != -1 && rb != -1 && lb < caret && caret < rb) {
       final expr = plain.substring(lb + 2, rb).trim();
@@ -390,7 +395,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
     }
 
     // Check for inline math $...$
-    final lineStart = plain.lastIndexOf('\n', caret - 1) + 1;
+    final lineStart = caret > 0 ? plain.lastIndexOf('\n', caret - 1) + 1 : 0;
     final nextNl = plain.indexOf('\n', caret);
     final lineEnd = nextNl == -1 ? plain.length : nextNl;
     final line = plain.substring(lineStart, lineEnd);
