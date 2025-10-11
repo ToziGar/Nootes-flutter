@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../widgets/share_dialog.dart';
-import 'shared_note_viewer_page.dart';
+import 'shared_note_management_page.dart';
 
 /// Tipos de actividad en el log
 enum ActivityType {
@@ -1936,10 +1936,10 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       }
       
       try {
-        // Navegar a SharedNoteViewerPage para ver/editar según permisos
+        // Navegar a SharedNoteManagementPage para gestión profesional
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => SharedNoteViewerPage(
+            builder: (context) => SharedNoteManagementPage(
               noteId: item.itemId,
               sharingInfo: item,
             ),

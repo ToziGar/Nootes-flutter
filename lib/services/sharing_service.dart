@@ -824,11 +824,12 @@ class SharingService {
     
     // Enviar notificación al receptor
     final notificationService = NotificationService();
-    await notificationService.createNotification(
+    await notificationService.createShareNotification(
       userId: recipientId,
-      type: 'permissionChanged',
+      type: NotificationType.newShare,
       title: 'Permisos actualizados',
       message: 'Tus permisos para "$itemTitle" han sido actualizados',
+      shareId: sharingId,
       metadata: {
         'shareId': sharingId,
         'newPermission': newPermission.name,
