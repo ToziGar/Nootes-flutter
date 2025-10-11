@@ -164,14 +164,19 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   }
 
   Future<void> _addTag(String tag) async {
+    if (_tags.contains(tag)) return; // Evitar duplicados
     await FirestoreService.instance.addTagToNote(uid: _uid, noteId: widget.noteId, tag: tag);
-    await _load();
+    setState(() {
+      _tags.add(tag); // Actualizar estado local sin recargar todo
+    });
     if (widget.onChanged != null) await widget.onChanged!();
   }
 
   Future<void> _removeTag(String tag) async {
     await FirestoreService.instance.removeTagFromNote(uid: _uid, noteId: widget.noteId, tag: tag);
-    await _load();
+    setState(() {
+      _tags.remove(tag); // Actualizar estado local sin recargar todo
+    });
     if (widget.onChanged != null) await widget.onChanged!();
   }
 

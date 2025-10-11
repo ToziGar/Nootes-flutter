@@ -205,8 +205,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     
     // Stream de notificaciones en tiempo real
     _notificationsStream = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
         .collection('notifications')
-        .where('userId', isEqualTo: user.uid)
         .orderBy('createdAt', descending: true)
         .limit(50)
         .snapshots();
@@ -1254,7 +1255,12 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
 
   Future<void> _markNotificationAsRead(String notificationId) async {
     try {
+      final user = AuthService.instance.currentUser;
+      if (user == null) return;
+      
       await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
           .collection('notifications')
           .doc(notificationId)
           .update({'isRead': true});
@@ -1292,6 +1298,8 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       final batch = FirebaseFirestore.instance.batch();
       for (final notification in unreadNotifications) {
         final docRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
             .collection('notifications')
             .doc(notification['id'] as String);
         batch.update(docRef, {'isRead': true});
@@ -1732,34 +1740,61 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
 
   bool _shouldShowActions(SharedItem item, bool isSentByMe) {
     if (isSentByMe) {
-      return item.status == SharingStatus.pending || item.status == SharingStatus.accepted;
+      // Propietario: mostrar acciones para pendiente, aceptada, rechazada y revocada
+      return item.status == SharingStatus.pending || 
+             item.status == SharingStatus.accepted ||
+             item.status == SharingStatus.rejected ||
+             item.status == SharingStatus.revoked;
     } else {
-      // Para receptores, mostrar acciones cuando esté pendiente (aceptar/rechazar)
-      // o aceptada (permitir "Salir").
-      return item.status == SharingStatus.pending || item.status == SharingStatus.accepted;
+      // Receptor: mostrar acciones para pendiente, aceptada, rechazada y abandonada
+      return item.status == SharingStatus.pending || 
+             item.status == SharingStatus.accepted ||
+             item.status == SharingStatus.rejected ||
+             item.status == SharingStatus.left;
     }
   }
 
   Widget _buildActionButtons(SharedItem item, bool isSentByMe) {
     if (isSentByMe) {
-      // El propietario puede revocar tanto si está pendiente como aceptada
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          OutlinedButton.icon(
-            onPressed: () => _revokeSharing(item),
-            icon: const Icon(Icons.block_rounded, size: 16),
-            label: const Text('Revocar'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.danger,
-              side: BorderSide(color: AppColors.danger),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+      // Propietario: puede revocar si está pendiente/aceptada, o eliminar si está rechazada/revocada
+      if (item.status == SharingStatus.pending || item.status == SharingStatus.accepted) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => _revokeSharing(item),
+              icon: const Icon(Icons.block_rounded, size: 16),
+              label: const Text('Revocar'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.danger,
+                side: BorderSide(color: AppColors.danger),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
-          ),
-        ],
-      );
+          ],
+        );
+      } else if (item.status == SharingStatus.rejected || item.status == SharingStatus.revoked) {
+        // Botón para eliminar comparticiones rechazadas o revocadas
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => _deleteSharing(item),
+              icon: const Icon(Icons.delete_outline_rounded, size: 16),
+              label: const Text('Eliminar'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.danger,
+                side: BorderSide(color: AppColors.danger.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        );
+      }
     }
 
     // Receptor
@@ -1815,6 +1850,27 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.textSecondary,
               side: BorderSide(color: AppColors.borderColor),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (item.status == SharingStatus.rejected || item.status == SharingStatus.left) {
+      // Botón para eliminar comparticiones rechazadas o abandonadas
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          OutlinedButton.icon(
+            onPressed: () => _deleteSharing(item),
+            icon: const Icon(Icons.delete_outline_rounded, size: 16),
+            label: const Text('Eliminar'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.danger,
+              side: BorderSide(color: AppColors.danger.withValues(alpha: 0.5)),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -2065,6 +2121,61 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
         await _loadData();
       } catch (e) {
         ToastService.error('❌ Error: $e');
+      }
+    }
+  }
+
+  Future<void> _deleteSharing(SharedItem item) async {
+    final statusText = item.status == SharingStatus.rejected 
+        ? 'rechazada' 
+        : item.status == SharingStatus.revoked 
+            ? 'revocada' 
+            : 'abandonada';
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Eliminar compartición',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          '¿Quieres eliminar permanentemente esta compartición $statusText de "${item.metadata?['noteTitle'] ?? item.metadata?['folderName'] ?? 'este elemento'}"?\n\nEsta acción no se puede deshacer.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: AppColors.textPrimary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await SharingService().deleteSharing(item.id);
+        ToastService.success('🗑️ Compartición eliminada');
+        await _loadData();
+      } catch (e) {
+        ToastService.error('❌ Error al eliminar: $e');
       }
     }
   }

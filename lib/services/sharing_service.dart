@@ -588,7 +588,13 @@ class SharingService {
     int? limit,
   }) async {
     final currentUser = _authService.currentUser;
-    if (currentUser == null) return [];
+    if (currentUser == null) {
+      debugPrint('⚠️ getSharedByMe: No hay usuario autenticado');
+      return [];
+    }
+
+    debugPrint('📤 getSharedByMe: Consultando compartidas enviadas por ${currentUser.uid}');
+    debugPrint('   Filtros: status=$status, type=$type, search=$searchQuery');
 
     Query query = _firestore
         .collection('shared_items')
@@ -609,9 +615,16 @@ class SharingService {
     }
 
     final snapshot = await query.get();
+    debugPrint('   Documentos encontrados en Firestore: ${snapshot.docs.length}');
+    
     var items = snapshot.docs
         .map((doc) => SharedItem.fromMap(doc.id, doc.data() as Map<String, dynamic>))
         .toList();
+
+    debugPrint('   Items parseados: ${items.length}');
+    for (var item in items) {
+      debugPrint('   - ${item.type.name}: ${item.metadata?['noteTitle'] ?? item.metadata?['folderName']} (${item.status.name})');
+    }
 
     // Filtro por búsqueda en cliente (debido a limitaciones de Firestore)
     if (searchQuery != null && searchQuery.isNotEmpty) {
@@ -621,8 +634,10 @@ class SharingService {
         final email = item.recipientEmail.toLowerCase();
         return title.contains(search) || email.contains(search);
       }).toList();
+      debugPrint('   Después de filtro de búsqueda: ${items.length}');
     }
 
+    debugPrint('✅ getSharedByMe: Retornando ${items.length} items');
     return items;
   }
 
@@ -904,6 +919,102 @@ class SharingService {
           'sharingId': sharing.id,
           'sharedBy': sharing.ownerEmail,
           'ownerId': sharing.ownerId,
+          'permission': sharing.permission.name,
+          'sharedAt': sharing.createdAt,
+        });
+      }
+    }
+
+    return notes;
+  }
+
+  /// Obtiene carpetas compartidas conmigo que he aceptado
+  Future<List<Map<String, dynamic>>> getSharedFolders() async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) return [];
+
+    final sharedItems = await _firestore
+        .collection('shared_items')
+        .where('recipientId', isEqualTo: currentUser.uid)
+        .where('type', isEqualTo: SharedItemType.folder.name)
+        .where('status', isEqualTo: SharingStatus.accepted.name)
+        .get();
+
+    final List<Map<String, dynamic>> folders = [];
+
+    for (final doc in sharedItems.docs) {
+      final sharing = SharedItem.fromMap(doc.id, doc.data());
+      
+      // Obtener la carpeta desde el propietario
+      final folder = await FirestoreService.instance.getFolder(
+        uid: sharing.ownerId,
+        folderId: sharing.itemId,
+      );
+
+      if (folder != null) {
+        folders.add({
+          ...folder,
+          'isShared': true,
+          'sharingId': sharing.id,
+          'sharedBy': sharing.ownerEmail,
+          'ownerId': sharing.ownerId,
+          'permission': sharing.permission.name,
+          'sharedAt': sharing.createdAt,
+        });
+      }
+    }
+
+    return folders;
+  }
+
+  /// Obtiene las notas dentro de una carpeta compartida
+  Future<List<Map<String, dynamic>>> getNotesInSharedFolder({
+    required String folderId,
+    required String ownerId,
+  }) async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) return [];
+
+    // Verificar que tengo acceso a la carpeta
+    final folderAccess = await _firestore
+        .collection('shared_items')
+        .where('itemId', isEqualTo: folderId)
+        .where('ownerId', isEqualTo: ownerId)
+        .where('recipientId', isEqualTo: currentUser.uid)
+        .where('type', isEqualTo: SharedItemType.folder.name)
+        .where('status', isEqualTo: SharingStatus.accepted.name)
+        .get();
+
+    if (folderAccess.docs.isEmpty) return [];
+
+    final sharing = SharedItem.fromMap(folderAccess.docs.first.id, folderAccess.docs.first.data());
+
+    // Obtener la carpeta para saber qué notas contiene
+    final folder = await FirestoreService.instance.getFolder(
+      uid: ownerId,
+      folderId: folderId,
+    );
+
+    if (folder == null || folder['noteIds'] == null) return [];
+
+    final noteIds = List<String>.from(folder['noteIds'] ?? []);
+    final List<Map<String, dynamic>> notes = [];
+
+    // Obtener cada nota
+    for (final noteId in noteIds) {
+      final note = await FirestoreService.instance.getNote(
+        uid: ownerId,
+        noteId: noteId,
+      );
+
+      if (note != null) {
+        notes.add({
+          ...note,
+          'isShared': true,
+          'isInSharedFolder': true,
+          'sharedFolderId': folderId,
+          'sharedBy': sharing.ownerEmail,
+          'ownerId': ownerId,
           'permission': sharing.permission.name,
           'sharedAt': sharing.createdAt,
         });

@@ -71,6 +71,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   String? _selectedId;
   // Folders state
   List<Folder> _folders = [];
+  Map<String, Map<String, dynamic>> _sharedFoldersInfo = {}; // Información adicional de carpetas compartidas
   // Sidebar panels
   bool _showSidebar = true;
   bool _showStats = false;
@@ -151,15 +152,25 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
   
   Future<void> _loadFolders() async {
     try {
+      // Cargar carpetas propias
       final foldersData = await FirestoreService.instance.listFolders(uid: _uid);
-      debugPrint('📁 Carpetas cargadas: ${foldersData.length}');
+      debugPrint('📁 Carpetas propias cargadas: ${foldersData.length}');
+      
+      // Cargar carpetas compartidas conmigo
+      final sharedFoldersData = await SharingService().getSharedFolders();
+      debugPrint('📁 Carpetas compartidas cargadas: ${sharedFoldersData.length}');
+      
       if (!mounted) return;
+      
+      // Combinar carpetas propias y compartidas
+      final allFoldersData = [...foldersData, ...sharedFoldersData];
       
       // Eliminar duplicados por ID lógico de carpeta
       final seen = <String>{};
       final uniqueFolders = <Folder>[];
+      final sharedInfo = <String, Map<String, dynamic>>{};
       
-      for (var data in foldersData) {
+      for (var data in allFoldersData) {
         // Usar folderId si existe, sino usar id
         final logicalId = data['folderId']?.toString() ?? data['id'].toString();
         if (!seen.contains(logicalId)) {
@@ -170,6 +181,17 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
           // Document ID que Firestore usa para operaciones como delete.
           final folder = Folder.fromJson(Map<String, dynamic>.from(data));
           uniqueFolders.add(folder);
+          
+          // Guardar información extra si es carpeta compartida
+          if (data['isShared'] == true) {
+            sharedInfo[folder.id] = {
+              'isShared': true,
+              'sharedBy': data['sharedBy'],
+              'ownerId': data['ownerId'],
+              'permission': data['permission'],
+              'sharedAt': data['sharedAt'],
+            };
+          }
         } else {
           debugPrint('⚠️ Carpeta duplicada ignorada: ${data['name']} ($logicalId)');
         }
@@ -178,9 +200,12 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       if (mounted) {
         setState(() {
           _folders = uniqueFolders;
-          debugPrint('✅ Carpetas únicas: ${_folders.length}');
+          _sharedFoldersInfo = sharedInfo;
+          debugPrint('✅ Carpetas únicas (propias + compartidas): ${_folders.length}');
           for (var folder in _folders) {
-            debugPrint('  - ${folder.name} (${folder.noteIds.length} notas)');
+            final isShared = _sharedFoldersInfo.containsKey(folder.id);
+            final sharedIcon = isShared ? ' 👥' : '';
+            debugPrint('  - ${folder.name}$sharedIcon (${folder.noteIds.length} notas)');
           }
         });
       }
@@ -326,12 +351,28 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         return;
       }
 
-      // Cargar notas propias (caché deshabilitado temporalmente por problema de serialización)
+      // Cargar notas propias
       List<Map<String, dynamic>> allNotes = await svc.listNotesSummary(uid: _uid);
+      
+      // Cargar notas de carpetas compartidas (para todas las carpetas compartidas)
+      final sharedFoldersData = await SharingService().getSharedFolders();
+      for (final folderData in sharedFoldersData) {
+        final folderId = folderData['id'] as String;
+        final ownerId = folderData['ownerId'] as String;
+        final notesInSharedFolder = await SharingService().getNotesInSharedFolder(
+          folderId: folderId,
+          ownerId: ownerId,
+        );
+        allNotes.addAll(notesInSharedFolder);
+      }
+      
+      // Cargar notas compartidas individuales (no en carpetas)
+      final sharedNotes = await SharingService().getSharedNotes();
+      allNotes.addAll(sharedNotes);
       
       if (!mounted) return;
       
-      debugPrint('📝 Notas cargadas: ${allNotes.length}');
+      debugPrint('📝 Notas cargadas (propias + compartidas): ${allNotes.length}');
       
       // Aplicar filtros
       var filteredNotes = List<Map<String, dynamic>>.from(allNotes);

@@ -206,6 +206,16 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
         _suggestions = deduped;
         _showSuggestions = deduped.isNotEmpty;
         _errorMessage = deduped.isEmpty ? 'No se encontraron usuarios que coincidan' : null;
+        
+        // Auto-seleccionar si hay exactamente un resultado Y el email coincide exactamente
+        if (deduped.length == 1) {
+          final suggestion = deduped.first;
+          final email = suggestion['email']?.toString().toLowerCase() ?? '';
+          if (query.toLowerCase() == email) {
+            _foundUser = suggestion;
+            _showSuggestions = false;
+          }
+        }
       });
     } catch (e) {
       setState(() {
@@ -753,6 +763,8 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
           _buildSearchField(),
           if (_showSuggestions) _buildSuggestions(),
           if (_errorMessage != null) _buildErrorMessage(),
+          if (_foundUser == null && _recipientController.text.trim().isNotEmpty && !_showSuggestions && _errorMessage == null) 
+            _buildVerifyHint(),
           if (_foundUser != null) _buildFoundUser(),
           _buildPermissionSelector(),
           _buildMessageField(),
@@ -914,7 +926,78 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
                     ),
                   ),
                 )
-              else if (_recipientController.text.trim().isNotEmpty)
+              else if (_recipientController.text.trim().isNotEmpty && _foundUser == null)
+                Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () async {
+                          final email = _recipientController.text.trim();
+                          if (email.contains('@')) {
+                            setState(() => _isLoading = true);
+                            try {
+                              final user = await SharingService().findUserByEmail(email);
+                              setState(() {
+                                if (user != null) {
+                                  _foundUser = user;
+                                  _showSuggestions = false;
+                                  _suggestions = [];
+                                  _errorMessage = null;
+                                  ToastService.success('Usuario encontrado: ${user['fullName'] ?? user['email']}');
+                                } else {
+                                  _errorMessage = 'Usuario no encontrado';
+                                  ToastService.warning('No se encontró ningún usuario con ese email');
+                                }
+                              });
+                            } catch (e) {
+                              setState(() {
+                                _errorMessage = 'Error al buscar usuario';
+                              });
+                              ToastService.error('Error al buscar usuario');
+                            } finally {
+                              setState(() => _isLoading = false);
+                            }
+                          }
+                        },
+                        icon: Icon(
+                          Icons.check_rounded,
+                          size: 20,
+                          color: AppColors.success,
+                        ),
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppColors.success.withValues(alpha: 0.1),
+                          padding: const EdgeInsets.all(8),
+                          minimumSize: const Size(36, 36),
+                        ),
+                        tooltip: 'Verificar usuario',
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _recipientController.clear();
+                            _foundUser = null;
+                            _showSuggestions = false;
+                            _suggestions = [];
+                            _errorMessage = null;
+                          });
+                        },
+                        icon: Icon(
+                          Icons.clear_rounded,
+                          size: 20,
+                          color: AppColors.textSecondary,
+                        ),
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppColors.textSecondary.withValues(alpha: 0.1),
+                          padding: const EdgeInsets.all(8),
+                          minimumSize: const Size(36, 36),
+                        ),
+                        tooltip: 'Limpiar',
+                      ),
+                    ],
+                  ),
+                )
+              else if (_foundUser != null)
                 Container(
                   margin: const EdgeInsets.only(left: 16),
                   child: IconButton(
@@ -984,6 +1067,30 @@ class _ShareDialogState extends State<ShareDialog> with TickerProviderStateMixin
             },
           );
         }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildVerifyHint() {
+    return Container(
+      margin: const EdgeInsets.only(left: 28, right: 28, bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.info.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.touch_app_rounded, color: AppColors.info, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Presiona el botón ✓ para verificar el usuario',
+              style: TextStyle(color: AppColors.info, fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
       ),
     );
   }
