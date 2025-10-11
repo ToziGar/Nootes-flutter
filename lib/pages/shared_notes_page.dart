@@ -153,7 +153,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
   // Estado
   List<SharedItem> _sharedByMe = [];
   List<SharedItem> _sharedWithMe = [];
-  final List<Map<String, dynamic>> _notifications = [];
+  List<Map<String, dynamic>> _notifications = [];
   int _unreadNotifications = 0;
   bool _isLoading = false;
   
@@ -479,20 +479,7 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                         children: [
                           const Icon(Icons.send_rounded, size: 18),
                           const SizedBox(width: 8),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('Enviadas'),
-                              if (_sharedByMe.isNotEmpty)
-                                Text(
-                                  '(${_sharedByMe.length})',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                            ],
-                          ),
+                          Text('Enviadas (${_sharedByMe.length})'),
                         ],
                       ),
                     ),
@@ -500,61 +487,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              const Icon(Icons.inbox_rounded, size: 18),
-                              // Badge para invitaciones pendientes
-                              if (_sharedWithMe.where((item) => item.status == SharingStatus.pending).isNotEmpty)
-                                Positioned(
-                                  right: -6,
-                                  top: -6,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.warning,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: Colors.white, width: 1.5),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.2),
-                                          blurRadius: 3,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ],
-                                    ),
-                                    constraints: const BoxConstraints(
-                                      minWidth: 18,
-                                      minHeight: 16,
-                                    ),
-                                    child: Text(
-                                      '${_sharedWithMe.where((item) => item.status == SharingStatus.pending).length}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
+                          const Icon(Icons.inbox_rounded, size: 18),
                           const SizedBox(width: 8),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('Recibidas'),
-                              if (_sharedWithMe.isNotEmpty)
-                                Text(
-                                  '(${_sharedWithMe.length})',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                            ],
-                          ),
+                          Text('Recibidas (${_sharedWithMe.length})'),
                         ],
                       ),
                     ),
@@ -867,21 +802,9 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     if (_sharedByMe.isEmpty) {
       return _buildEmptyState(
         icon: Icons.send_outlined,
-        title: 'No has compartido notas aún',
-        subtitle: 'Comparte una nota con otros usuarios desde el menú contextual (clic derecho) o desde el editor de notas',
-        action: ElevatedButton.icon(
-          onPressed: () {
-            Navigator.of(context).pop();
-            ToastService.info('Ve a una nota y usa el menú contextual para compartir');
-          },
-          icon: const Icon(Icons.arrow_back_rounded),
-          label: const Text('Ir a mis notas'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          ),
-        ),
+        title: 'No has enviado comparticiones',
+        subtitle: 'Comparte notas desde el menú contextual',
+        action: null,
       );
     }
 
@@ -903,17 +826,11 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
     if (_sharedWithMe.isEmpty) {
       return _buildEmptyState(
         icon: Icons.inbox_outlined,
-        title: 'No tienes invitaciones',
-        subtitle: 'Cuando alguien comparta una nota contigo, aparecerá aquí para que puedas aceptarla o rechazarla',
+        title: 'No tienes comparticiones recibidas',
+        subtitle: 'Cuando alguien comparta contigo aparecerá aquí',
         action: null,
       );
     }
-
-    // Separar invitaciones pendientes y aceptadas
-    final pendingItems = _sharedWithMe.where((item) => item.status == SharingStatus.pending).toList();
-    final acceptedItems = _sharedWithMe.where((item) => item.status == SharingStatus.accepted).toList();
-    final otherItems = _sharedWithMe.where((item) => 
-        item.status != SharingStatus.pending && item.status != SharingStatus.accepted).toList();
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -921,77 +838,14 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // Sección de invitaciones pendientes (prioritaria)
-          if (pendingItems.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.notification_important_rounded, color: AppColors.warning),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Invitaciones Pendientes (${pendingItems.length})',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.warning,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          'Tienes invitaciones esperando tu respuesta',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            ...pendingItems.map((item) => _buildSharedItemCard(item, false)),
-            if (acceptedItems.isNotEmpty || otherItems.isNotEmpty) ...[
-              const Divider(height: 32),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  'Notas Compartidas Activas',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ],
-          
-          // Controles de agrupación solo si hay elementos aceptados
-          if (acceptedItems.isNotEmpty || otherItems.isNotEmpty) ...[
-            _buildGroupingControls(),
-            const SizedBox(height: 12),
-          ],
-          
-          // Elementos aceptados y otros
-          if (!_groupByOwner && !_groupByOwnerFolder) ...[
-            ...acceptedItems.map((item) => _buildSharedItemCard(item, false)),
-            ...otherItems.map((item) => _buildSharedItemCard(item, false)),
-          ] else if (_groupByOwnerFolder) ...[
-            ..._buildGroupedByOwnerSections([...acceptedItems, ...otherItems], byFolder: true),
-          ] else ...[
-            ..._buildGroupedByOwnerSections([...acceptedItems, ...otherItems]),
-          ],
+          _buildGroupingControls(),
+          const SizedBox(height: 12),
+          if (!_groupByOwner && !_groupByOwnerFolder)
+            ..._sharedWithMe.map((item) => _buildSharedItemCard(item, false))
+          else if (_groupByOwnerFolder)
+            ..._buildGroupedByOwnerSections(_sharedWithMe, byFolder: true)
+          else
+            ..._buildGroupedByOwnerSections(_sharedWithMe),
         ],
       ),
     );
@@ -1602,29 +1456,20 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
   Widget _buildSharedItemCard(SharedItem item, bool isSentByMe) {
     final isSelected = _selectedItems.contains(item.id);
     final statusColor = _getStatusColor(item.status);
-    final isPending = item.status == SharingStatus.pending && !isSentByMe;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Card(
-        elevation: isPending ? 6 : 4,
-        shadowColor: isPending 
-            ? AppColors.warning.withValues(alpha: 0.2)
-            : Colors.black.withValues(alpha: 0.1),
+        elevation: 4,
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: isSelected 
-                ? AppColors.primary 
-                : isPending 
-                    ? AppColors.warning.withValues(alpha: 0.4)
-                    : AppColors.borderColor,
-            width: isSelected ? 2 : (isPending ? 2 : 1),
+            color: isSelected ? AppColors.primary : AppColors.borderColor,
+            width: isSelected ? 2 : 1,
           ),
         ),
-        color: isPending 
-            ? AppColors.warning.withValues(alpha: 0.02)
-            : AppColors.surface,
+        color: AppColors.surface,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
@@ -1645,46 +1490,6 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Indicador de invitación pendiente
-                if (isPending) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.1),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(12),
-                        topRight: Radius.circular(12),
-                      ),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: AppColors.warning.withValues(alpha: 0.2),
-                          width: 1,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.priority_high_rounded,
-                          size: 16,
-                          color: AppColors.warning,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Invitación pendiente - Requiere tu respuesta',
-                          style: TextStyle(
-                            color: AppColors.warning,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                ],
-                
                 // Header con selección y estado
                 Row(
                   children: [
@@ -2073,70 +1878,35 @@ class _SharedNotesPageState extends State<SharedNotesPage> with TickerProviderSt
 
     // Receptor
     if (item.status == SharingStatus.pending) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.warning.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.warning.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.help_outline_rounded,
-                  size: 16,
-                  color: AppColors.warning,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '¿Qué quieres hacer con esta invitación?',
-                  style: TextStyle(
-                    color: AppColors.warning,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          OutlinedButton.icon(
+            onPressed: () => _rejectSharing(item),
+            icon: const Icon(Icons.close_rounded, size: 16),
+            label: const Text('Rechazar'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.danger,
+              side: BorderSide(color: AppColors.danger),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => _rejectSharing(item),
-                  icon: const Icon(Icons.close_rounded, size: 18),
-                  label: const Text('Rechazar'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.danger,
-                    side: BorderSide(color: AppColors.danger, width: 1.5),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: () => _acceptSharing(item),
-                  icon: const Icon(Icons.check_rounded, size: 18),
-                  label: const Text('Aceptar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
-                    elevation: 2,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: () => _acceptSharing(item),
+            icon: const Icon(Icons.check_rounded, size: 16),
+            label: const Text('Aceptar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              foregroundColor: AppColors.textPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 

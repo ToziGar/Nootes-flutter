@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
@@ -6,7 +7,7 @@ import '../services/preferences_service.dart';
 import '../services/app_service.dart';
 import '../widgets/export_import_dialog.dart';
 import '../widgets/gradient_button.dart';
-import 'profile_page.dart';
+// import 'profile_page.dart'; // Navegación directa reemplazada por editor inline
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -338,59 +339,225 @@ class _SettingsPageState extends State<SettingsPage> {
   }
   
   Widget _buildProfileCard() {
+    final email = _authService.currentUser?.email ?? 'Usuario';
     return Container(
       padding: const EdgeInsets.all(AppColors.space20),
       decoration: BoxDecoration(
         color: AppColors.surfaceLight2,
-        borderRadius: BorderRadius.circular(AppColors.radiusLg),
+        borderRadius: BorderRadius.circular(AppColors.radiusXl),
         border: Border.all(color: AppColors.borderColorLight),
+        boxShadow: AppTheme.shadowMd,
       ),
       child: Row(
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: 72,
+            height: 72,
             decoration: BoxDecoration(
               gradient: AppTheme.gradientPrimary,
               shape: BoxShape.circle,
+              boxShadow: AppTheme.shadowSm,
             ),
-            child: const Icon(Icons.person_rounded, color: Colors.white, size: 32),
+            child: const Icon(Icons.person_rounded, color: Colors.white, size: 36),
           ),
           const SizedBox(width: AppColors.space16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _authService.currentUser?.email ?? 'Usuario',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimaryLight,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        email,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimaryLight,
+                          letterSpacing: -0.2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.gradientAccent,
+                        borderRadius: BorderRadius.circular(999),
+                        boxShadow: AppTheme.shadowSm,
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.star_rounded, color: Colors.white, size: 16),
+                          SizedBox(width: 6),
+                          Text('Premium', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppColors.space4),
-                const Text(
-                  'Cuenta Premium',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondaryLight,
-                  ),
+                const SizedBox(height: AppColors.space8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _ProfileChip(icon: Icons.badge_rounded, label: 'Productividad'),
+                    _ProfileChip(icon: Icons.translate_rounded, label: 'Español'),
+                    _ProfileChip(icon: Icons.palette_rounded, label: 'Tema claro'),
+                  ],
                 ),
               ],
             ),
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfilePage()),
-              );
-            },
-            icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
+          FilledButton.icon(
+            onPressed: _openInlineProfileEditor,
+            icon: const Icon(Icons.edit_rounded, size: 18),
+            label: const Text('Editar'),
           ),
         ],
       ),
+    );
+  }
+
+  // Pequeño chip de información visual
+  // ignore: unused_element
+  static Widget _ProfileChip({required IconData icon, required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight3,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.borderColorLight),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppColors.textSecondaryLight),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondaryLight),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openInlineProfileEditor() async {
+    final uid = _authService.currentUser?.uid;
+    if (uid == null) return;
+
+    // Cargar perfil actual
+    Map<String, dynamic>? data;
+    try {
+      data = await FirestoreService.instance.getUserProfile(uid: uid);
+    } catch (_) {}
+
+    final fullNameCtrl = TextEditingController(text: (data?['fullName'] ?? '').toString());
+    final usernameCtrl = TextEditingController(text: (data?['username'] ?? '').toString());
+    final organizationCtrl = TextEditingController(text: (data?['organization'] ?? '').toString());
+    final roleCtrl = TextEditingController(text: (data?['role'] ?? '').toString());
+    final languageCtrl = TextEditingController(text: (data?['language'] ?? 'Español').toString());
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surfaceLight2,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppColors.radiusXl)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: AppColors.space20,
+            right: AppColors.space20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + AppColors.space20,
+            top: AppColors.space20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.gradientPrimary,
+                      borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                    ),
+                    child: const Icon(Icons.person_rounded, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('Editar perfil', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _InlineField(controller: fullNameCtrl, label: 'Nombre completo', icon: Icons.person_outline_rounded, requiredField: true),
+              const SizedBox(height: 10),
+              _InlineField(controller: usernameCtrl, label: 'Usuario (handle)', icon: Icons.alternate_email_rounded),
+              const SizedBox(height: 10),
+              _InlineField(controller: organizationCtrl, label: 'Organización', icon: Icons.business_outlined),
+              const SizedBox(height: 10),
+              _InlineField(controller: roleCtrl, label: 'Rol', icon: Icons.badge_outlined),
+              const SizedBox(height: 10),
+              _InlineField(controller: languageCtrl, label: 'Idioma', icon: Icons.translate_rounded),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close_rounded),
+                      label: const Text('Cancelar'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        final fullName = fullNameCtrl.text.trim();
+                        if (fullName.isEmpty) return;
+                        try {
+                          await FirestoreService.instance.updateUserProfile(uid: uid, data: {
+                            'fullName': fullName,
+                            'username': usernameCtrl.text.trim(),
+                            'organization': organizationCtrl.text.trim(),
+                            'role': roleCtrl.text.trim(),
+                            'language': languageCtrl.text.trim(),
+                            'updatedAt': DateTime.now().toIso8601String(),
+                          });
+                          if (!mounted) return;
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Perfil actualizado')),
+                          );
+                          // Refrescar cabecera de perfil
+                          _loadSettings();
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.check_rounded),
+                      label: const Text('Guardar'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
   
@@ -573,9 +740,13 @@ class _SettingsPageState extends State<SettingsPage> {
               // Guardar el contexto antes del await
               final navigator = Navigator.of(context);
               final scaffoldMessenger = ScaffoldMessenger.of(context);
-              
+
               try {
                 await _authService.signOut();
+                // También cerrar sesión en FirebaseAuth si está en uso (AuthGate)
+                try {
+                  await fb.FirebaseAuth.instance.signOut();
+                } catch (_) {}
                 if (!ctx.mounted) return;
                 // Cerrar diálogo
                 Navigator.pop(ctx);
@@ -598,6 +769,32 @@ class _SettingsPageState extends State<SettingsPage> {
             child: const Text('Cerrar sesión'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Campo reutilizable para el editor inline del perfil
+class _InlineField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final bool requiredField;
+
+  const _InlineField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.requiredField = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: requiredField ? '$label *' : label,
+        prefixIcon: Icon(icon),
       ),
     );
   }

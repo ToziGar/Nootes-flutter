@@ -297,7 +297,34 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     final svc = FirestoreService.instance;
     
     try {
-
+      // Modo especial: secciones "Compartidas"
+      if (_selectedFolderId == '__SHARED_WITH_ME__') {
+        // Notas compartidas conmigo y aceptadas
+        final sharedNotes = await SharingService().getSharedNotes();
+        if (!mounted) return;
+        setState(() {
+          _allNotes = sharedNotes;
+          _notes = sharedNotes;
+          _loading = false;
+        });
+        return;
+      } else if (_selectedFolderId == '__SHARED_BY_ME__') {
+        // Notas que yo he compartido
+        final sharedByMe = await SharingService().getSharedByMe(
+          type: SharedItemType.note,
+        );
+        final sharedIds = sharedByMe.map((s) => s.itemId).toSet();
+        // Cargar mis notas y filtrar por las compartidas
+        List<Map<String, dynamic>> myNotes = await svc.listNotesSummary(uid: _uid);
+        final filtered = myNotes.where((n) => sharedIds.contains(n['id'].toString())).toList();
+        if (!mounted) return;
+        setState(() {
+          _allNotes = filtered;
+          _notes = filtered;
+          _loading = false;
+        });
+        return;
+      }
 
       // Cargar notas propias (caché deshabilitado temporalmente por problema de serialización)
       List<Map<String, dynamic>> allNotes = await svc.listNotesSummary(uid: _uid);
@@ -309,8 +336,10 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       // Aplicar filtros
       var filteredNotes = List<Map<String, dynamic>>.from(allNotes);
       
-      // Filtro por carpeta
-      if (_selectedFolderId != null) {
+      // Filtro por carpeta (excluye virtuales)
+      if (_selectedFolderId != null &&
+          _selectedFolderId != '__SHARED_WITH_ME__' &&
+          _selectedFolderId != '__SHARED_BY_ME__') {
         try {
           final folder = _folders.firstWhere((f) => f.id == _selectedFolderId);
           filteredNotes = filteredNotes.where((note) {
@@ -579,7 +608,13 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
     _loadNotes();
   }
 
-  Widget _buildSharedNavigationTile() {
+  Widget _buildVirtualSharedTile({
+    required String id,
+    required String name,
+    required IconData icon,
+    required Color color,
+  }) {
+    final isSelected = _selectedFolderId == id;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
@@ -588,14 +623,17 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
         vertical: AppColors.space4,
       ),
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
         borderRadius: BorderRadius.circular(AppColors.radiusMd),
+        border: isSelected ? Border.all(color: AppColors.primary.withValues(alpha: 0.3)) : null,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            Navigator.of(context).pushNamed('/shared-notes');
+          onTap: () async {
+            setState(() => _selectedFolderId = id);
+            await PreferencesService.setSelectedFolder(id);
+            _loadNotes();
           },
           borderRadius: BorderRadius.circular(AppColors.radiusMd),
           child: Padding(
@@ -608,27 +646,21 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                 Container(
                   padding: const EdgeInsets.all(AppColors.space8),
                   decoration: BoxDecoration(
-                    color: AppColors.info.withValues(alpha: 0.15),
+                    color: color.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(AppColors.radiusSm),
                   ),
-                  child: Icon(Icons.group_rounded, color: AppColors.info, size: 20),
+                  child: Icon(icon, color: color, size: 20),
                 ),
                 const SizedBox(width: AppColors.space12),
                 Expanded(
                   child: Text(
-                    'Compartidas',
+                    name,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                ),
-                const SizedBox(width: AppColors.space4),
-                Icon(
-                  Icons.open_in_new_rounded, 
-                  color: AppColors.textSecondary, 
-                  size: 16,
                 ),
               ],
             ),
@@ -3029,19 +3061,26 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                         ),
                         child: Builder(
                           builder: (context) {
-                            // Obtener IDs de notas que están en carpetas
-                            final Set<String> notesInFolders = {};
-                            for (final folder in _folders) {
-                              notesInFolders.addAll(folder.noteIds);
+                            // En secciones virtuales de "Compartidas", no mostramos carpetas
+                            final bool inVirtualShared = _selectedFolderId == '__SHARED_WITH_ME__' || _selectedFolderId == '__SHARED_BY_ME__';
+                            final List<Map<String, dynamic>> notesWithoutFolder;
+                            if (inVirtualShared) {
+                              notesWithoutFolder = List<Map<String, dynamic>>.from(_notes);
+                            } else {
+                              // Obtener IDs de notas que están en carpetas
+                              final Set<String> notesInFolders = {};
+                              for (final folder in _folders) {
+                                notesInFolders.addAll(folder.noteIds);
+                              }
+                              // Filtrar notas que NO están en carpetas
+                              notesWithoutFolder = _notes
+                                  .where((n) => !notesInFolders.contains(n['id'].toString()))
+                                  .toList();
                             }
-                            // Filtrar notas que NO están en carpetas
-                            final notesWithoutFolder = _notes
-                                .where((n) => !notesInFolders.contains(n['id'].toString()))
-                                .toList();
                             
                             return ListView.builder(
                               padding: const EdgeInsets.all(AppColors.space12),
-                              itemCount: _folders.length + notesWithoutFolder.length + 2,
+                              itemCount: (inVirtualShared ? 0 : _folders.length) + notesWithoutFolder.length + 2,
                               itemBuilder: (context, i) {
                                 // Sección "Compartidas"
                                 if (i == 0) {
@@ -3060,24 +3099,34 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                 if (i == 1) {
                                   return Column(
                                     children: [
-                                      _buildSharedNavigationTile(),
+                                      _buildVirtualSharedTile(
+                                        id: '__SHARED_WITH_ME__',
+                                        name: 'Conmigo',
+                                        icon: Icons.inbox_rounded,
+                                        color: AppColors.info,
+                                      ),
+                                      _buildVirtualSharedTile(
+                                        id: '__SHARED_BY_ME__',
+                                        name: 'Por mí',
+                                        icon: Icons.send_rounded,
+                                        color: AppColors.secondary,
+                                      ),
                                       const Divider(color: AppColors.borderColor, height: 1),
                                     ],
                                   );
                                 }
                                 // Sección de carpetas con sus notas
                                 final baseIndex = 2; // virtual header + tiles
-                                if (i - baseIndex < _folders.length) {
+                                if (!inVirtualShared && i - baseIndex < _folders.length) {
                                   final folder = _folders[i - baseIndex];
                                   final noteCount = folder.noteIds.length;
                                   return _buildFolderCard(folder, noteCount);
                                 }
                                 
                                 // Notas sin carpeta (con menú contextual)
-                                final noteIndex = i - _folders.length - baseIndex;
+                                final noteIndex = i - (inVirtualShared ? 0 : _folders.length) - baseIndex;
                                 final note = notesWithoutFolder[noteIndex];
                                 final id = note['id'].toString();
-                                
                                 return EnhancedContextMenuRegion(
                                   actions: (context) => EnhancedContextMenuBuilder.noteMenu(
                                     isInFolder: false,
@@ -3096,7 +3145,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                     isSelected: id == _selectedId,
                                     onTap: () => _select(id),
                                     onPin: () async {
-                                      if (note['isShared'] == true) {
+                                      if (inVirtualShared || note['isShared'] == true) {
                                         ToastService.info('No puedes anclar notas compartidas');
                                         return;
                                       }
@@ -3108,7 +3157,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                       await _loadNotes();
                                     },
                                     onDelete: () async {
-                                      if (note['isShared'] == true) {
+                                      if (inVirtualShared || note['isShared'] == true) {
                                         ToastService.info('No puedes eliminar notas compartidas');
                                         return;
                                       }
@@ -3116,7 +3165,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
                                     },
                                     onSetIcon: () => _showNoteIconPicker(noteId: id, initialIcon: note['icon']?.toString(), initialColor: note['iconColor'] is int ? Color(note['iconColor']) : null),
                                     onClearIcon: () async => _clearNoteIcon(id),
-                                    enableDrag: true,
+                                    enableDrag: !inVirtualShared,
                                     compact: _compactMode,
                                   ),
                                 );
@@ -3919,6 +3968,4 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage> with TickerProv
       );
     }
   }
-
-
 }

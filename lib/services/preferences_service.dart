@@ -17,6 +17,7 @@ class PreferencesService {
   static const _keyNoteCache = 'workspace_note_cache_';
   static const _keyThemeMode = 'app_theme_mode';
   static const _keyLocale = 'app_locale';
+  static const _keyUserWords = 'autocomplete_user_words';
   
   // Carpeta seleccionada
   static Future<String?> getSelectedFolder() async {
@@ -186,6 +187,64 @@ class PreferencesService {
   // Limpiar todas las preferencias
   static Future<void> clearAll() async {
     await _storage.deleteAll();
+  }
+
+  // ==================== AUTOCOMPLETADO (PALABRAS DEL USUARIO) ====================
+
+  /// Devuelve las palabras de usuario para autocompletado con su frecuencia y última fecha de uso.
+  /// Estructura: [{ text: String, freq: int, lastUsed: String(ISO8601) }]
+  static Future<List<Map<String, dynamic>>> getUserWords() async {
+    final json = await _storage.read(key: _keyUserWords);
+    if (json == null) return [];
+    try {
+      final list = (jsonDecode(json) as List).cast<Map<String, dynamic>>();
+      return list;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Persiste la lista completa de palabras de usuario (sobrescribe).
+  static Future<void> setUserWords(List<Map<String, dynamic>> words) async {
+    // Mantener un límite razonable para no crecer sin control
+    const maxItems = 200;
+    final trimmed = words.length > maxItems ? words.sublist(0, maxItems) : words;
+    await _storage.write(key: _keyUserWords, value: jsonEncode(trimmed));
+  }
+
+  /// Agrega o incrementa una palabra del usuario.
+  static Future<void> addOrBumpUserWord(String raw) async {
+    final text = raw.trim();
+    if (text.isEmpty) return;
+
+    final list = await getUserWords();
+    // Búsqueda case-insensitive por consistencia
+    final idx = list.indexWhere((w) => (w['text']?.toString().toLowerCase() ?? '') == text.toLowerCase());
+    if (idx >= 0) {
+      final current = Map<String, dynamic>.from(list[idx]);
+      final freq = (current['freq'] is int) ? current['freq'] as int : int.tryParse('${current['freq']}') ?? 0;
+      current['freq'] = (freq + 1);
+      current['lastUsed'] = DateTime.now().toIso8601String();
+      list[idx] = current;
+    } else {
+      list.insert(0, {
+        'text': text,
+        'freq': 1,
+        'lastUsed': DateTime.now().toIso8601String(),
+      });
+    }
+
+    // Ordenar por frecuencia y recencia
+    list.sort((a, b) {
+      final fa = (a['freq'] is int) ? a['freq'] as int : int.tryParse('${a['freq']}') ?? 0;
+      final fb = (b['freq'] is int) ? b['freq'] as int : int.tryParse('${b['freq']}') ?? 0;
+      if (fb != fa) return fb.compareTo(fa);
+      final da = DateTime.tryParse('${a['lastUsed']}') ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final db = DateTime.tryParse('${b['lastUsed']}') ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return db.compareTo(da);
+    });
+
+    await setUserWords(list);
   }
   
   // ==================== TEMA E IDIOMA ====================
