@@ -250,8 +250,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               keyboardType: TextInputType.emailAddress,
                               autofillHints: const [AutofillHints.email],
                               validator: (value) {
-                                if (value?.isEmpty ?? true)
+                                if (value?.isEmpty ?? true) {
                                   return 'Ingresa tu email';
+                                }
                                 if (!RegExp(
                                   r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                                 ).hasMatch(value!)) {
@@ -279,10 +280,12 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                 ),
                               ),
                               validator: (value) {
-                                if (value?.isEmpty ?? true)
+                                if (value?.isEmpty ?? true) {
                                   return 'Ingresa tu contraseña';
-                                if (value!.length < 6)
+                                }
+                                if (value!.length < 6) {
                                   return 'Mínimo 6 caracteres';
+                                }
                                 return null;
                               },
                             ),

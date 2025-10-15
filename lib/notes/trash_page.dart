@@ -76,8 +76,9 @@ class _TrashPageState extends State<TrashPage> {
             if (snapshot.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (_items.isEmpty)
+            if (_items.isEmpty) {
               return const Center(child: Text('Papelera vacía'));
+            }
             return ListView.separated(
               padding: const EdgeInsets.all(12),
               itemCount: _items.length,

@@ -51,11 +51,12 @@ class _PublicNotePageState extends State<PublicNotePage> {
         });
       }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _notFound = true;
           _loading = false;
         });
+      }
     }
   }
 

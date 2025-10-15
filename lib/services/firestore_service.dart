@@ -291,9 +291,12 @@ class _FirebaseFirestoreService implements FirestoreService {
       // Ensure current handle doc matches uid
       final oldRef = handles.doc(currentUsername);
       final oldSnap = await tx.get(oldRef);
-      if (!oldSnap.exists) throw Exception('old-handle-not-found');
-      if (oldSnap.data()?['uid'] != uid)
+      if (!oldSnap.exists) {
+        throw Exception('old-handle-not-found');
+      }
+      if (oldSnap.data()?['uid'] != uid) {
         throw Exception('old-handle-does-not-belong-to-user');
+      }
 
       // Create new handle, update user, delete old handle
       tx.set(newRef, {
@@ -1121,8 +1124,9 @@ class _RestFirestoreService implements FirestoreService {
       body: createBody,
     );
     if (createResp.statusCode < 200 || createResp.statusCode >= 300) {
-      if (createResp.statusCode == 409)
+      if (createResp.statusCode == 409) {
         throw Exception('handle-already-exists');
+      }
       throw Exception('firestore-create-handle-${createResp.statusCode}');
     }
 
@@ -1262,8 +1266,9 @@ class _RestFirestoreService implements FirestoreService {
       headers: await _authHeader(),
       body: body,
     );
-    if (resp.statusCode < 200 || resp.statusCode >= 300)
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-patch-note-${resp.statusCode}');
+    }
   }
 
   @override
@@ -1306,8 +1311,9 @@ class _RestFirestoreService implements FirestoreService {
   Future<void> purgeNote({required String uid, required String noteId}) async {
     final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
     final resp = await http.delete(uri, headers: await _authHeader());
-    if (resp.statusCode < 200 || resp.statusCode >= 300)
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-delete-note-${resp.statusCode}');
+    }
   }
 
   @override
@@ -1349,8 +1355,9 @@ class _RestFirestoreService implements FirestoreService {
     fields['createdAt'] = _encodeValue(DateTime.now().toUtc());
     final body = jsonEncode({'fields': fields});
     final resp = await http.post(uri, headers: await _authHeader(), body: body);
-    if (resp.statusCode < 200 || resp.statusCode >= 300)
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-create-collection-${resp.statusCode}');
+    }
     final json = jsonDecode(resp.body) as Map<String, dynamic>;
     final name = json['name']?.toString() ?? '';
     return name.split('/').last;
@@ -1375,8 +1382,9 @@ class _RestFirestoreService implements FirestoreService {
       headers: await _authHeader(),
       body: body,
     );
-    if (resp.statusCode < 200 || resp.statusCode >= 300)
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-update-collection-${resp.statusCode}');
+    }
   }
 
   @override
@@ -1386,8 +1394,9 @@ class _RestFirestoreService implements FirestoreService {
   }) async {
     final uri = Uri.parse('$_base/users/$uid/collections/$collectionId');
     final resp = await http.delete(uri, headers: await _authHeader());
-    if (resp.statusCode < 200 || resp.statusCode >= 300)
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-delete-collection-${resp.statusCode}');
+    }
   }
 
   @override
@@ -1569,8 +1578,9 @@ class _RestFirestoreService implements FirestoreService {
     // Use integerValue for ints and doubleValue for doubles
     if (value is int) return {'integerValue': value.toString()};
     if (value is double) return {'doubleValue': value};
-    if (value is DateTime)
+    if (value is DateTime) {
       return {'timestampValue': value.toUtc().toIso8601String()};
+    }
     // Map server timestamp markers from SDK to a timestamp
     if (value is fs.FieldValue) {
       return {'timestampValue': DateTime.now().toUtc().toIso8601String()};

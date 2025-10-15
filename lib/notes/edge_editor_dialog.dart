@@ -122,26 +122,29 @@ class _EdgeEditorDialogState extends State<EdgeEditorDialog> {
           }
         }
 
-        if (mounted)
+        if (mounted) {
           Navigator.of(
             context,
           ).pop(EdgeEditorResult(edgeId: id, deleted: false));
+        }
       } else {
         await FirestoreService.instance.updateEdgeDoc(
           uid: widget.uid,
           edgeId: widget.edgeId!,
           data: data,
         );
-        if (mounted)
+        if (mounted) {
           Navigator.of(
             context,
           ).pop(EdgeEditorResult(edgeId: widget.edgeId, deleted: false));
+        }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error guardando arista: $e')));
+      }
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -191,15 +194,17 @@ class _EdgeEditorDialogState extends State<EdgeEditorDialog> {
         }
       }
 
-      if (mounted)
+      if (mounted) {
         Navigator.of(
           context,
         ).pop(EdgeEditorResult(edgeId: widget.edgeId, deleted: true));
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error eliminando: $e')));
+      }
     }
     if (mounted) setState(() => _loading = false);
   }

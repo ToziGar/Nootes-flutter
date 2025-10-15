@@ -3,6 +3,7 @@ import '../services/notification_service.dart';
 import '../services/toast_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/color_utils.dart';
+import '../utils/error_message_mapper.dart';
 
 /// Widget para programar recordatorios para una nota
 class ReminderDialog extends StatefulWidget {
@@ -25,6 +26,7 @@ class _ReminderDialogState extends State<ReminderDialog> {
   TimeOfDay _selectedTime = TimeOfDay.now();
   final TextEditingController _messageController = TextEditingController();
   String _selectedPreset = 'custom';
+  bool _isLoading = false;
 
   final Map<String, Duration> _presets = {
     '15m': Duration(minutes: 15),
@@ -247,22 +249,32 @@ class _ReminderDialogState extends State<ReminderDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
           child: const Text(
             'Cancelar',
             style: TextStyle(color: AppColors.textSecondary),
           ),
         ),
         FilledButton(
-          onPressed: _scheduleReminder,
+          onPressed: _isLoading ? null : _scheduleReminder,
           style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-          child: const Text('Programar'),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text('Programar'),
         ),
       ],
     );
   }
 
   Future<void> _scheduleReminder() async {
+    setState(() => _isLoading = true);
     try {
       await _notificationService.scheduleReminder(
         noteId: widget.noteId,
@@ -278,8 +290,10 @@ class _ReminderDialogState extends State<ReminderDialog> {
         ToastService.success('✓ Recordatorio programado');
       }
     } catch (e) {
+      debugPrint('❌ Error al programar recordatorio: $e');
       if (mounted) {
-        ToastService.error('Error al programar recordatorio: $e');
+        setState(() => _isLoading = false);
+        ToastService.error(ErrorMessageMapper.map(e));
       }
     }
   }

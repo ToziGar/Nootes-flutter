@@ -313,10 +313,12 @@ class _RegisterPageState extends State<RegisterPage>
                               keyboardType: TextInputType.name,
                               autofillHints: const [AutofillHints.name],
                               validator: (value) {
-                                if (value?.isEmpty ?? true)
+                                if (value?.isEmpty ?? true) {
                                   return 'Ingresa tu nombre';
-                                if (value!.length < 2)
+                                }
+                                if (value!.length < 2) {
                                   return 'Mínimo 2 caracteres';
+                                }
                                 return null;
                               },
                             ),
@@ -329,8 +331,9 @@ class _RegisterPageState extends State<RegisterPage>
                               keyboardType: TextInputType.name,
                               autofillHints: const [AutofillHints.username],
                               validator: (value) {
-                                if (value?.isEmpty ?? true)
+                                if (value?.isEmpty ?? true) {
                                   return 'Ingresa tu usuario';
+                                }
                                 final username = value!.trim().toLowerCase();
                                 if (!RegExp(
                                   r'^[a-z0-9._]{3,20}$',
@@ -350,8 +353,9 @@ class _RegisterPageState extends State<RegisterPage>
                               keyboardType: TextInputType.emailAddress,
                               autofillHints: const [AutofillHints.email],
                               validator: (value) {
-                                if (value?.isEmpty ?? true)
+                                if (value?.isEmpty ?? true) {
                                   return 'Ingresa tu email';
+                                }
                                 if (!RegExp(
                                   r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                                 ).hasMatch(value!)) {
@@ -378,10 +382,12 @@ class _RegisterPageState extends State<RegisterPage>
                                 ),
                               ),
                               validator: (value) {
-                                if (value?.isEmpty ?? true)
+                                if (value?.isEmpty ?? true) {
                                   return 'Ingresa tu contraseña';
-                                if (value!.length < 6)
+                                }
+                                if (value!.length < 6) {
                                   return 'Mínimo 6 caracteres';
+                                }
                                 return null;
                               },
                             ),
@@ -404,10 +410,12 @@ class _RegisterPageState extends State<RegisterPage>
                                 ),
                               ),
                               validator: (value) {
-                                if (value?.isEmpty ?? true)
+                                if (value?.isEmpty ?? true) {
                                   return 'Confirma tu contraseña';
-                                if (value != _passwordController.text)
+                                }
+                                if (value != _passwordController.text) {
                                   return 'Las contraseñas no coinciden';
+                                }
                                 return null;
                               },
                             ),

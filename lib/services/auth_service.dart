@@ -317,10 +317,15 @@ class _RestAuthService implements AuthService {
   }
 
   Future<void> _persist() async {
-    if (_refreshToken != null)
+    if (_refreshToken != null) {
       await _storage.write(key: 'refreshToken', value: _refreshToken);
-    if (_uid != null) await _storage.write(key: 'uid', value: _uid);
-    if (_email != null) await _storage.write(key: 'email', value: _email);
+    }
+    if (_uid != null) {
+      await _storage.write(key: 'uid', value: _uid);
+    }
+    if (_email != null) {
+      await _storage.write(key: 'email', value: _email);
+    }
   }
 
   void _handleError(http.Response resp) {

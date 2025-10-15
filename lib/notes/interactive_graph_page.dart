@@ -125,7 +125,9 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
 
       // Only update particles if they're visible and we're not on web or have few particles
       if (_showParticles && (!kIsWeb || _floatingParticles.length < 20)) {
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {});
+        }
       }
     });
   }
@@ -294,8 +296,11 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
       node.depth = _calculateNodeDepth(node, allEdges);
     }
 
-    if (_autoLayout) _applyForceDirectedLayout(nodes, allEdges);
+    if (_autoLayout) {
+      _applyForceDirectedLayout(nodes, allEdges);
+    }
 
+    if (!mounted) return;
     setState(() {
       _nodes = nodes;
       _edges = allEdges;
@@ -315,22 +320,30 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
     final text = '$title $content ${tags.join(' ')}';
     final words = text.toLowerCase().split(RegExp(r'\W+'));
     final themes = <String>[];
-    if (words.any((w) => ['trabajo', 'work', 'job', 'empresa'].contains(w)))
+    if (words.any((w) => ['trabajo', 'work', 'job', 'empresa'].contains(w))) {
       themes.add('trabajo');
-    if (words.any((w) => ['personal', 'vida', 'family'].contains(w)))
+    }
+    if (words.any((w) => ['personal', 'vida', 'family'].contains(w))) {
       themes.add('personal');
-    if (words.any((w) => ['idea', 'concept', 'innovation'].contains(w)))
+    }
+    if (words.any((w) => ['idea', 'concept', 'innovation'].contains(w))) {
       themes.add('ideas');
-    if (words.any((w) => ['proyecto', 'project', 'plan'].contains(w)))
+    }
+    if (words.any((w) => ['proyecto', 'project', 'plan'].contains(w))) {
       themes.add('proyectos');
-    if (words.any((w) => ['study', 'learn', 'education'].contains(w)))
+    }
+    if (words.any((w) => ['study', 'learn', 'education'].contains(w))) {
       themes.add('educacion');
-    if (words.any((w) => ['health', 'salud', 'medicina'].contains(w)))
+    }
+    if (words.any((w) => ['health', 'salud', 'medicina'].contains(w))) {
       themes.add('salud');
-    if (words.any((w) => ['money', 'finanzas', 'economia'].contains(w)))
+    }
+    if (words.any((w) => ['money', 'finanzas', 'economia'].contains(w))) {
       themes.add('finanzas');
-    if (words.any((w) => ['tech', 'tecnologia', 'software'].contains(w)))
+    }
+    if (words.any((w) => ['tech', 'tecnologia', 'software'].contains(w))) {
       themes.add('tecnologia');
+    }
     final keywords = words.where((w) => w.length > 3).take(10).toList();
     final sentiment = _calculateSentiment(words);
     final importance = math.min(
@@ -517,8 +530,9 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
       node2.aiAnalysis.keywords.toSet(),
     );
     similarity += (sharedKeywords.length / 10.0) * 0.2;
-    if (node1.aiAnalysis.category == node2.aiAnalysis.category)
+    if (node1.aiAnalysis.category == node2.aiAnalysis.category) {
       similarity += 0.1;
+    }
     return math.min(1.0, similarity);
   }
 
@@ -608,7 +622,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
         .map((n) => n.id)
         .toList();
     final out = <NodeCluster>[];
-    if (high.isNotEmpty)
+    if (high.isNotEmpty) {
       out.add(
         NodeCluster(
           id: 'high',
@@ -617,7 +631,8 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
           color: Colors.red,
         ),
       );
-    if (med.isNotEmpty)
+    }
+    if (med.isNotEmpty) {
       out.add(
         NodeCluster(
           id: 'medium',
@@ -626,7 +641,8 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
           color: Colors.orange,
         ),
       );
-    if (low.isNotEmpty)
+    }
+    if (low.isNotEmpty) {
       out.add(
         NodeCluster(
           id: 'low',
@@ -635,6 +651,7 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
           color: Colors.grey,
         ),
       );
+    }
     return out;
   }
 
@@ -720,21 +737,21 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
   Color _getCategoryColor(String category) {
     switch (category) {
       case 'trabajo':
-        return const Color(0xFF3B82F6);
+        return AppColors.blue;
       case 'personal':
-        return const Color(0xFF10B981);
+        return AppColors.green;
       case 'ideas':
-        return const Color(0xFFF59E0B);
+        return AppColors.yellow;
       case 'proyectos':
-        return const Color(0xFF8B5CF6);
+        return AppColors.purple;
       case 'educacion':
-        return const Color(0xFF06B6D4);
+        return AppColors.cyan;
       case 'salud':
-        return const Color(0xFFEF4444);
+        return AppColors.red;
       case 'finanzas':
-        return const Color(0xFF84CC16);
+        return AppColors.lime;
       case 'tecnologia':
-        return const Color(0xFFF97316);
+        return AppColors.orange;
       default:
         return AppColors.primary;
     }
@@ -1467,8 +1484,9 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
           break;
         case LogicalKeyboardKey.keyL:
           setState(() => _autoLayout = !_autoLayout);
-          if (_autoLayout)
+          if (_autoLayout) {
             _applyForceDirectedLayout(_nodes, _getFilteredEdges());
+          }
           break;
         case LogicalKeyboardKey.keyF:
           setState(() => _minEdgeStrength = _minEdgeStrength > 0 ? 0.0 : 0.3);
@@ -1553,7 +1571,8 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage>
     if (lenSq == 0) return (point - start).distance; // start == end
 
     final param = dot / lenSq;
-    double xx, yy;
+    double xx;
+    double yy;
 
     if (param < 0) {
       xx = start.dx;
@@ -1882,8 +1901,9 @@ class AIGraphPainter extends CustomPainter {
           toNode.position.dy,
         );
       canvas.drawPath(path, paint);
-      if (isHighlighted || edge.strength > 0.7)
+      if (isHighlighted || edge.strength > 0.7) {
         _drawArrow(canvas, fromNode.position, toNode.position, paint);
+      }
     }
     // Draw dragging ghost line on top of connections if active
     if (draggingFromNodeId != null && draggingPosition != null) {
@@ -1991,8 +2011,9 @@ class AIGraphPainter extends CustomPainter {
           finalSize,
           shadowPaint,
         );
-        if (isSelected || isHovered)
+        if (isSelected || isHovered) {
           canvas.drawCircle(node.position, finalSize * 1.2, glowPaint);
+        }
       }
       canvas.drawCircle(node.position, finalSize, nodePaint);
       canvas.drawCircle(node.position, finalSize, strokePaint);

@@ -107,7 +107,7 @@ class _EditEventDialogState extends State<EditEventDialog> {
 
                 // Tipo de evento
                 DropdownButtonFormField<CalendarEventType>(
-                  value: _eventType,
+                  initialValue: _eventType,
                   decoration: const InputDecoration(
                     labelText: 'Tipo de evento',
                     border: OutlineInputBorder(),

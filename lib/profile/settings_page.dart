@@ -8,6 +8,7 @@ import '../services/preferences_service.dart';
 import '../services/app_service.dart';
 import '../widgets/export_import_dialog.dart';
 import '../widgets/gradient_button.dart';
+import '../pages/app_shell.dart';
 // import 'profile_page.dart'; // Navegación directa reemplazada por editor inline
 
 class SettingsPage extends StatefulWidget {
@@ -721,8 +722,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     Expanded(
                       child: FilledButton.icon(
                         onPressed: () async {
-                          if (!(formKey.currentState?.validate() ?? false))
+                          if (!(formKey.currentState?.validate() ?? false)) {
                             return;
+                          }
                           final fullName = fullNameCtrl.text.trim();
                           final newUsername = usernameCtrl.text.trim();
                           try {
@@ -887,7 +889,12 @@ class _SettingsPageState extends State<SettingsPage> {
           : null,
       onTap: () async {
         setState(() => _themeMode = name);
-        Navigator.pop(context);
+        final appShell = AppShell.of(context);
+        if (appShell != null) {
+          appShell.navigateToWorkspace();
+        } else {
+          Navigator.pop(context);
+        }
 
         // Aplicar el cambio de tema inmediatamente
         AppService.changeTheme(mode);

@@ -263,22 +263,30 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
 
     // 📊 Análisis de temas
     final themes = <String>[];
-    if (words.any((w) => ['trabajo', 'work', 'job', 'empresa'].contains(w)))
+    if (words.any((w) => ['trabajo', 'work', 'job', 'empresa'].contains(w))) {
       themes.add('trabajo');
-    if (words.any((w) => ['personal', 'vida', 'family'].contains(w)))
+    }
+    if (words.any((w) => ['personal', 'vida', 'family'].contains(w))) {
       themes.add('personal');
-    if (words.any((w) => ['idea', 'concept', 'innovation'].contains(w)))
+    }
+    if (words.any((w) => ['idea', 'concept', 'innovation'].contains(w))) {
       themes.add('ideas');
-    if (words.any((w) => ['proyecto', 'project', 'plan'].contains(w)))
+    }
+    if (words.any((w) => ['proyecto', 'project', 'plan'].contains(w))) {
       themes.add('proyectos');
-    if (words.any((w) => ['study', 'learn', 'education'].contains(w)))
+    }
+    if (words.any((w) => ['study', 'learn', 'education'].contains(w))) {
       themes.add('educacion');
-    if (words.any((w) => ['health', 'salud', 'medicina'].contains(w)))
+    }
+    if (words.any((w) => ['health', 'salud', 'medicina'].contains(w))) {
       themes.add('salud');
-    if (words.any((w) => ['money', 'finanzas', 'economia'].contains(w)))
+    }
+    if (words.any((w) => ['money', 'finanzas', 'economia'].contains(w))) {
       themes.add('finanzas');
-    if (words.any((w) => ['tech', 'tecnologia', 'software'].contains(w)))
+    }
+    if (words.any((w) => ['tech', 'tecnologia', 'software'].contains(w))) {
       themes.add('tecnologia');
+    }
 
     // 📝 Palabras clave
     final keywords = words.where((w) => w.length > 3).take(10).toList();
@@ -749,21 +757,21 @@ class _AIInteractiveGraphPageState extends State<AIInteractiveGraphPage>
   Color _getCategoryColor(String category) {
     switch (category) {
       case 'trabajo':
-        return const Color(0xFF3B82F6); // Azul
+        return AppColors.blue;
       case 'personal':
-        return const Color(0xFF10B981); // Verde
+        return AppColors.green;
       case 'ideas':
-        return const Color(0xFFF59E0B); // Amarillo
+        return AppColors.yellow;
       case 'proyectos':
-        return const Color(0xFF8B5CF6); // Morado
+        return AppColors.purple;
       case 'educacion':
-        return const Color(0xFF06B6D4); // Cian
+        return AppColors.cyan;
       case 'salud':
-        return const Color(0xFFEF4444); // Rojo
+        return AppColors.red;
       case 'finanzas':
-        return const Color(0xFF84CC16); // Lima
+        return AppColors.lime;
       case 'tecnologia':
-        return const Color(0xFFF97316); // Naranja
+        return AppColors.orange;
       default:
         return AppColors.primary;
     }

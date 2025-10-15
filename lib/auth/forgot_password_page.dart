@@ -70,7 +70,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
     _cooldownTimer?.cancel();
     setState(() => _cooldown = 30);
     _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       if (_cooldown <= 1) {
         t.cancel();
         setState(() => _cooldown = 0);
@@ -81,8 +83,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
   }
 
   Future<void> _sendReset() async {
-    if (_sending || _cooldown > 0) return; // prevent spam
-    if (!_formKey.currentState!.validate()) return;
+    if (_sending || _cooldown > 0) {
+      return; // prevent spam
+    }
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     // Feedback háptico
     HapticFeedback.lightImpact();
@@ -251,8 +257,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                               keyboardType: TextInputType.emailAddress,
                               autofillHints: const [AutofillHints.email],
                               validator: (value) {
-                                if (value?.isEmpty ?? true)
+                                if (value?.isEmpty ?? true) {
                                   return 'Ingresa tu email';
+                                }
                                 if (!RegExp(
                                   r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                                 ).hasMatch(value!)) {

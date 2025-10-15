@@ -225,8 +225,8 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     showDialog(
       context: context,
       builder: (context) => EditorSettingsDialog(
-        initialConfig: _editorConfig,
-        onConfigChanged: (config) {
+        settings: _editorConfig,
+        onSettingsChanged: (config) {
           setState(() {
             _editorConfig = config;
           });

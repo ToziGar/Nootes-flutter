@@ -5,13 +5,13 @@ import '../theme/color_utils.dart';
 
 /// Diálogo de configuración del editor avanzado
 class EditorSettingsDialog extends StatefulWidget {
-  final EditorConfig initialConfig;
-  final Function(EditorConfig) onConfigChanged;
+  final EditorConfig settings;
+  final Function(EditorConfig) onSettingsChanged;
 
   const EditorSettingsDialog({
     super.key,
-    required this.initialConfig,
-    required this.onConfigChanged,
+    required this.settings,
+    required this.onSettingsChanged,
   });
 
   @override
@@ -25,7 +25,7 @@ class _EditorSettingsDialogState extends State<EditorSettingsDialog> {
   @override
   void initState() {
     super.initState();
-    _config = widget.initialConfig;
+    _config = widget.settings;
   }
 
   void _updateConfig(EditorConfig newConfig) {
@@ -36,7 +36,7 @@ class _EditorSettingsDialogState extends State<EditorSettingsDialog> {
 
   Future<void> _saveConfig() async {
     await _configService.setEditorConfig(_config);
-    widget.onConfigChanged(_config);
+    widget.onSettingsChanged(_config);
     if (mounted) {
       Navigator.of(context).pop();
     }
@@ -46,7 +46,7 @@ class _EditorSettingsDialogState extends State<EditorSettingsDialog> {
     final defaultConfig = EditorConfig.defaultConfig();
     await _configService.setEditorConfig(defaultConfig);
     _updateConfig(defaultConfig);
-    widget.onConfigChanged(defaultConfig);
+    widget.onSettingsChanged(defaultConfig);
   }
 
   @override

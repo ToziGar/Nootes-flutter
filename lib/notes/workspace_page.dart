@@ -1,3 +1,5 @@
+import 'folder_model.dart';
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -14,6 +16,10 @@ import '../services/audio_service.dart';
 import '../widgets/recording_overlay.dart';
 import '../widgets/workspace_widgets.dart';
 import '../widgets/enhanced_context_menu.dart';
+import '../widgets/note_autocomplete_overlay.dart' show NoteSuggestion;
+import './template_picker_dialog.dart';
+import './productivity_dashboard.dart';
+import './folder_dialog.dart';
 import '../theme/app_theme.dart';
 import '../pages/app_shell.dart';
 import '../profile/settings_page.dart';
@@ -22,38 +28,82 @@ import '../widgets/unified_context_menu.dart';
 import '../widgets/advanced_search_dialog.dart';
 import '../widgets/recent_searches.dart';
 import '../widgets/workspace_stats.dart';
+import '../utils/error_message_mapper.dart';
 import '../widgets/unified_fab_menu.dart';
 import '../services/preferences_service.dart';
 import '../services/keyboard_shortcuts_service.dart';
 import '../services/sharing_service.dart';
 import '../widgets/share_dialog.dart';
 import '../theme/icon_registry.dart';
-import '../widgets/note_autocomplete_overlay.dart' show NoteSuggestion;
-import 'folder_model.dart';
-import 'folder_dialog.dart';
-import 'template_picker_dialog.dart';
-import 'productivity_dashboard.dart';
 
-class NotesWorkspacePage extends StatefulWidget {
-  const NotesWorkspacePage({super.key});
+// ignore_for_file: unused_element, unused_local_variable, use_super_parameters
+
+class WorkspacePage extends StatefulWidget {
+  const WorkspacePage({super.key});
 
   @override
-  State<NotesWorkspacePage> createState() => _NotesWorkspacePageState();
+  State<WorkspacePage> createState() => _WorkspacePageState();
 }
 
-class _NotesWorkspacePageState extends State<NotesWorkspacePage>
-    with TickerProviderStateMixin {
-  final _search = TextEditingController();
-  final _title = TextEditingController();
-  final _content = TextEditingController();
-  List<String> _tags = [];
+class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateMixin {
+  Widget _buildPropertyRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontFamily: 'monospace',
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 12,
+                fontFamily: 'monospace',
+              ),
+              // overflow: TextOverflow.ellipsis, // For selectable text, ellipsis is not supported
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  List<Map<String, dynamic>> _notes = [];
-  List<Map<String, dynamic>> _allNotes = []; // Todas las notas antes de filtrar
-  bool _loading = true;
-  bool _saving = false;
+  String _formatDate(DateTime? date) {
+    if (date == null) return '—';
+    final now = DateTime.now();
+    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+      final days = [
+        'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'
+      ];
+      return '${days[date.weekday - 1]} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else {
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    }
+  }
+  // Editor and search state
+  final TextEditingController _search = TextEditingController();
+  final TextEditingController _title = TextEditingController();
+  final TextEditingController _content = TextEditingController();
+  List<String> _tags = [];
   String _richJson = '';
-  // focus mode removed per request
+  bool _saving = false;
+  bool _loading = false;
+  // Notes state
+  List<Map<String, dynamic>> _allNotes = [];
+  List<Map<String, dynamic>> _notes = [];
+  // (Placeholders removed; real implementations appear later in this file.)
   final _storage = const FlutterSecureStorage();
   bool _isRecording = false;
   late final AnimationController _editorCtrl;
@@ -77,7 +127,34 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
   bool _showStats = false;
   bool _showRecentSearches = false;
   bool _showBacklinks = false;
-  // Misc (already declared earlier in file)
+  // Debounce for search/save
+  Timer? _debounce;
+  // Expanded folders tracking
+  final Set<String> _expandedFolders = {};
+  // Current user id helper
+  String get _uid => AuthService.instance.currentUser!.uid;
+
+  Future<void> _showCreateFolderDialog() async {
+    final created = await showDialog<Folder?>(
+      context: context,
+      builder: (context) => const FolderDialog(),
+    );
+    if (created != null) {
+      final data = created.toJson();
+      // Ensure structure aligns with Firestore expectations
+      await FirestoreService.instance.createFolder(uid: _uid, data: {
+        'name': data['name'],
+        'icon': _iconToString(created.icon),
+        'emoji': created.emoji,
+        'color': created.color.toARGB32(),
+        'noteIds': created.noteIds,
+        'createdAt': (data['createdAt'] as DateTime).toIso8601String(),
+        'updatedAt': (data['updatedAt'] as DateTime).toIso8601String(),
+        'order': data['order'] ?? 0,
+      });
+      await _loadFolders();
+    }
+  }
 
   @override
   void initState() {
@@ -108,13 +185,6 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
     });
   }
 
-  // Debounce for search/save
-  Timer? _debounce;
-  // Expanded folders tracking
-  final Set<String> _expandedFolders = {};
-  // Current user id helper
-  String get _uid => AuthService.instance.currentUser!.uid;
-
   Future<void> _loadPreferences() async {
     final compactMode = await PreferencesService.getCompactMode();
     final selectedFolder = await PreferencesService.getSelectedFolder();
@@ -122,8 +192,8 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
     final dateRange = await PreferencesService.getDateRange();
     final sortOption = await PreferencesService.getSortOption();
 
-    if (!mounted) return;
-    setState(() {
+  if (!mounted) return;
+  setState(() {
       _compactMode = compactMode;
       _selectedFolderId = selectedFolder;
       _filterTags = filterTags;
@@ -158,7 +228,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
     await _loadNotes();
     if (last != null && last.isNotEmpty) {
       // If last exists and present in notes, select it
-      final present = _notes.any((n) => n['id'].toString() == last);
+  final present = _notes.any((n) => n['id'].toString() == last);
       if (present) _select(last);
     }
   }
@@ -561,17 +631,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
   }
 
   void _openSettings() {
-    // Usar el ancestro AppShell para cambiar el índice
     final appShell = AppShell.of(context);
     if (appShell != null) {
       appShell.navigateToSettings();
-    } else {
-      // Fallback si no encuentra el AppShell
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const SettingsPage()),
-      );
     }
+    // Si no hay AppShell, no abrir settings como nueva ruta para evitar inconsistencias.
   }
 
   Future<void> _openAdvancedSearch() async {
@@ -791,14 +855,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
     } catch (e) {
       debugPrint('❌ Error al mover nota: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.danger,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+      ToastService.error(ErrorMessageMapper.map(e));
     }
   }
 
@@ -1120,11 +1177,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
     return DragTarget<String>(
       key: ValueKey('folder_${folder.id}'), // Key única para evitar duplicados
       onWillAcceptWithDetails: (details) => true,
-      onAcceptWithDetails: (details) =>
-          _onNoteDroppedInFolder(details.data, folder.id),
+      onAcceptWithDetails: (details) => _onNoteDroppedInFolder(details.data, folder.id),
       builder: (context, candidateData, rejectedData) {
         final isHovering = candidateData.isNotEmpty;
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1172,12 +1227,18 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
                       child: Row(
                         children: [
                           // Flecha expandir/colapsar
-                          Icon(
-                            isExpanded
-                                ? Icons.arrow_drop_down
-                                : Icons.arrow_right,
-                            size: 24,
-                            color: AppColors.textSecondary,
+                          Semantics(
+                            label: isExpanded
+                                ? 'Colapsar carpeta ${folder.name}'
+                                : 'Expandir carpeta ${folder.name}',
+                            button: true,
+                            child: Icon(
+                              isExpanded
+                                  ? Icons.arrow_drop_down
+                                  : Icons.arrow_right,
+                              size: 24,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                           const SizedBox(width: 4),
 
@@ -1202,51 +1263,62 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
                             ),
                           const SizedBox(width: AppColors.space8),
 
-                          // Nombre y contador
+                          // Nombre de carpeta
                           Expanded(
-                            child: Text(
-                              folder.name,
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
+                            child: Semantics(
+                              label: 'Nombre de carpeta: ${folder.name}',
+                              readOnly: true,
+                              child: Text(
+                                folder.name,
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
 
                           // Contador de notas
                           if (noteCount > 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: folder.color.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '$noteCount',
-                                style: TextStyle(
-                                  color: folder.color,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
+                            Semantics(
+                              label: 'Notas en carpeta: $noteCount',
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: folder.color.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '$noteCount',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
 
                           // Botón editar
-                          IconButton(
-                            icon: Icon(
-                              Icons.brush_rounded,
-                              size: 16,
-                              color: AppColors.textMuted,
+                          Semantics(
+                            label: 'Editar carpeta ${folder.name}',
+                            button: true,
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.brush_rounded,
+                                size: 16,
+                                color: AppColors.textMuted,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(),
+                              onPressed: () => _showFolderIconPicker(folder.id),
                             ),
-                            padding: EdgeInsets.zero,
-                            constraints: BoxConstraints(),
-                            onPressed: () => _showFolderIconPicker(folder.id),
                           ),
                         ],
                       ),
@@ -1261,9 +1333,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
               ...notesInFolder.map((note) {
                 final id = note['id'].toString();
                 return EnhancedContextMenuRegion(
-                  key: ValueKey(
-                    'folder_note_${folder.id}_$id',
-                  ), // Key única para notas en carpetas
+                  key: ValueKey('folder_note_${folder.id}_$id'),
                   actions: (context) => EnhancedContextMenuBuilder.noteMenu(
                     isInFolder: true,
                     isPinned: note['pinned'] == true,
@@ -1290,7 +1360,6 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
                           noteId: id,
                           pinned: !(note['pinned'] == true),
                         );
-                        // ✅ CORRECCIÓN: Actualizar localmente en lugar de recargar todo
                         _updateNoteInList(id, {
                           'pinned': !(note['pinned'] == true),
                         });
@@ -1304,8 +1373,7 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
                             : null,
                       ),
                       onClearIcon: () async => _clearNoteIcon(id),
-                      enableDrag:
-                          true, // ✅ HABILITAR drag para poder mover notas entre carpetas o sacarlas
+                      enableDrag: true,
                       compact: true,
                     ),
                   ),
@@ -1325,218 +1393,14 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
                   ),
                 ),
               ),
-          ],
-        );
-      },
-    );
+              const SizedBox(height: 8),
+            ],
+          );
+        },
+      );
   }
 
-  // Construir botón de crear carpeta
-  // Mostrar diálogo de crear carpeta
-  Future<void> _showCreateFolderDialog() async {
-    final result = await showDialog<Folder>(
-      context: context,
-      builder: (context) => FolderDialog(),
-    );
-
-    if (result != null) {
-      try {
-        await FirestoreService.instance.createFolder(
-          uid: _uid,
-          data: result.toJson(),
-        );
-        await _loadFolders();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Carpeta "${result.name}" creada'),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error al crear carpeta: $e'),
-              backgroundColor: AppColors.danger,
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  // Mostrar diálogo de editar carpeta
-  Future<void> _showEditFolderDialog(Folder folder) async {
-    final result = await showDialog<Folder>(
-      context: context,
-      builder: (context) => FolderDialog(folder: folder),
-    );
-
-    if (result != null) {
-      try {
-        await FirestoreService.instance.updateFolder(
-          uid: _uid,
-          folderId: result.id,
-          data: result.toJson(),
-        );
-        await _loadFolders();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Carpeta actualizada'),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error al actualizar carpeta: $e'),
-              backgroundColor: AppColors.danger,
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  // Manejador unificado de acciones del menú contextual
-  // TODO: Integrar este método con los menús contextuales para unificar la lógica
-  // ignore: unused_element
-  Future<void> _handleContextMenuAction(
-    ContextMenuActionType? action, {
-    required BuildContext context,
-    String? noteId,
-    String? folderId,
-  }) async {
-    if (action == null) return;
-
-    // Capture messenger early to avoid using BuildContext after awaits.
-    final messenger = ScaffoldMessenger.of(context);
-
-    switch (action) {
-      case ContextMenuActionType.newNote:
-        await _create();
-        break;
-      case ContextMenuActionType.newFolder:
-        await _showCreateFolderDialog();
-        break;
-      case ContextMenuActionType.newFromTemplate:
-        await _createFromTemplate();
-        break;
-      case ContextMenuActionType.editNote:
-        if (noteId != null) await _showRenameNoteDialog(noteId);
-        break;
-      case ContextMenuActionType.duplicateNote:
-        if (noteId != null) await _duplicateNote(noteId);
-        break;
-      case ContextMenuActionType.deleteNote:
-        if (noteId != null) await _delete(noteId);
-        break;
-      case ContextMenuActionType.exportNote:
-        if (noteId != null) await _exportSingleNote(noteId);
-        break;
-      case ContextMenuActionType.shareNote:
-        if (noteId != null) await _shareNote(noteId);
-        break;
-      case ContextMenuActionType.removeFromFolder:
-        if (noteId != null && folderId != null) {
-          await FirestoreService.instance.removeNoteFromFolder(
-            uid: _uid,
-            folderId: folderId,
-            noteId: noteId,
-          );
-          await _loadFolders();
-          await _loadNotes();
-          if (!mounted) return;
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Nota quitada de la carpeta'),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        }
-        break;
-      case ContextMenuActionType.moveToFolder:
-        if (noteId != null) {
-          // TODO: Mostrar diálogo para seleccionar carpeta
-          debugPrint('⚠️ Mover a carpeta: pendiente diálogo de selección');
-        }
-        break;
-      case ContextMenuActionType.editFolder:
-        if (folderId != null) {
-          final folder = _folders.firstWhere((f) => f.id == folderId);
-          await _showRenameFolderDialog(folder);
-        }
-        break;
-      case ContextMenuActionType.deleteFolder:
-        if (folderId != null) {
-          final folder = _folders.firstWhere((f) => f.id == folderId);
-          await _confirmDeleteFolder(folder);
-        }
-        break;
-      case ContextMenuActionType.shareFolder:
-        if (folderId != null) await _shareFolder(folderId);
-        break;
-      case ContextMenuActionType.openDashboard:
-        _openDashboard();
-        break;
-      case ContextMenuActionType.refresh:
-        await _loadNotes();
-        await _loadFolders();
-        break;
-      case ContextMenuActionType.insertImage:
-        await _insertImage();
-        break;
-      case ContextMenuActionType.insertAudio:
-        await _toggleRecording();
-        break;
-      case ContextMenuActionType.insertTable:
-        _insertMarkdownTable();
-        break;
-      case ContextMenuActionType.insertCodeBlock:
-        _insertCodeBlock();
-        break;
-      case ContextMenuActionType.pinNote:
-        if (noteId != null) await _togglePinNote(noteId, true);
-        break;
-      case ContextMenuActionType.unpinNote:
-        if (noteId != null) await _togglePinNote(noteId, false);
-        break;
-      case ContextMenuActionType.favoriteNote:
-        if (noteId != null) await _toggleFavoriteNote(noteId, true);
-        break;
-      case ContextMenuActionType.unfavoriteNote:
-        if (noteId != null) await _toggleFavoriteNote(noteId, false);
-        break;
-      case ContextMenuActionType.archiveNote:
-        if (noteId != null) await _toggleArchiveNote(noteId, true);
-        break;
-      case ContextMenuActionType.unarchiveNote:
-        if (noteId != null) await _toggleArchiveNote(noteId, false);
-        break;
-      case ContextMenuActionType.addTags:
-        if (noteId != null) await _showAddTagsDialog(noteId);
-        break;
-      case ContextMenuActionType.copyNoteLink:
-        if (noteId != null) _copyNoteLink(noteId);
-        break;
-      case ContextMenuActionType.viewHistory:
-        if (noteId != null) _showNoteHistory(noteId);
-        break;
-      case ContextMenuActionType.colorFolder:
-        if (folderId != null) await _showFolderColorPicker(folderId);
-        break;
-      case ContextMenuActionType.properties:
-        if (noteId != null) _showNoteProperties(noteId);
-        break;
-      default:
-        debugPrint('⚠️ Acción no implementada: $action');
-    }
-  }
+  // All context menu and note helper methods are now inside the class body
 
   // Manejador mejorado de acciones del menú contextual
   Future<void> _handleEnhancedContextMenuAction(
@@ -1565,11 +1429,84 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
           }
           break;
         case 'duplicate':
+          if (noteId != null) await _duplicateNote(noteId);
+          break;
+        case 'delete':
           if (noteId != null) {
-            await _duplicateNote(noteId);
+            await _delete(noteId);
           } else if (folderId != null) {
-            await _duplicateFolder(folderId);
+            final folder = _folders.firstWhere((f) => f.id == folderId);
+            await _confirmDeleteFolder(folder);
           }
+          break;
+        
+        // Note actions - Pin/Favorite/Archive
+        case 'togglePin':
+          if (noteId != null) {
+            final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId);
+            await _togglePinNote(noteId, !(note['pinned'] == true));
+          }
+          break;
+        case 'toggleFavorite':
+          if (noteId != null) {
+            final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId);
+            await _toggleFavoriteNote(noteId, !(note['favorite'] == true));
+          }
+          break;
+        case 'toggleArchive':
+          if (noteId != null) {
+            final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId);
+            await _toggleArchiveNote(noteId, !(note['archived'] == true));
+          }
+          break;
+        
+        // Note actions - Tags/Icon
+        case 'addTags':
+          if (noteId != null) await _showAddTagsDialog(noteId);
+          break;
+        case 'changeNoteIcon':
+          if (noteId != null) {
+            final note = _allNotes.firstWhere((n) => n['id'].toString() == noteId);
+            await _showNoteIconPicker(
+              noteId: noteId,
+              initialIcon: note['icon']?.toString(),
+              initialColor: note['iconColor'] is int ? Color(note['iconColor']) : null,
+            );
+          }
+          break;
+        case 'clearNoteIcon':
+          if (noteId != null) await _clearNoteIcon(noteId);
+          break;
+        
+        // Note actions - Share/Export/Link
+        case 'export':
+          if (noteId != null) {
+            await _exportSingleNote(noteId);
+          } else if (folderId != null) {
+            await _exportFolder(folderId);
+          }
+          break;
+        case 'share':
+          if (noteId != null) {
+            await _shareNote(noteId);
+          } else if (folderId != null) {
+            await _shareFolder(folderId);
+          }
+          break;
+        case 'generatePublicLink':
+          if (noteId != null) await _generatePublicLink(noteId);
+          break;
+        case 'copyLink':
+          if (noteId != null) {
+            await _copyNoteLink(noteId);
+          } else if (folderId != null) {
+            _copyFolderLink(folderId);
+          }
+          break;
+        
+        // Note actions - Folder management
+        case 'moveToFolder':
+          if (noteId != null) await _moveNoteToFolderDialog(noteId);
           break;
         case 'removeFromFolder':
           if (noteId != null && folderId != null) {
@@ -1582,28 +1519,41 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
             await _loadNotes();
             if (!mounted) return;
             messenger.showSnackBar(
-              SnackBar(
+              const SnackBar(
                 content: Text('Nota quitada de la carpeta'),
                 backgroundColor: AppColors.success,
               ),
             );
           }
           break;
-        case 'export':
+        
+        // Note/Folder info
+        case 'properties':
           if (noteId != null) {
-            await _exportSingleNote(noteId);
-          } else if (folderId != null) {
-            await _exportFolder(folderId);
+            _showNoteProperties(noteId);
           }
           break;
-        case 'delete':
-          if (noteId != null) {
-            await _delete(noteId);
-          } else if (folderId != null) {
+        case 'history':
+          if (noteId != null) _showNoteHistory(noteId);
+          break;
+        
+        // Folder actions
+        case 'editFolder':
+          if (folderId != null) {
             final folder = _folders.firstWhere((f) => f.id == folderId);
-            await _confirmDeleteFolder(folder);
+            await _showEditFolderDialog(folder);
           }
           break;
+        case 'newSubfolder':
+          if (folderId != null) {
+            await _showCreateFolderDialog();
+          }
+          break;
+        case 'changeIcon':
+          if (folderId != null) await _showFolderIconPicker(folderId);
+          break;
+        
+        // Workspace actions
         case 'newNote':
           await _create();
           break;
@@ -1615,96 +1565,11 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
           break;
         case 'refresh':
           await _loadNotes();
-          await _loadFolders();
           break;
         case 'openDashboard':
           _openDashboard();
           break;
-        case 'moveToFolder':
-          if (noteId != null) await _moveNoteToFolderDialog(noteId);
-          break;
-        case 'togglePin':
-          if (noteId != null) {
-            final note = _allNotes.firstWhere(
-              (n) => n['id'].toString() == noteId,
-              orElse: () => {},
-            );
-            final current = note['pinned'] == true;
-            await _togglePinNote(noteId, !current);
-          }
-          break;
-        case 'toggleFavorite':
-          if (noteId != null) {
-            final note = _allNotes.firstWhere(
-              (n) => n['id'].toString() == noteId,
-              orElse: () => {},
-            );
-            final current = note['favorite'] == true;
-            await _toggleFavoriteNote(noteId, !current);
-          }
-          break;
-        case 'toggleArchive':
-          if (noteId != null) {
-            final note = _allNotes.firstWhere(
-              (n) => n['id'].toString() == noteId,
-              orElse: () => {},
-            );
-            final current = note['archived'] == true;
-            await _toggleArchiveNote(noteId, !current);
-          }
-          break;
-        case 'changeNoteIcon':
-          if (noteId != null) {
-            final note = _allNotes.firstWhere(
-              (n) => n['id'].toString() == noteId,
-              orElse: () => {},
-            );
-            await _showNoteIconPicker(
-              noteId: noteId,
-              initialIcon: note['icon']?.toString(),
-              initialColor: note['iconColor'] is int
-                  ? Color(note['iconColor'])
-                  : null,
-            );
-          }
-          break;
-        case 'clearNoteIcon':
-          if (noteId != null) {
-            await _clearNoteIcon(noteId);
-          }
-          break;
-        case 'share':
-          if (noteId != null) {
-            await _shareNote(noteId);
-          } else if (folderId != null) {
-            await _shareFolder(folderId);
-          }
-          break;
-        case 'copyLink':
-          if (noteId != null) {
-            _copyNoteLink(noteId);
-          } else if (folderId != null) {
-            _copyFolderLink(folderId);
-          }
-          break;
-        case 'generatePublicLink':
-          if (noteId != null) {
-            await _generatePublicLink(noteId);
-          }
-          break;
-        case 'properties':
-          if (noteId != null) {
-            _showNoteProperties(noteId);
-          } else if (folderId != null) {
-            _showFolderProperties(folderId);
-          }
-          break;
-        case 'changeIcon':
-          if (folderId != null) await _showFolderIconPicker(folderId);
-          break;
-        case 'newSubfolder':
-          await _showCreateSubfolderDialog(folderId);
-          break;
+        
         default:
           debugPrint('⚠️ Acción no implementada: $action');
       }
@@ -1765,359 +1630,93 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
           title: const Text('Mover a carpeta'),
           content: SizedBox(
             width: 320,
-            child: ListView(
+            height: 300,
+            child: ListView.builder(
               shrinkWrap: true,
-              children: [
-                ..._folders.map(
-                  (f) => ListTile(
-                    leading: Icon(Icons.folder, color: f.color),
-                    title: Text(f.name),
-                    onTap: () => Navigator.pop(ctx, f.id),
+              itemCount: _folders.length,
+              itemBuilder: (ctx, index) {
+                final folder = _folders[index];
+                return ListTile(
+                  leading: Icon(
+                    Icons.folder_rounded,
+                    color: folder.color,
                   ),
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.clear),
-                  title: const Text('Quitar de todas las carpetas'),
-                  onTap: () => Navigator.pop(ctx, '__REMOVE_FROM_ALL__'),
-                ),
-              ],
+                  title: Text(folder.name),
+                  subtitle: Text('${folder.noteIds.length} notas'),
+                  onTap: () => Navigator.pop(ctx, folder.id),
+                );
+              },
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancelar'),
             ),
           ],
         );
       },
     );
-    if (selected == null) return;
-    if (selected == '__REMOVE_FROM_ALL__') {
-      await _onNoteDroppedInFolder(noteId, '__REMOVE_FROM_ALL__');
-      return;
-    }
-    try {
-      await FirestoreService.instance.addNoteToFolder(
-        uid: _uid,
-        noteId: noteId,
-        folderId: selected,
-      );
-      await _loadFolders();
-      await _loadNotes();
-      ToastService.success('Nota movida');
-    } catch (e) {
-      debugPrint('⚠️ Error moviendo nota: $e');
+    
+    if (selected != null) {
+      try {
+        await FirestoreService.instance.addNoteToFolder(
+          uid: _uid,
+          folderId: selected,
+          noteId: noteId,
+        );
+        await _loadFolders();
+        await _loadNotes();
+        ToastService.success('Nota movida a carpeta');
+      } catch (e) {
+        debugPrint('⚠️ Error moviendo nota a carpeta: $e');
+        ToastService.error('Error al mover nota');
+      }
     }
   }
 
   Future<void> _exportFolder(String folderId) async {
     try {
       final folder = _folders.firstWhere((f) => f.id == folderId);
-      if (folder.noteIds.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.white, size: 20),
-                  SizedBox(width: 8),
-                  Text('La carpeta está vacía'),
-                ],
-              ),
-              backgroundColor: AppColors.info,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
+      final allNotes = await FirestoreService.instance.listNotes(uid: _uid);
+      final folderNotes = allNotes.where(
+        (note) => folder.noteIds.contains(note['id'].toString()),
+      ).toList();
+
+      if (folderNotes.isEmpty) {
+        ToastService.info('La carpeta está vacía');
         return;
       }
 
-      // Mostrar diálogo de progreso
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            backgroundColor: AppColors.surface,
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                Text(
-                  'Exportando carpeta "${folder.name}"...',
-                  style: const TextStyle(color: AppColors.textPrimary),
-                ),
-              ],
-            ),
-          ),
-        );
+      // Export each note in the folder
+      for (final note in folderNotes) {
+        await ExportImportService.exportSingleNoteToMarkdown(note);
       }
 
-      // Exportar notas secuencialmente
-      final notes = await FirestoreService.instance.listNotes(uid: _uid);
-      final byId = {for (final n in notes) n['id'].toString(): n};
-      int exported = 0;
-      int failed = 0;
-
-      for (final id in folder.noteIds) {
-        try {
-          final note = byId[id];
-          if (note != null) {
-            await ExportImportService.exportSingleNoteToMarkdown(note);
-            exported++;
-          } else {
-            failed++;
-            debugPrint('⚠️ Nota no encontrada para exportar: $id');
-          }
-        } catch (e) {
-          failed++;
-          debugPrint('⚠️ Error exportando nota $id: $e');
-        }
-      }
-
-      // Cerrar diálogo de progreso
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-
-      // Mostrar resultado
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
-              children: [
-                Icon(
-                  exported > 0 ? Icons.check_circle : Icons.error_outline,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    failed == 0
-                        ? 'Carpeta "${folder.name}" exportada ($exported notas)'
-                        : 'Exportación completada: $exported exitosas, $failed fallidas',
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: failed == 0
-                ? AppColors.success
-                : AppColors.warning,
-            duration: const Duration(seconds: 3),
+            content: Text('${folderNotes.length} notas exportadas de "${folder.name}"'),
+            backgroundColor: AppColors.success,
           ),
         );
       }
     } catch (e) {
-      // Cerrar diálogo de progreso si está abierto
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      debugPrint('⚠️ Error exportando carpeta: $e');
+      debugPrint('❌ Error exportando carpeta: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Error exportando carpeta: $e')),
-              ],
-            ),
+            content: Text('Error al exportar: $e'),
             backgroundColor: AppColors.danger,
-            duration: const Duration(seconds: 3),
           ),
         );
       }
     }
   }
 
-  void _showFolderProperties(String folderId) {
-    final folder = _folders.firstWhere((f) => f.id == folderId);
-    final notes = _allNotes
-        .where((n) => folder.noteIds.contains(n['id'].toString()))
-        .toList();
-
-    // Calcular estadísticas
-    final totalNotes = folder.noteIds.length;
-    final pinnedNotes = notes.where((n) => n['pinned'] == true).length;
-    final archivedNotes = notes.where((n) => n['archived'] == true).length;
-    final favoriteNotes = notes.where((n) => n['favorite'] == true).length;
-
-    // Calcular tamaño total aproximado
-    int totalSize = 0;
-    for (final note in notes) {
-      final content = note['content']?.toString() ?? '';
-      final title = note['title']?.toString() ?? '';
-      totalSize += (content.length + title.length);
-    }
-
-    final sizeText = totalSize < 1024
-        ? '$totalSize bytes'
-        : totalSize < 1024 * 1024
-        ? '${(totalSize / 1024).toStringAsFixed(1)} KB'
-        : '${(totalSize / (1024 * 1024)).toStringAsFixed(1)} MB';
-
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Row(
-          children: [
-            if (folder.emoji != null)
-              Container(
-                width: 24,
-                height: 24,
-                alignment: Alignment.center,
-                child: Text(
-                  folder.emoji!,
-                  style: const TextStyle(fontSize: 20),
-                ),
-              )
-            else
-              Icon(Icons.folder_rounded, color: folder.color, size: 24),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Propiedades: ${folder.name}',
-                style: const TextStyle(color: AppColors.textPrimary),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildPropertyRow('Nombre', folder.name),
-              _buildPropertyRow('ID', folder.id),
-              _buildPropertyRow('DocID', folder.docId),
-              const Divider(color: AppColors.borderColor),
-              _buildPropertyRow('Total de notas', totalNotes.toString()),
-              if (pinnedNotes > 0)
-                _buildPropertyRow('Notas fijadas', pinnedNotes.toString()),
-              if (favoriteNotes > 0)
-                _buildPropertyRow('Notas favoritas', favoriteNotes.toString()),
-              if (archivedNotes > 0)
-                _buildPropertyRow('Notas archivadas', archivedNotes.toString()),
-              const Divider(color: AppColors.borderColor),
-              _buildPropertyRow('Tamaño total', sizeText),
-              _buildPropertyRow('Orden', folder.order.toString()),
-              const Divider(color: AppColors.borderColor),
-              _buildPropertyRow('Creada', _formatDate(folder.createdAt)),
-              _buildPropertyRow('Modificada', _formatDate(folder.updatedAt)),
-              const SizedBox(height: 16),
-              // Color preview
-              Row(
-                children: [
-                  const Text(
-                    'Color: ',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: folder.color,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: AppColors.borderColor),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      '#${folder.color.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cerrar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _showEditFolderDialog(folder);
-            },
-            child: const Text('Renombrar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPropertyRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              '$label:',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 14,
-              ),
-            ),
-          ),
-          Expanded(
-            child: SelectableText(
-              value,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 14,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Hoy ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } else if (difference.inDays == 1) {
-      return 'Ayer ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } else if (difference.inDays < 7) {
-      const days = [
-        'Lunes',
-        'Martes',
-        'Miércoles',
-        'Jueves',
-        'Viernes',
-        'Sábado',
-        'Domingo',
-      ];
-      return '${days[date.weekday - 1]} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } else {
-      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    }
+  Future<void> _showEditFolderDialog(Folder folder) async {
+    // For now, edit dialog is just rename + color picker combined
+    await _showRenameFolderDialog(folder);
   }
 
   // --- New helper methods for extended context menu actions ---
@@ -3201,8 +2800,9 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
                                             }
                                           },
                                           onCancel: () async {
-                                            if (AudioService.supportsDiscard)
+                                            if (AudioService.supportsDiscard) {
                                               await AudioService.stopRecordingAndDiscard();
+                                            }
                                             if (!mounted) return;
                                             setState(
                                               () => _isRecording = false,
@@ -4549,4 +4149,5 @@ class _NotesWorkspacePageState extends State<NotesWorkspacePage>
       );
     }
   }
+
 }

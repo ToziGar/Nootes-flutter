@@ -3,6 +3,15 @@ import 'color_utils.dart';
 
 /// Paleta de colores moderna y mejorada de la aplicación
 class AppColors {
+  // === COLORES DE CATEGORÍA ACCESIBLES ===
+  static const Color blue = Color(0xFF3B82F6); // Azul
+  static const Color green = Color(0xFF10B981); // Verde
+  static const Color yellow = Color(0xFFF59E0B); // Amarillo
+  static const Color purple = Color(0xFF8B5CF6); // Morado
+  static const Color cyan = Color(0xFF06B6D4); // Cian
+  static const Color red = Color(0xFFEF4444); // Rojo
+  static const Color lime = Color(0xFF84CC16); // Lima
+  static const Color orange = Color(0xFFF97316); // Naranja
   // === COLORES PRIMARIOS MODERNOS ===
 
   // Azul aurora (paleta consistente con AppTheme)

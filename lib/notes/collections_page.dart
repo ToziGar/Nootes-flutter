@@ -159,8 +159,9 @@ class _CollectionsPageState extends State<CollectionsPage> {
             if (snapshot.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (_collections.isEmpty)
+            if (_collections.isEmpty) {
               return const Center(child: Text('Sin colecciones'));
+            }
             return ListView.separated(
               padding: const EdgeInsets.all(12),
               itemBuilder: (context, i) {

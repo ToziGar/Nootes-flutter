@@ -1,312 +1,312 @@
-import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
-import '../theme/icon_registry.dart';
+// Reconstructed clean implementations after previous corruption.
 
-/// Sidebar moderno para lista de notas con soporte de drag & drop
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+// Adjust these imports to your actual theme/util locations
+import '../theme/app_theme.dart' as theme;
+import '../theme/color_utils.dart';
+// Custom intent for keyboard delete
+class DeleteNoteIntent extends Intent {}
+
+/// Card representing a note in the sidebar / list.
 class NotesSidebarCard extends StatelessWidget {
   const NotesSidebarCard({
     super.key,
     required this.note,
     required this.isSelected,
     required this.onTap,
-    required this.onPin,
     required this.onDelete,
+    required this.onPin,
     this.onSetIcon,
     this.onClearIcon,
     this.enableDrag = false,
+    this.noteId = '',
     this.compact = false,
   });
 
   final Map<String, dynamic> note;
   final bool isSelected;
   final VoidCallback onTap;
-  final VoidCallback onPin;
   final VoidCallback onDelete;
+  final VoidCallback onPin;
   final VoidCallback? onSetIcon;
   final VoidCallback? onClearIcon;
   final bool enableDrag;
+  final String noteId;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final title = (note['title']?.toString() ?? '').isEmpty
+    final title = (note['title']?.toString() ?? '').trim().isEmpty
         ? 'Sin título'
         : note['title'].toString();
     final isPinned = note['pinned'] == true;
-    final preview = (note['content']?.toString() ?? '').isEmpty
-        ? 'Nota vacía'
-        : note['content'].toString();
-    final noteId = note['id']?.toString() ?? '';
-    final iconName = note['icon']?.toString();
-    final iconColorInt = note['iconColor'] as int?;
-    final Color? iconColor = iconColorInt != null ? Color(iconColorInt) : null;
-    final IconData? noteIcon = NoteIconRegistry.iconFromName(iconName);
+    final icon = note['icon'] is IconData ? note['icon'] as IconData : null;
+    final tags = List<String>.from(note['tags'] ?? []);
 
-    final cardWidget = Container(
-      margin: const EdgeInsets.only(bottom: AppColors.space8),
-      decoration: BoxDecoration(
-        color: isSelected ? AppColors.activeNote : Colors.transparent,
-        borderRadius: BorderRadius.circular(AppColors.radiusMd),
-        border: isSelected
-            ? Border.all(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                width: 1,
-              )
-            : null,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppColors.radiusMd),
-          hoverColor: AppColors.surfaceHover,
-          child: Padding(
-            padding: EdgeInsets.all(
-              compact ? AppColors.space8 : AppColors.space12,
-            ),
-            child: Row(
-              children: [
-                // Pin indicator
-                if (!compact)
-                  Container(
-                    width: 4,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primary
-                          : (isPinned ? AppColors.warning : Colors.transparent),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                if (!compact) const SizedBox(width: AppColors.space12),
+  final selectedColor = isSelected
+    ? theme.AppColors.activeNote
+    : theme.AppColors.surfaceOverlay;
+  final borderColor = isSelected
+    ? theme.AppColors.primary
+    : theme.AppColors.borderColor;
 
-                // Optional note icon
-                if (noteIcon != null) ...[
-                  Container(
-                    width: 28,
-                    height: 28,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: (iconColor ?? AppColors.primary).withValues(
-                        alpha: 0.12,
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Icon(
-                      noteIcon,
-                      size: 16,
-                      color: iconColor ?? AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: AppColors.space8),
-                ],
-
-                // Content
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    fontSize: compact ? 14 : null,
-                                    color: isSelected
-                                        ? AppColors.textPrimary
-                                        : AppColors.textSecondary,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (!compact && isPinned)
-                            const Icon(
-                              Icons.push_pin_rounded,
-                              size: 14,
-                              color: AppColors.warning,
-                            ),
-                        ],
-                      ),
-                      if (!compact) const SizedBox(height: AppColors.space4),
-                      if (!compact)
-                        Text(
-                          preview,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AppColors.textMuted),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
-                  ),
-                ),
-
-                // Actions
-                PopupMenuButton<String>(
-                  icon: Icon(
-                    Icons.more_vert_rounded,
-                    size: 18,
-                    color: isSelected
-                        ? AppColors.textSecondary
-                        : AppColors.textMuted,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppColors.radiusMd),
-                  ),
-                  color: AppColors.surface,
-                  onSelected: (value) {
-                    if (value == 'pin') {
-                      onPin();
-                    } else if (value == 'delete') {
-                      onDelete();
-                    } else if (value == 'setIcon') {
-                      if (onSetIcon != null) onSetIcon!();
-                    } else if (value == 'clearIcon') {
-                      if (onClearIcon != null) onClearIcon!();
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'pin',
-                      child: Row(
-                        children: [
-                          Icon(
-                            isPinned
-                                ? Icons.push_pin_outlined
-                                : Icons.push_pin_rounded,
-                            size: 18,
-                            color: AppColors.textPrimary,
-                          ),
-                          const SizedBox(width: AppColors.space8),
-                          Text(isPinned ? 'Desanclar' : 'Anclar'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    PopupMenuItem(
-                      value: 'setIcon',
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.brush_rounded,
-                            size: 18,
-                            color: AppColors.textPrimary,
-                          ),
-                          const SizedBox(width: AppColors.space8),
-                          const Text('Cambiar icono'),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'clearIcon',
-                      enabled: iconName != null,
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.delete_outline_rounded,
-                            size: 18,
-                            color: AppColors.danger,
-                          ),
-                          SizedBox(width: AppColors.space8),
-                          Text(
-                            'Quitar icono',
-                            style: TextStyle(color: AppColors.danger),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: const [
-                          Icon(
-                            Icons.delete_outline_rounded,
-                            size: 18,
-                            color: AppColors.danger,
-                          ),
-                          SizedBox(width: AppColors.space8),
-                          Text(
-                            'Eliminar',
-                            style: TextStyle(color: AppColors.danger),
-                          ),
-                        ],
-                      ),
-                    ),
+    Widget card = FocusableActionDetector(
+      enabled: true,
+      autofocus: isSelected,
+      shortcuts: <LogicalKeySet, Intent>{
+        LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),
+  LogicalKeySet(LogicalKeyboardKey.delete): DeleteNoteIntent(),
+      },
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (intent) {
+            onTap();
+            return null;
+          },
+        ),
+        DeleteNoteIntent: CallbackAction<DeleteNoteIntent>(
+          onInvoke: (intent) {
+            onDelete();
+            return null;
+          },
+        ),
+      },
+      child: Semantics(
+        selected: isSelected,
+        button: true,
+        label: 'Nota: $title',
+        child: Material(
+          color: selectedColor,
+          borderRadius: BorderRadius.circular(theme.AppColors.radiusMd),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(theme.AppColors.radiusMd),
+            onTap: onTap,
+            onLongPress: onPin,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? theme.AppColors.space8 : theme.AppColors.space16,
+                vertical: compact ? theme.AppColors.space8 : theme.AppColors.space12,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: compact ? 18 : 22, color: theme.AppColors.primary),
+                    const SizedBox(width: 8),
                   ],
-                ),
-              ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                    color: isSelected
+                      ? theme.AppColors.primary
+                      : theme.AppColors.textPrimary,
+                                    ),
+                              ),
+                            ),
+                            if (isPinned)
+                              Padding(
+                                padding: const EdgeInsets.only(left: theme.AppColors.space4),
+                                child: Icon(
+                                  Icons.push_pin_rounded,
+                                  size: 16,
+                                  color: theme.AppColors.warning,
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (tags.isNotEmpty && !compact) ...[
+                          SizedBox(height: theme.AppColors.space4),
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 2,
+                            children: tags.take(3).map((t) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.AppColors.primary.withOpacityCompat(0.12),
+                  borderRadius: BorderRadius.circular(theme.AppColors.radiusSm),
+                                ),
+                                child: Text(
+                                  t,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color: theme.AppColors.primary,
+                                        fontSize: 10,
+                                      ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  _MoreMenu(
+                    isPinned: isPinned,
+                    hasIcon: icon != null,
+                    onPin: onPin,
+                    onDelete: onDelete,
+                    onSetIcon: onSetIcon,
+                    onClearIcon: onClearIcon,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
 
-    // Envolver con LongPressDraggable si está habilitado
+    card = DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(theme.AppColors.radiusMd),
+      ),
+      child: card,
+    );
+
     if (enableDrag && noteId.isNotEmpty) {
       return LongPressDraggable<String>(
         data: noteId,
         feedback: Material(
-          elevation: 8,
-          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+          elevation: 6,
+          borderRadius: BorderRadius.circular(theme.AppColors.radiusMd),
           child: Opacity(
-            opacity: 0.8,
-            child: Container(
-              width: 250,
-              constraints: const BoxConstraints(
-                maxWidth: 250,
-              ), // Restricción de ancho
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppColors.radiusMd),
-                boxShadow: AppTheme.shadowXl,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(AppColors.space12),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min, // Evitar overflow
-                  children: [
-                    const Icon(
-                      Icons.drag_indicator_rounded,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: AppColors.space8),
-                    Flexible(
-                      // Cambio de Expanded a Flexible
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            opacity: 0.85,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: theme.AppColors.space32 * 7.5),
+              child: card,
             ),
           ),
         ),
-        childWhenDragging: Opacity(opacity: 0.3, child: cardWidget),
-        child: cardWidget,
+        childWhenDragging: Opacity(
+          opacity: 0.35,
+          child: card,
+        ),
+        child: card,
       );
     }
-
-    return cardWidget;
+    return card;
   }
 }
 
-// Note icons now come from NoteIconRegistry
+class _MoreMenu extends StatelessWidget {
+  const _MoreMenu({
+    required this.isPinned,
+    required this.hasIcon,
+    required this.onPin,
+    required this.onDelete,
+    this.onSetIcon,
+    this.onClearIcon,
+  });
 
-/// Header profesional para el workspace
+  final bool isPinned;
+  final bool hasIcon;
+  final VoidCallback onPin;
+  final VoidCallback onDelete;
+  final VoidCallback? onSetIcon;
+  final VoidCallback? onClearIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'Opciones',
+      onSelected: (value) {
+        switch (value) {
+          case 'pin':
+            onPin();
+            break;
+          case 'delete':
+            onDelete();
+            break;
+          case 'setIcon':
+            onSetIcon?.call();
+            break;
+          case 'clearIcon':
+            onClearIcon?.call();
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'pin',
+          child: Row(
+            children: [
+              Icon(
+                isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
+                size: 18,
+                color: theme.AppColors.textPrimary,
+              ),
+              const SizedBox(width: 8),
+              Text(isPinned ? 'Desanclar' : 'Anclar'),
+            ],
+          ),
+        ),
+        if (onSetIcon != null)
+          PopupMenuItem(
+            value: 'setIcon',
+            child: Row(
+              children: const [
+                Icon(Icons.brush_rounded, size: 18),
+                SizedBox(width: 8),
+                Text('Cambiar icono'),
+              ],
+            ),
+          ),
+        if (hasIcon && onClearIcon != null)
+          PopupMenuItem(
+            value: 'clearIcon',
+            child: Row(
+              children: const [
+                Icon(Icons.delete_sweep_rounded, size: 18),
+                SizedBox(width: 8),
+                Text('Quitar icono'),
+              ],
+            ),
+          ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline_rounded, size: 18, color: theme.AppColors.danger),
+              const SizedBox(width: 8),
+              const Text('Eliminar'),
+            ],
+          ),
+        ),
+      ],
+      icon: Icon(
+        Icons.more_vert_rounded,
+        size: 20,
+  color: theme.AppColors.textSecondary,
+      ),
+    );
+  }
+}
+
+/// Workspace header (restored minimal version)
 class WorkspaceHeader extends StatelessWidget {
   const WorkspaceHeader({
     super.key,
@@ -328,57 +328,25 @@ class WorkspaceHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppColors.space20,
-        vertical: AppColors.space16,
+      padding: EdgeInsets.symmetric(
+        horizontal: theme.AppColors.space20,
+        vertical: theme.AppColors.space12,
       ),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
+      decoration: BoxDecoration(
+        color: theme.AppColors.surface,
+        border: Border(bottom: BorderSide(color: theme.AppColors.divider, width: 1)),
       ),
       child: Row(
         children: [
-          // Logo/Title
-          Row(
-            children: [
-              // Logo
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppColors.radiusSm),
-                child: Image.asset(
-                  'LOGO.webp',
-                  width: 36,
-                  height: 36,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      padding: const EdgeInsets.all(AppColors.space8),
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.gradientPrimary,
-                        borderRadius: BorderRadius.circular(AppColors.radiusSm),
-                      ),
-                      child: const Icon(
-                        Icons.edit_note_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: AppColors.space12),
-              Text(
-                'Nootes',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          Icon(Icons.edit_note_rounded, color: theme.AppColors.primary, size: 28),
+          const SizedBox(width: 12),
+          Text(
+            'Nootes',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
                 ),
-              ),
-            ],
           ),
-
           const Spacer(),
-
-          // Save button
           if (saving)
             const SizedBox(
               width: 20,
@@ -388,54 +356,41 @@ class WorkspaceHeader extends StatelessWidget {
           else if (saveScale != null)
             ScaleTransition(
               scale: saveScale!,
-              child: IconButton(
-                tooltip: 'Guardar cambios',
-                onPressed: onSave,
-                icon: const Icon(Icons.save_rounded),
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.success.withValues(alpha: 0.15),
-                  foregroundColor: AppColors.success,
-                ),
-              ),
+              child: _saveButton(),
             )
           else
-            IconButton(
-              tooltip: 'Guardar cambios',
-              onPressed: onSave,
-              icon: const Icon(Icons.save_rounded),
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.success.withValues(alpha: 0.15),
-                foregroundColor: AppColors.success,
-              ),
-            ),
-
-          const SizedBox(width: AppColors.space8),
-
-          // Focus mode
+            _saveButton(),
+          const SizedBox(width: 8),
           IconButton(
-            tooltip: focusMode ? 'Salir del modo enfoque' : 'Modo enfoque',
+            tooltip: focusMode ? 'Salir modo enfoque' : 'Modo enfoque',
             onPressed: onToggleFocus,
             icon: Icon(
               focusMode
                   ? Icons.fullscreen_exit_rounded
                   : Icons.center_focus_strong_rounded,
             ),
-            style: IconButton.styleFrom(
-              backgroundColor: focusMode
-                  ? AppColors.primary.withValues(alpha: 0.15)
-                  : null,
-              foregroundColor: focusMode
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
-            ),
           ),
+          if (onSettings != null)
+            IconButton(
+              tooltip: 'Configuración',
+              onPressed: onSettings,
+              icon: const Icon(Icons.settings_rounded),
+            ),
         ],
       ),
     );
   }
+
+  Widget _saveButton() {
+    return IconButton(
+      tooltip: 'Guardar cambios',
+      onPressed: onSave,
+      icon: const Icon(Icons.save_rounded),
+    );
+  }
 }
 
-/// Empty state moderno
+/// Empty state when there are no notes.
 class EmptyNotesState extends StatelessWidget {
   const EmptyNotesState({super.key, required this.onCreate});
 
@@ -448,31 +403,28 @@ class EmptyNotesState extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(AppColors.space32),
+            padding: EdgeInsets.all(theme.AppColors.space32),
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              color: theme.AppColors.primary,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.note_add_rounded,
-              size: 48,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.note_add_rounded, size: 48, color: Colors.white),
           ),
-          const SizedBox(height: AppColors.space24),
+          SizedBox(height: theme.AppColors.space24),
           Text(
             'Comienza a escribir',
             style: Theme.of(context).textTheme.headlineMedium,
           ),
-          const SizedBox(height: AppColors.space8),
+          SizedBox(height: theme.AppColors.space8),
           Text(
             'Crea tu primera nota y organiza tus ideas',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: theme.AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: AppColors.space32),
+          SizedBox(height: theme.AppColors.space32),
           FilledButton.icon(
             onPressed: onCreate,
             icon: const Icon(Icons.add_rounded),

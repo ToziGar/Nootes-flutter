@@ -30,7 +30,7 @@ class AppShellState extends State<AppShell> with AutomaticKeepAliveClientMixin {
     super.initState();
     _pageController = PageController(initialPage: _index);
     _pages = [
-      KeepAliveWrapper(child: NotesWorkspacePage()),
+  KeepAliveWrapper(child: WorkspacePage()),
       KeepAliveWrapper(child: SettingsPage()),
       KeepAliveWrapper(child: AdvancedSearchPage()),
       KeepAliveWrapper(child: GraphPage()),
