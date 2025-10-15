@@ -92,6 +92,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
       return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     }
   }
+
   // Editor and search state
   final TextEditingController _search = TextEditingController();
   final TextEditingController _title = TextEditingController();
@@ -132,7 +133,9 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
   // Expanded folders tracking
   final Set<String> _expandedFolders = {};
   // Current user id helper
-  String get _uid => AuthService.instance.currentUser!.uid;
+  String getUid() {
+    return AuthService.instance.currentUser!.uid;
+  }
 
   Future<void> _showCreateFolderDialog() async {
     final created = await showDialog<Folder?>(
@@ -142,7 +145,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
     if (created != null) {
       final data = created.toJson();
       // Ensure structure aligns with Firestore expectations
-      await FirestoreService.instance.createFolder(uid: _uid, data: {
+        await FirestoreService.instance.createFolder(uid: getUid(), data: {
         'name': data['name'],
         'icon': _iconToString(created.icon),
         'emoji': created.emoji,
@@ -236,7 +239,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
   Future<void> _loadFolders() async {
     try {
       final foldersData = await FirestoreService.instance.listFolders(
-        uid: _uid,
+        uid: getUid(),
       );
       debugPrint('📁 Carpetas cargadas: ${foldersData.length}');
       if (!mounted) return;
@@ -291,7 +294,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
     try {
       // Obtener todos los IDs de notas que existen realmente
       final allNotes = await FirestoreService.instance.listNotesSummary(
-        uid: _uid,
+        uid: getUid(),
       );
       final existingNoteIds = allNotes.map((n) => n['id'].toString()).toSet();
 
@@ -314,7 +317,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
 
           // Actualizar la carpeta en Firestore
           await FirestoreService.instance.updateFolder(
-            uid: _uid,
+            uid: getUid(),
             folderId: folder.id,
             data: {'noteIds': cleanedNoteIds},
           );
@@ -350,7 +353,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
 
       // Obtener carpetas desde Firestore para comparar (comparar docId)
       final remoteFolders = await FirestoreService.instance.listFolders(
-        uid: _uid,
+  uid: getUid(),
       );
       final remoteDocIds = remoteFolders
           .map((f) => (f['docId'] ?? f['id']).toString())
@@ -423,7 +426,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
         final sharedIds = sharedByMe.map((s) => s.itemId).toSet();
         // Cargar mis notas y filtrar por las compartidas
         List<Map<String, dynamic>> myNotes = await svc.listNotesSummary(
-          uid: _uid,
+            uid: getUid(),
         );
         final filtered = myNotes
             .where((n) => sharedIds.contains(n['id'].toString()))
@@ -439,7 +442,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
 
       // Cargar notas propias (caché deshabilitado temporalmente por problema de serialización)
       List<Map<String, dynamic>> allNotes = await svc.listNotesSummary(
-        uid: _uid,
+          uid: getUid(),
       );
 
       if (!mounted) return;
@@ -597,7 +600,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
       _saving = true;
     });
     // Si la nota es compartida conmigo, obtenerla desde el propietario
-    String ownerUid = _uid;
+  String ownerUid = getUid();
     try {
       final Map<String, dynamic> maybe = _notes.firstWhere(
         (n) => (n['id']?.toString() ?? '') == id,
@@ -768,25 +771,41 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
             ),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(AppColors.space8),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(AppColors.radiusSm),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                const SizedBox(width: AppColors.space12),
-                Expanded(
-                  child: Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
+                _loading
+                    ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                    : _notes.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(AppColors.space32),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.note_outlined,
+                                    size: 48,
+                                    color: AppColors.textMuted,
+                                  ),
+                                  const SizedBox(height: AppColors.space16),
+                                  Text(
+                                    (_selectedFolderId == '__SHARED_WITH_ME__' ||
+                                            _selectedFolderId == '__SHARED_BY_ME__')
+                                        ? 'No hay notas compartidas'
+                                        : 'No hay notas',
+                                    style: Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                  Text(
+                                    _selectedFolderId == '__SHARED_WITH_ME__'
+                                        ? 'Cuando alguien comparta contigo, aparecerán aquí'
+                                        : _selectedFolderId == '__SHARED_BY_ME__'
+                                            ? 'Aún no has compartido notas'
+                                            : 'Crea tu primera nota',
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : /* Aquí iría la lista de notas/folders */ Container(),
               ],
             ),
           ),
@@ -795,75 +814,14 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
     );
   }
 
-  Future<void> _onNoteDroppedInFolder(String noteId, String folderId) async {
-    try {
-      // Caso especial: soltar en "Todas las notas" = remover de todas las carpetas
-      if (folderId == '__REMOVE_FROM_ALL__') {
-        debugPrint('📤 Sacando nota $noteId de todas las carpetas');
-
-        // Buscar todas las carpetas que contienen esta nota y removerla
-        for (final folder in _folders) {
-          if (folder.noteIds.contains(noteId)) {
-            await FirestoreService.instance.removeNoteFromFolder(
-              uid: _uid,
-              noteId: noteId,
-              folderId: folder.id,
-            );
-          }
-        }
-
-        debugPrint('✅ Nota removida de todas las carpetas');
-
-        // Recargar carpetas Y notas para actualizar la UI
-        await _loadFolders();
-        await _loadNotes();
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Nota removida de las carpetas'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
-
-      debugPrint('📁 Agregando nota $noteId a carpeta $folderId');
-      await FirestoreService.instance.addNoteToFolder(
-        uid: _uid,
-        noteId: noteId,
-        folderId: folderId,
-      );
-
-      debugPrint('✅ Nota agregada correctamente a Firestore');
-
-      // Recargar carpetas Y notas para actualizar la UI
-      await _loadFolders();
-      await _loadNotes();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Nota agregada a la carpeta'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.success,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      debugPrint('❌ Error al mover nota: $e');
-      if (!mounted) return;
-      ToastService.error(ErrorMessageMapper.map(e));
-    }
-  }
-
   Future<void> _save() async {
-    if (_selectedId == null) return;
+    if (_selectedId == null || !mounted) return;
     // small pulse feedback
     _savePulseCtrl.forward().then((_) => _savePulseCtrl.reverse());
-    setState(() => _saving = true);
+    
+    // NO usar setState aquí para evitar perder el foco del editor
+    _saving = true;
+    
     try {
       final data = {
         'title': _title.text,
@@ -874,7 +832,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
         data['rich'] = _richJson;
       }
       await FirestoreService.instance.updateNote(
-        uid: _uid,
+        uid: getUid(),
         noteId: _selectedId!,
         data: data,
       );
@@ -952,12 +910,14 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
 
         _sortNotes(filteredNotes);
 
-        setState(() {
-          _notes = filteredNotes;
-        });
+        if (mounted) {
+          setState(() {
+            _notes = filteredNotes;
+          });
+        }
       }
     } finally {
-      if (mounted) setState(() => _saving = false);
+      _saving = false;
     }
   }
 
@@ -1021,7 +981,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
     }
 
     final id = await FirestoreService.instance.createNote(
-      uid: _uid,
+      uid: getUid(),
       data: {
         'title': title,
         'content': '',
@@ -1068,7 +1028,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
       });
 
       final id = await FirestoreService.instance.createNote(
-        uid: _uid,
+        uid: getUid(),
         data: {
           'title': result['title'] ?? '',
           'content': result['content'] ?? '',
@@ -1110,7 +1070,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
   }
 
   Future<void> _insertImage() async {
-    final url = await StorageService.pickAndUploadImage(uid: _uid);
+  final url = await StorageService.pickAndUploadImage(uid: getUid());
     if (url == null) return;
     final sel = _content.selection;
     final i = sel.isValid ? sel.base.offset : _content.text.length;
@@ -1126,7 +1086,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
 
   Future<void> _toggleRecording() async {
     if (_isRecording) {
-      final url = await AudioService.stopAndUpload(uid: _uid);
+  final url = await AudioService.stopAndUpload(uid: getUid());
       setState(() => _isRecording = false);
       if (url != null) {
         final sel = _content.selection;
@@ -1152,7 +1112,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
   }
 
   Future<void> _delete(String id) async {
-    await FirestoreService.instance.deleteNote(uid: _uid, noteId: id);
+  await FirestoreService.instance.deleteNote(uid: getUid(), noteId: id);
     if (_selectedId == id) {
       _selectedId = null;
       _title.clear();
@@ -1165,6 +1125,22 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
   void _onSearchChanged(String _) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), _loadNotes);
+  }
+
+  Future<void> _onNoteDroppedInFolder(String noteId, String folderId) async {
+    try {
+      await FirestoreService.instance.addNoteToFolder(
+        uid: getUid(),
+        folderId: folderId,
+        noteId: noteId,
+      );
+      await _loadFolders();
+      await _loadNotes();
+      ToastService.success('Nota añadida a la carpeta');
+    } catch (e) {
+      debugPrint('⚠️ Error añadiendo nota a carpeta: $e');
+      ToastService.error('Error al añadir nota a carpeta');
+    }
   }
 
   // Construir carpeta desplegable estilo árbol
@@ -1352,11 +1328,12 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
                     padding: const EdgeInsets.only(left: 32, bottom: 2),
                     child: NotesSidebarCard(
                       note: note,
+                      noteId: id,
                       isSelected: id == _selectedId,
                       onTap: () => _select(id),
                       onPin: () async {
                         await FirestoreService.instance.setPinned(
-                          uid: _uid,
+                          uid: getUid(),
                           noteId: id,
                           pinned: !(note['pinned'] == true),
                         );
@@ -1511,7 +1488,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
         case 'removeFromFolder':
           if (noteId != null && folderId != null) {
             await FirestoreService.instance.removeNoteFromFolder(
-              uid: _uid,
+              uid: getUid(),
               folderId: folderId,
               noteId: noteId,
             );
@@ -1584,13 +1561,13 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
   // Duplicar nota (nueva función)
   Future<void> _duplicateNote(String noteId) async {
     try {
-      final notes = await FirestoreService.instance.listNotes(uid: _uid);
+      final notes = await FirestoreService.instance.listNotes(uid: getUid());
       final originalNote = notes.firstWhere(
         (n) => n['id'].toString() == noteId,
       );
 
       await FirestoreService.instance.createNote(
-        uid: _uid,
+        uid: getUid(),
         data: {
           'title': '${originalNote['title']} (copia)',
           'content': originalNote['content'],
@@ -1660,17 +1637,28 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
     
     if (selected != null) {
       try {
-        await FirestoreService.instance.addNoteToFolder(
-          uid: _uid,
-          folderId: selected,
-          noteId: noteId,
-        );
-        await _loadFolders();
-        await _loadNotes();
-        ToastService.success('Nota movida a carpeta');
-      } catch (e) {
-        debugPrint('⚠️ Error moviendo nota a carpeta: $e');
-        ToastService.error('Error al mover nota');
+          // Eliminar la nota de todas las carpetas previas
+          for (final folder in _folders) {
+            if (folder.noteIds.contains(noteId)) {
+              await FirestoreService.instance.removeNoteFromFolder(
+                uid: getUid(),
+                folderId: folder.id,
+                noteId: noteId,
+              );
+            }
+          }
+          // Agregar la nota a la nueva carpeta
+          await FirestoreService.instance.addNoteToFolder(
+            uid: getUid(),
+            folderId: selected,
+            noteId: noteId,
+          );
+          await _loadFolders();
+          await _loadNotes();
+          ToastService.success('Nota movida a carpeta');
+        } catch (e) {
+          debugPrint('⚠️ Error moviendo nota a carpeta: $e');
+          ToastService.error('Error al mover nota');
       }
     }
   }
@@ -1678,7 +1666,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
   Future<void> _exportFolder(String folderId) async {
     try {
       final folder = _folders.firstWhere((f) => f.id == folderId);
-      final allNotes = await FirestoreService.instance.listNotes(uid: _uid);
+      final allNotes = await FirestoreService.instance.listNotes(uid: getUid());
       final folderNotes = allNotes.where(
         (note) => folder.noteIds.contains(note['id'].toString()),
       ).toList();
@@ -1724,7 +1712,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
   Future<void> _togglePinNote(String noteId, bool pin) async {
     try {
       await FirestoreService.instance.updateNote(
-        uid: _uid,
+        uid: getUid(),
         noteId: noteId,
         data: {'pinned': pin},
       );
@@ -1749,7 +1737,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
   Future<void> _toggleFavoriteNote(String noteId, bool fav) async {
     try {
       await FirestoreService.instance.updateNote(
-        uid: _uid,
+        uid: getUid(),
         noteId: noteId,
         data: {'favorite': fav},
       );
@@ -1776,7 +1764,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
   Future<void> _toggleArchiveNote(String noteId, bool archive) async {
     try {
       await FirestoreService.instance.updateNote(
-        uid: _uid,
+        uid: getUid(),
         noteId: noteId,
         data: {'archived': archive},
       );
@@ -1830,7 +1818,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
           .toList();
       try {
         await FirestoreService.instance.updateNote(
-          uid: _uid,
+          uid: getUid(),
           noteId: noteId,
           data: {'tags': tags},
         );
@@ -1973,7 +1961,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
     if (chosen != null) {
       try {
         await FirestoreService.instance.updateFolder(
-          uid: _uid,
+          uid: getUid(),
           folderId: folderId,
           data: {'color': chosen.toARGB32()},
         );
@@ -2037,7 +2025,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
   // Exportar una sola nota
   Future<void> _exportSingleNote(String noteId) async {
     try {
-      final notes = await FirestoreService.instance.listNotes(uid: _uid);
+      final notes = await FirestoreService.instance.listNotes(uid: getUid());
       final note = notes.firstWhere((n) => n['id'].toString() == noteId);
 
       await ExportImportService.exportSingleNoteToMarkdown(note);
@@ -2058,7 +2046,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
   // Compartir una nota
   Future<void> _shareNote(String noteId) async {
     try {
-      final notes = await FirestoreService.instance.listNotes(uid: _uid);
+      final notes = await FirestoreService.instance.listNotes(uid: getUid());
       final note = notes.firstWhere((n) => n['id'].toString() == noteId);
 
       if (mounted) {
@@ -2223,7 +2211,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
           for (final noteId in folder.noteIds) {
             try {
               await FirestoreService.instance.removeNoteFromFolder(
-                uid: _uid,
+                uid: getUid(),
                 folderId: folder.docId, // Usar docId consistentemente
                 noteId: noteId,
               );
@@ -2237,10 +2225,10 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
 
         // 2. Eliminar de Firestore
         debugPrint(
-          '🔥 Intentando eliminar carpeta de Firestore (uid: $_uid, folderId: ${folder.docId})',
+          '🔥 Intentando eliminar carpeta de Firestore (uid: ${getUid()}, folderId: ${folder.docId})',
         );
         await FirestoreService.instance.deleteFolder(
-          uid: _uid,
+          uid: getUid(),
           folderId: folder.docId,
         );
         debugPrint('✅ Carpeta eliminada de Firestore - ${folder.docId}');
@@ -2248,7 +2236,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
         // 3. Verificar que realmente se eliminó
         await Future.delayed(const Duration(milliseconds: 500));
         final deletedFolder = await FirestoreService.instance.getFolder(
-          uid: _uid,
+          uid: getUid(),
           folderId: folder.docId,
         );
 
@@ -2492,9 +2480,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
                                                 ),
                                           ),
                                           onChanged: (_) {
-                                            setState(
-                                              () {},
-                                            ); // live update preview title
+                                            // NO llamar setState aquí para evitar perder foco
                                             _debouncedSave();
                                           },
                                         ),
@@ -2507,7 +2493,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
                                         // Editor expandido al máximo
                                         Expanded(
                                           child: QuillEditorWidget(
-                                            uid: _uid,
+                                            uid: getUid(),
                                             initialDeltaJson: _richJson.isEmpty
                                                 ? null
                                                 : _richJson,
@@ -2587,7 +2573,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
                                               try {
                                                 await FirestoreService.instance
                                                     .updateNoteLinks(
-                                                      uid: _uid,
+                                                      uid: getUid(),
                                                       noteId: _selectedId!,
                                                       linkedNoteIds: linkedIds,
                                                     );
@@ -2755,7 +2741,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
                                                       ),
                                                     ),
                                                     child: BacklinksPanel(
-                                                      uid: _uid,
+                                                      uid: getUid(),
                                                       noteId: _selectedId!,
                                                       onNoteOpen:
                                                           (noteId) async {
@@ -2780,7 +2766,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
                                           onStop: () async {
                                             final url =
                                                 await AudioService.stopAndUpload(
-                                                  uid: _uid,
+                                                  uid: getUid(),
                                                 );
                                             if (!mounted) return;
                                             setState(
@@ -3053,17 +3039,14 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
                                     _selectedFolderId == '__SHARED_BY_ME__')
                                 ? 'No hay notas compartidas'
                                 : 'No hay notas',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(color: AppColors.textSecondary),
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
-                          const SizedBox(height: AppColors.space8),
                           Text(
-                            (_selectedFolderId == '__SHARED_WITH_ME__' ||
-                                    _selectedFolderId == '__SHARED_BY_ME__')
-                                ? (_selectedFolderId == '__SHARED_WITH_ME__'
-                                      ? 'Cuando alguien comparta contigo, aparecerán aquí'
-                                      : 'Aún no has compartido notas')
-                                : 'Crea tu primera nota',
+                            _selectedFolderId == '__SHARED_WITH_ME__'
+                                ? 'Cuando alguien comparta contigo, aparecerán aquí'
+                                : _selectedFolderId == '__SHARED_BY_ME__'
+                                    ? 'Aún no has compartido notas'
+                                    : 'Crea tu primera nota',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
@@ -3185,6 +3168,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
                                   ),
                               child: NotesSidebarCard(
                                 note: note,
+                                noteId: id,
                                 isSelected: id == _selectedId,
                                 onTap: () => _select(id),
                                 onPin: () async {
@@ -3196,18 +3180,46 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
                                     return;
                                   }
                                   await FirestoreService.instance.setPinned(
-                                    uid: _uid,
+                                    uid: getUid(),
                                     noteId: id,
                                     pinned: !(note['pinned'] == true),
                                   );
                                   await _loadNotes();
                                 },
                                 onDelete: () async {
-                                  if (inVirtualShared ||
-                                      note['isShared'] == true) {
+                                  if (inVirtualShared) {
+                                    // Si es carpeta compartida virtual, permitir "dejar de seguir"
                                     ToastService.info(
-                                      'No puedes eliminar notas compartidas',
+                                      'Nota quitada de compartidas',
                                     );
+                                    return;
+                                  }
+                                  if (note['isShared'] == true) {
+                                    // Para notas compartidas, permitir eliminarlas de la vista
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Eliminar nota compartida'),
+                                        content: const Text(
+                                          '¿Deseas dejar de ver esta nota compartida? No se eliminará para el propietario.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context, false),
+                                            child: const Text('Cancelar'),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () => Navigator.pop(context, true),
+                                            child: const Text('Dejar de seguir'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirmed == true) {
+                                      // Aquí deberías implementar la lógica para dejar de seguir
+                                      ToastService.success('Dejaste de seguir esta nota');
+                                      await _loadNotes();
+                                    }
                                     return;
                                   }
                                   await _delete(id);
@@ -3220,7 +3232,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
                                       : null,
                                 ),
                                 onClearIcon: () async => _clearNoteIcon(id),
-                                enableDrag: !inVirtualShared,
+                                enableDrag: !inVirtualShared && note['isShared'] != true,
                                 compact: _compactMode,
                               ),
                             );
@@ -3479,7 +3491,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
 
     if (result == true && selectedIcon != null) {
       await FirestoreService.instance.updateNote(
-        uid: _uid,
+        uid: getUid(),
         noteId: noteId,
         data: {'icon': selectedIcon, 'iconColor': selectedColor.toARGB32()},
       );
@@ -3493,7 +3505,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
 
   Future<void> _clearNoteIcon(String noteId) async {
     await FirestoreService.instance.updateNote(
-      uid: _uid,
+      uid: getUid(),
       noteId: noteId,
       data: {'icon': null, 'iconColor': null},
     );
@@ -3565,7 +3577,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
       return;
     }
     await FirestoreService.instance.updateNote(
-      uid: _uid,
+      uid: getUid(),
       noteId: noteId,
       data: {'title': newTitle},
     );
@@ -3607,7 +3619,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
       return;
     }
     await FirestoreService.instance.updateFolder(
-      uid: _uid,
+      uid: getUid(),
       folderId: folder.id,
       data: {'name': newName},
     );
@@ -3866,7 +3878,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
         }
 
         await FirestoreService.instance.updateFolder(
-          uid: _uid,
+          uid: getUid(),
           folderId: folderId,
           data: updateData,
         );
@@ -3996,7 +4008,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
         };
 
         await FirestoreService.instance.createFolder(
-          uid: _uid,
+          uid: getUid(),
           data: folderData,
         );
         await _loadFolders();
@@ -4108,7 +4120,7 @@ class _WorkspacePageState extends State<WorkspacePage> with TickerProviderStateM
         'order': _folders.length,
       };
 
-      await FirestoreService.instance.createFolder(uid: _uid, data: folderData);
+      await FirestoreService.instance.createFolder(uid: getUid(), data: folderData);
       await _loadFolders();
 
       if (mounted) {

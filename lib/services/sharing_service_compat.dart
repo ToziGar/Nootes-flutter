@@ -314,4 +314,69 @@ extension SharingServiceCompat on SharingService {
 
     return docRef.id;
   }
+
+  /// Share a note with another user
+  Future<String> shareNote({Map<String, dynamic>? recipient, String? recipientIdentifier, required String noteId, required PermissionLevel permission, String? message}) async {
+    final currentUser = AuthService.instance.currentUser;
+    if (currentUser == null) throw const AuthenticationException();
+
+    Map<String, dynamic>? finalRecipient = recipient;
+    if (finalRecipient == null && recipientIdentifier != null) {
+      finalRecipient = await findUserByEmail(recipientIdentifier) ?? await findUserByUsername(recipientIdentifier.replaceAll('@', ''));
+    }
+
+    if (finalRecipient == null) throw Exception('Recipient missing or not found');
+
+    final note = await FirestoreService.instance.getNote(uid: currentUser.uid, noteId: noteId);
+    if (note == null) throw Exception('Nota no encontrada');
+
+    final shareId = '${finalRecipient['uid']}_${currentUser.uid}_$noteId';
+    final docRef = fs.FirebaseFirestore.instance.collection('shared_items').doc(shareId);
+    final existing = await docRef.get();
+    if (existing.exists) {
+      final data = existing.data() as Map<String, dynamic>;
+      final existingStatus = (data['status'] as String?) ?? 'pending';
+      if (existingStatus == SharingStatus.pending.name || existingStatus == SharingStatus.accepted.name) {
+        throw Exception('Esta nota ya está compartida con este usuario');
+      }
+    }
+
+    final ownerProfile = await FirestoreService.instance.getUserProfile(uid: currentUser.uid);
+
+    final sharedItem = SharedItem(
+      id: shareId,
+      itemId: noteId,
+      type: SharedItemType.note,
+      ownerId: currentUser.uid,
+      ownerEmail: ownerProfile?['email'] ?? currentUser.email ?? '',
+      recipientId: finalRecipient['uid'],
+      recipientEmail: finalRecipient['email'],
+      permission: permission,
+      status: SharingStatus.pending,
+      createdAt: DateTime.now(),
+      message: message,
+      metadata: {
+        'noteTitle': note['title'] ?? 'Sin título',
+        'ownerName': ownerProfile?['fullName'] ?? 'Usuario',
+      },
+    );
+
+    await docRef.set(sharedItem.toMap());
+
+    try {
+      final notificationService = NotificationService();
+      await notificationService.notifyNewShare(
+        recipientId: finalRecipient['uid'],
+        senderName: ownerProfile?['fullName'] ?? currentUser.email?.split('@').first ?? 'Usuario',
+        senderEmail: currentUser.email ?? '',
+        itemTitle: note['title'] ?? 'Sin título',
+        shareId: docRef.id,
+        itemType: SharedItemType.note,
+      );
+    } catch (e) {
+      // ignore notification errors
+    }
+
+    return docRef.id;
+  }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/advanced_sharing_service.dart';
 import '../services/sharing_service.dart';
 import '../services/toast_service.dart';
 import '../theme/app_theme.dart';
@@ -240,43 +239,22 @@ class _ShareDialogState extends State<ShareDialog>
     }
     setState(() => _isLoading = true);
     try {
-      final advancedSharingService = AdvancedSharingService();
       final recipientEmail = _recipientController.text.trim();
       final message = _messageController.text.trim().isEmpty
           ? null
           : _messageController.text.trim();
 
-      // Convertir PermissionLevel a SharePermission
-      SharePermission permission;
-      switch (_selectedPermission) {
-        case PermissionLevel.read:
-          permission = SharePermission.view;
-          break;
-        case PermissionLevel.edit:
-          permission = SharePermission.edit;
-          break;
-        case PermissionLevel.comment:
-          permission = SharePermission.comment;
-          break;
-      }
-
+      // Usar SharingService para ambos (notas y carpetas) que usa shared_items
+      final sharingService = SharingService();
+      
       if (widget.itemType == SharedItemType.note) {
-        final success = await advancedSharingService.shareNote(
+        await sharingService.shareNote(
           noteId: widget.itemId,
-          noteTitle: widget.itemTitle,
-          sharedWithEmail: recipientEmail,
-          permission: permission,
+          recipientIdentifier: recipientEmail,
+          permission: _selectedPermission,
           message: message,
         );
-
-        if (success) {
-          ToastService.success('Nota compartida exitosamente');
-        } else {
-          ToastService.error('Error al compartir la nota');
-        }
       } else {
-        // Para carpetas, usar el servicio antiguo por ahora
-        final sharingService = SharingService();
         await sharingService.shareFolder(
           folderId: widget.itemId,
           recipientIdentifier: recipientEmail,

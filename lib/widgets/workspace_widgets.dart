@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 // Adjust these imports to your actual theme/util locations
 import '../theme/app_theme.dart' as theme;
 import '../theme/color_utils.dart';
+import '../theme/icon_registry.dart';
 // Custom intent for keyboard delete
 class DeleteNoteIntent extends Intent {}
 
@@ -42,7 +43,25 @@ class NotesSidebarCard extends StatelessWidget {
         ? 'Sin título'
         : note['title'].toString();
     final isPinned = note['pinned'] == true;
-    final icon = note['icon'] is IconData ? note['icon'] as IconData : null;
+    
+    // ✅ Convertir el String del icono a IconData
+    final IconData? icon;
+    if (note['icon'] is IconData) {
+      icon = note['icon'] as IconData;
+    } else if (note['icon'] is String) {
+      icon = NoteIconRegistry.iconFromName(note['icon'] as String);
+    } else {
+      icon = null;
+    }
+    
+    // ✅ Obtener el color del icono desde Firestore
+    final Color iconColor;
+    if (note['iconColor'] is int) {
+      iconColor = Color(note['iconColor'] as int);
+    } else {
+      iconColor = theme.AppColors.primary;
+    }
+    
     final tags = List<String>.from(note['tags'] ?? []);
 
   final selectedColor = isSelected
@@ -93,7 +112,7 @@ class NotesSidebarCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (icon != null) ...[
-                    Icon(icon, size: compact ? 18 : 22, color: theme.AppColors.primary),
+                    Icon(icon, size: compact ? 18 : 22, color: iconColor),
                     const SizedBox(width: 8),
                   ],
                   Expanded(
