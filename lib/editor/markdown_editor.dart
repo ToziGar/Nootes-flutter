@@ -381,15 +381,24 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
       shrinkWrap: true,
       selectable: true,
       sizedImageBuilder: (config) {
-        return SafeNetworkImage(
-          config.uri.toString(),
-          fit: BoxFit.contain,
-          width: (config.width is num)
-              ? (config.width as num).toDouble()
-              : null,
-          height: (config.height is num)
-              ? (config.height as num).toDouble()
-              : null,
+        final url = config.uri.toString();
+        final w = (config.width is num) ? (config.width as num).toDouble() : null;
+        final h = (config.height is num) ? (config.height as num).toDouble() : null;
+        return GestureDetector(
+          onTap: () async {
+            if (!widget.readOnly) {
+              await Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => _FullScreenImageViewer(url: url),
+                fullscreenDialog: true,
+              ));
+            }
+          },
+          child: SafeNetworkImage(
+            url,
+            fit: BoxFit.contain,
+            width: w,
+            height: h,
+          ),
         );
       },
       builders: {
@@ -663,6 +672,35 @@ class WikiLinkBuilder extends MarkdownElementBuilder {
         if (id.isNotEmpty && onOpen != null) onOpen!(id);
       },
       child: Text(title, style: style),
+    );
+  }
+}
+
+/// Full-screen image viewer used by markdown preview when tapping images.
+class _FullScreenImageViewer extends StatelessWidget {
+  const _FullScreenImageViewer({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Imagen'),
+        backgroundColor: Colors.black,
+      ),
+      backgroundColor: Colors.black,
+      body: Center(
+        child: InteractiveViewer(
+          panEnabled: true,
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: SafeNetworkImage(
+            url,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
     );
   }
 }
