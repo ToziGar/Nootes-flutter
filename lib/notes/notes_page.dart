@@ -761,8 +761,8 @@ class _NotesPageState extends State<NotesPage> {
                               itemCount:
                                   _filteredNotes.length +
                                   (_hasMoreNotes ? 1 : 0),
-                              separatorBuilder: (_, __) =>
-                                  const Divider(height: 1),
+                separatorBuilder: (_, _) =>
+                  const Divider(height: 1),
                               itemBuilder: (context, i) {
                                 if (i == _filteredNotes.length) {
                                   return const Center(

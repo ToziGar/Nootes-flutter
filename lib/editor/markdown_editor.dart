@@ -7,6 +7,8 @@ import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'markdown_toolbar.dart';
 import '../widgets/safe_network_image.dart';
+import '../services/analytics_service.dart';
+import '../services/image_prefetch_service.dart';
 
 // Simple Intents for editor shortcuts
 class BoldIntent extends Intent {
@@ -387,6 +389,10 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
         return GestureDetector(
           onTap: () async {
             if (!widget.readOnly) {
+              // Log analytics and prefetch for smoother viewer.
+              // Start prefetch but don't await it (avoid using BuildContext across async gap).
+              AnalyticsService().logEvent('image_opened', {'url': url});
+              ImagePrefetchService().prefetch(context, url);
               await Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => _FullScreenImageViewer(url: url),
                 fullscreenDialog: true,
@@ -480,9 +486,9 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
             ),
           ),
         MarkdownToolbar(
-          onWrapSelection: widget.readOnly ? (_, [__ = '']) {} : _wrapSelection,
+          onWrapSelection: widget.readOnly ? (_, [_ = '']) {} : _wrapSelection,
           onInsertAtLineStart: widget.readOnly ? (_) {} : _insertAtLineStart,
-          onInsertBlock: widget.readOnly ? (_, [__ = '']) {} : _insertBlock,
+          onInsertBlock: widget.readOnly ? (_, [_ = '']) {} : _insertBlock,
           onToggleSplit: () => setState(() => _split = !_split),
           isSplit: widget.splitEnabled && (widget.forceSplit ? true : _split),
           onPickImage: widget.readOnly ? null : widget.onPickImage,

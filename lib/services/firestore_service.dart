@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'auth_service.dart';
 import '../firebase_options.dart';
+import 'merge_utils.dart';
 
 abstract class FirestoreService {
   static FirestoreService? _instance;
@@ -753,10 +754,36 @@ class _FirebaseFirestoreService implements FirestoreService {
     required String noteId,
     required Map<String, dynamic> data,
   }) async {
-    await _db.collection('users').doc(uid).collection('notes').doc(noteId).set({
-      ...data,
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    }, fs.SetOptions(merge: true));
+    final ref = _db.collection('users').doc(uid).collection('notes').doc(noteId);
+
+    // Try to perform an atomic transaction-based merge to reduce race
+    // conditions when multiple clients update the same document.
+    // When offline, transactions may fail; in that case we fallback to a
+    // merge set so the write is applied locally and will sync later.
+    try {
+      await _db.runTransaction((tx) async {
+        final snap = await tx.get(ref);
+        final current = snap.exists ? Map<String, dynamic>.from(snap.data()!) : <String, dynamic>{};
+
+        // Use the smart merge utility to handle list unions and conservative
+        // overwrites for other fields.
+        final merged = mergeNoteMaps(current, data);
+
+        // Annotate with server timestamp for canonical ordering and a
+        // client-side timestamp to help offline reconciliation/debugging.
+        merged['updatedAt'] = fs.FieldValue.serverTimestamp();
+        merged['lastClientUpdateAt'] = DateTime.now().toUtc();
+
+        tx.set(ref, merged, fs.SetOptions(merge: true));
+      });
+    } catch (e) {
+      // Fallback for offline or transaction failures: merge locally and
+      // set so the write takes effect and will sync later.
+      final merged = mergeNoteMaps(<String, dynamic>{}, data);
+      merged['updatedAt'] = fs.FieldValue.serverTimestamp();
+      merged['lastClientUpdateAt'] = DateTime.now().toUtc();
+      await ref.set(merged, fs.SetOptions(merge: true));
+    }
   }
 
   @override

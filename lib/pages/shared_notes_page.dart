@@ -3107,7 +3107,7 @@ class _SharedNotesPageState extends State<SharedNotesPage>
                           itemCount: showNotes
                               ? filteredNotes.length
                               : filteredFolders.length,
-                          separatorBuilder: (_, __) =>
+                          separatorBuilder: (_, _) =>
                               const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             if (showNotes) {

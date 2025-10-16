@@ -396,8 +396,9 @@ class NotificationServiceEnhanced {
   ) {
     var filtered = notifications.where((notification) {
       if (unreadOnly == true && notification.isRead) return false;
-      if (priorityFilter != null && notification.priority != priorityFilter)
+      if (priorityFilter != null && notification.priority != priorityFilter) {
         return false;
+      }
       if (typeFilter != null && notification.type != typeFilter) return false;
       return true;
     }).toList();
