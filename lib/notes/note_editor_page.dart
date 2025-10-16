@@ -25,6 +25,8 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   bool _loading = true;
   bool _saving = false;
   bool _autoSaving = false;
+  bool _dirty = false; // track unsaved changes
+  bool _saveQueued = false; // if changes came while saving, run one more save
   Timer? _auto;
 
   // Editor avanzado
@@ -71,10 +73,14 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
 
   void _scheduleAutoSave() {
     _auto?.cancel();
+    _dirty = true;
     setState(() => _autoSaving = true);
     _auto = Timer(const Duration(milliseconds: 800), () async {
       if (!mounted) return;
-      await _save(autosave: true);
+      // Only autosave if there are changes pending
+      if (_dirty) {
+        await _save(autosave: true);
+      }
       if (mounted) setState(() => _autoSaving = false);
     });
   }
@@ -144,6 +150,11 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   }
 
   Future<void> _save({bool autosave = false}) async {
+    // Prevent overlapping saves; if one is running, queue a follow-up
+    if (_saving) {
+      _saveQueued = true;
+      return;
+    }
     setState(() => _saving = true);
     try {
       final data = {'title': _title.text, 'content': _content.text};
@@ -153,6 +164,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         noteId: widget.noteId,
         data: data,
       );
+      _dirty = false;
       if (widget.onChanged != null) await widget.onChanged!();
       if (mounted && !autosave) {
         ScaffoldMessenger.of(
@@ -161,6 +173,18 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       }
     } finally {
       if (mounted) setState(() => _saving = false);
+      // If changes were queued during save, run one more autosave cycle
+      if (_saveQueued) {
+        _saveQueued = false;
+        // Debounce very briefly to coalesce immediate bursts
+        _auto?.cancel();
+        _auto = Timer(const Duration(milliseconds: 250), () async {
+          if (!mounted) return;
+          if (_dirty) {
+            await _save(autosave: true);
+          }
+        });
+      }
     }
   }
 
@@ -359,7 +383,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         const Padding(
                           padding: EdgeInsets.only(top: 4, bottom: 4),
                           child: Text(
-                            'Guardando...',
+                            'Guardando automáticamente…',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.white70,

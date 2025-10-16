@@ -380,8 +380,17 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
       data: _rendered,
       shrinkWrap: true,
       selectable: true,
-      imageBuilder: (uri, title, alt) {
-        return SafeNetworkImage(uri.toString(), fit: BoxFit.contain);
+      sizedImageBuilder: (config) {
+        return SafeNetworkImage(
+          config.uri.toString(),
+          fit: BoxFit.contain,
+          width: (config.width is num)
+              ? (config.width as num).toDouble()
+              : null,
+          height: (config.height is num)
+              ? (config.height as num).toDouble()
+              : null,
+        );
       },
       builders: {
         'code': CodeElementBuilder(),

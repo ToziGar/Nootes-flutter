@@ -9,7 +9,8 @@ import 'package:crypto/crypto.dart';
 
 /// Servicio mejorado de almacenamiento con capacidades avanzadas
 class StorageServiceEnhanced {
-  static final StorageServiceEnhanced _instance = StorageServiceEnhanced._internal();
+  static final StorageServiceEnhanced _instance =
+      StorageServiceEnhanced._internal();
   factory StorageServiceEnhanced() => _instance;
   StorageServiceEnhanced._internal();
 
@@ -21,22 +22,41 @@ class StorageServiceEnhanced {
   final Map<String, FirebaseUploadTask> _activeUploads = {};
   final Map<String, FirebaseDownloadTask> _activeDownloads = {};
   final Map<String, DateTime> _transferStartTimes = {};
-  
+
   static const int _maxFileSize = 50 * 1024 * 1024; // 50MB
   // URL expiration (no usada actualmente) – si se implementa firma temporal, reintroducir
-  
+
   // Tipos de archivos permitidos
   static const List<String> _allowedImageTypes = [
-    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'webp',
+    'bmp',
   ];
   static const List<String> _allowedDocumentTypes = [
-    'pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'
+    'pdf',
+    'doc',
+    'docx',
+    'txt',
+    'rtf',
+    'odt',
   ];
   static const List<String> _allowedAudioTypes = [
-    'mp3', 'wav', 'aac', 'ogg', 'm4a'
+    'mp3',
+    'wav',
+    'aac',
+    'ogg',
+    'm4a',
   ];
   static const List<String> _allowedVideoTypes = [
-    'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'
+    'mp4',
+    'avi',
+    'mov',
+    'wmv',
+    'flv',
+    'webm',
   ];
 
   /// Sube un archivo con progreso y metadatos
@@ -50,29 +70,33 @@ class StorageServiceEnhanced {
   }) async {
     final uid = _authService.currentUser?.uid;
     if (uid == null) {
-  throw const NotAuthenticatedException();
+      throw const NotAuthenticatedException();
     }
 
     // Validar archivo
     final validation = await _validateFile(file, fileName);
     if (!validation.isValid) {
-  throw storage_ex.FileValidationException(validation.error!);
+      throw storage_ex.FileValidationException(validation.error!);
     }
 
     try {
       final fileExtension = path.extension(file.path).toLowerCase();
-      final finalFileName = fileName ?? '${DateTime.now().millisecondsSinceEpoch}$fileExtension';
+      final finalFileName =
+          fileName ?? '${DateTime.now().millisecondsSinceEpoch}$fileExtension';
       final storagePath = _buildStoragePath(uid, noteId, finalFileName, folder);
-      
+
       // Crear metadatos
       final metadata = await _createFileMetadata(file, customMetadata);
-      
+
       // Iniciar subida
       final ref = _storage.ref(storagePath);
-      final uploadTask = ref.putFile(file, SettableMetadata(
-        contentType: metadata.mimeType,
-        customMetadata: Map<String, String>.from(metadata.toMap()),
-      ));
+      final uploadTask = ref.putFile(
+        file,
+        SettableMetadata(
+          contentType: metadata.mimeType,
+          customMetadata: Map<String, String>.from(metadata.toMap()),
+        ),
+      );
 
       // Guardar tarea activa y momento de inicio
       final taskId = _generateTaskId();
@@ -99,7 +123,7 @@ class StorageServiceEnhanced {
 
       // Obtener URL de descarga
       final downloadUrl = await ref.getDownloadURL();
-      
+
       // Actualizar cache de metadatos
       final finalMetadata = FileMetadata(
         id: taskId,
@@ -113,7 +137,7 @@ class StorageServiceEnhanced {
         checksum: metadata.checksum,
         customMetadata: customMetadata ?? {},
       );
-      
+
       _metadataCache[storagePath] = finalMetadata;
 
       return UploadResult(
@@ -123,12 +147,11 @@ class StorageServiceEnhanced {
         storagePath: storagePath,
         metadata: finalMetadata,
       );
-
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
       debugPrint('Error subiendo archivo: $e');
-  throw storage_ex.FileUploadException('Error inesperado al subir archivo');
+      throw storage_ex.FileUploadException('Error inesperado al subir archivo');
     }
   }
 
@@ -142,7 +165,7 @@ class StorageServiceEnhanced {
   }) async {
     final results = <UploadResult>[];
     final errors = <String, String>{};
-    
+
     for (int i = 0; i < files.length; i++) {
       try {
         final result = await uploadFile(
@@ -156,7 +179,7 @@ class StorageServiceEnhanced {
         final fileName = path.basename(files[i].path);
         errors[fileName] = e.toString();
       }
-      
+
       onProgress?.call(i + 1, files.length);
     }
 
@@ -177,10 +200,10 @@ class StorageServiceEnhanced {
     try {
       final ref = _storage.ref(storagePath);
       final file = File(localPath);
-      
+
       // Crear directorio si no existe
       await file.parent.create(recursive: true);
-      
+
       final downloadTask = ref.writeToFile(file);
       final taskId = _generateTaskId();
       _activeDownloads[taskId] = downloadTask;
@@ -208,12 +231,11 @@ class StorageServiceEnhanced {
         localPath: localPath,
         fileSize: await file.length(),
       );
-
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
       debugPrint('Error descargando archivo: $e');
-  throw storage_ex.FileDownloadException('Error al descargar archivo');
+      throw storage_ex.FileDownloadException('Error al descargar archivo');
     }
   }
 
@@ -227,7 +249,7 @@ class StorageServiceEnhanced {
     try {
       final ref = _storage.ref(storagePath);
       final metadata = await ref.getMetadata();
-      
+
       final fileMetadata = FileMetadata(
         id: _generateTaskId(),
         fileName: path.basename(storagePath),
@@ -243,7 +265,6 @@ class StorageServiceEnhanced {
 
       _metadataCache[storagePath] = fileMetadata;
       return fileMetadata;
-
     } on FirebaseException catch (e) {
       if (e.code == 'object-not-found') {
         return null;
@@ -259,15 +280,15 @@ class StorageServiceEnhanced {
   Future<List<FileMetadata>> listNoteFiles(String noteId) async {
     final uid = _authService.currentUser?.uid;
     if (uid == null) {
-  throw const NotAuthenticatedException();
+      throw const NotAuthenticatedException();
     }
 
     try {
       final notePath = 'users/$uid/notes/$noteId/attachments/';
       final listResult = await _storage.ref(notePath).listAll();
-      
+
       final files = <FileMetadata>[];
-      
+
       for (final item in listResult.items) {
         final metadata = await getFileMetadata(item.fullPath);
         if (metadata != null) {
@@ -289,17 +310,16 @@ class StorageServiceEnhanced {
     try {
       final ref = _storage.ref(storagePath);
       await ref.delete();
-      
+
       // Limpiar cache
       _metadataCache.remove(storagePath);
-      
     } on FirebaseException catch (e) {
       if (e.code != 'object-not-found') {
         throw _mapFirebaseException(e);
       }
     } catch (e) {
       debugPrint('Error eliminando archivo: $e');
-  throw storage_ex.FileDeletionException('Error al eliminar archivo');
+      throw storage_ex.FileDeletionException('Error al eliminar archivo');
     }
   }
 
@@ -326,7 +346,7 @@ class StorageServiceEnhanced {
   }
 
   /// Obtiene una URL temporal de descarga
-  /// 
+  ///
   /// NOTA: Firebase Storage no soporta URLs con expiración personalizada directamente.
   /// Las URLs obtenidas con getDownloadURL() son permanentes hasta que se elimine el archivo.
   /// Para URLs con expiración, se necesitaría implementar Firebase Admin SDK en el backend
@@ -338,20 +358,19 @@ class StorageServiceEnhanced {
     try {
       final ref = _storage.ref(storagePath);
       final url = await ref.getDownloadURL();
-      
+
       // Las URLs de Firebase Storage no expiran por defecto
       // Para implementar expiración personalizada se requiere:
       // 1. Firebase Admin SDK en el backend
       // 2. Cloud Functions que generen signed URLs
       // 3. O un servicio intermedio que gestione la validez de los enlaces
-      
+
       return url;
-      
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
       debugPrint('Error obteniendo URL temporal: $e');
-  throw storage_ex.FileAccessException('Error al generar URL de descarga');
+      throw storage_ex.FileAccessException('Error al generar URL de descarga');
     }
   }
 
@@ -363,41 +382,45 @@ class StorageServiceEnhanced {
   }) async {
     final uid = _authService.currentUser?.uid;
     if (uid == null) {
-  throw const NotAuthenticatedException();
+      throw const NotAuthenticatedException();
     }
 
     try {
       // Obtener metadatos del archivo origen
       final sourceMetadata = await getFileMetadata(sourceStoragePath);
       if (sourceMetadata == null) {
-  throw storage_ex.FileNotFoundException('Archivo origen no encontrado');
+        throw storage_ex.FileNotFoundException('Archivo origen no encontrado');
       }
 
       // Generar nueva ruta
       final fileName = newFileName ?? sourceMetadata.fileName;
       final destPath = _buildStoragePath(uid, destinationNoteId, fileName);
-      
+
       // Descargar y resubir (Firebase Storage no tiene copy nativo)
       final sourceRef = _storage.ref(sourceStoragePath);
       final destRef = _storage.ref(destPath);
-      
+
       final data = await sourceRef.getData();
       if (data == null) {
-  throw storage_ex.FileDownloadException('No se pudo obtener datos del archivo');
+        throw storage_ex.FileDownloadException(
+          'No se pudo obtener datos del archivo',
+        );
       }
 
-      await destRef.putData(data, SettableMetadata(
-        contentType: sourceMetadata.mimeType,
-        customMetadata: sourceMetadata.customMetadata,
-      ));
+      await destRef.putData(
+        data,
+        SettableMetadata(
+          contentType: sourceMetadata.mimeType,
+          customMetadata: sourceMetadata.customMetadata,
+        ),
+      );
 
       return destPath;
-
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
       debugPrint('Error copiando archivo: $e');
-  throw storage_ex.FileCopyException('Error al copiar archivo');
+      throw storage_ex.FileCopyException('Error al copiar archivo');
     }
   }
 
@@ -419,10 +442,9 @@ class StorageServiceEnhanced {
       await deleteFile(sourceStoragePath);
 
       return newPath;
-
     } catch (e) {
       debugPrint('Error moviendo archivo: $e');
-  throw storage_ex.FileMoveException('Error al mover archivo');
+      throw storage_ex.FileMoveException('Error al mover archivo');
     }
   }
 
@@ -430,13 +452,13 @@ class StorageServiceEnhanced {
   Future<StorageStats> getStorageStats() async {
     final uid = _authService.currentUser?.uid;
     if (uid == null) {
-  throw const NotAuthenticatedException();
+      throw const NotAuthenticatedException();
     }
 
     try {
       final userPath = 'users/$uid/';
       final listResult = await _storage.ref(userPath).listAll();
-      
+
       int totalFiles = 0;
       int totalSize = 0;
       final fileTypeCount = <String, int>{};
@@ -449,10 +471,14 @@ class StorageServiceEnhanced {
             final metadata = await item.getMetadata();
             totalFiles++;
             totalSize += metadata.size ?? 0;
-            
-            final extension = path.extension(item.name).toLowerCase().replaceFirst('.', '');
+
+            final extension = path
+                .extension(item.name)
+                .toLowerCase()
+                .replaceFirst('.', '');
             fileTypeCount[extension] = (fileTypeCount[extension] ?? 0) + 1;
-            sizeByType[extension] = (sizeByType[extension] ?? 0) + (metadata.size ?? 0);
+            sizeByType[extension] =
+                (sizeByType[extension] ?? 0) + (metadata.size ?? 0);
           } catch (e) {
             debugPrint('Error obteniendo metadatos de ${item.fullPath}: $e');
           }
@@ -474,12 +500,13 @@ class StorageServiceEnhanced {
         sizeByType: sizeByType,
         lastUpdated: DateTime.now(),
       );
-
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
       debugPrint('Error obteniendo estadísticas: $e');
-  throw storage_ex.StorageStatsException('Error al obtener estadísticas de almacenamiento');
+      throw storage_ex.StorageStatsException(
+        'Error al obtener estadísticas de almacenamiento',
+      );
     }
   }
 
@@ -555,7 +582,10 @@ class StorageServiceEnhanced {
       // Verificar tamaño
       final size = await file.length();
       if (size > _maxFileSize) {
-        return FileValidation(false, 'Archivo demasiado grande (máximo ${_maxFileSize ~/ (1024 * 1024)}MB)');
+        return FileValidation(
+          false,
+          'Archivo demasiado grande (máximo ${_maxFileSize ~/ (1024 * 1024)}MB)',
+        );
       }
 
       if (size == 0) {
@@ -563,13 +593,18 @@ class StorageServiceEnhanced {
       }
 
       // Verificar tipo de archivo
-      final extension = path.extension(fileName ?? file.path).toLowerCase().replaceFirst('.', '');
+      final extension = path
+          .extension(fileName ?? file.path)
+          .toLowerCase()
+          .replaceFirst('.', '');
       if (!_isAllowedFileType(extension)) {
-        return FileValidation(false, 'Tipo de archivo no permitido: $extension');
+        return FileValidation(
+          false,
+          'Tipo de archivo no permitido: $extension',
+        );
       }
 
       return FileValidation(true, null);
-
     } catch (e) {
       return FileValidation(false, 'Error validando archivo: $e');
     }
@@ -577,17 +612,20 @@ class StorageServiceEnhanced {
 
   bool _isAllowedFileType(String extension) {
     return _allowedImageTypes.contains(extension) ||
-           _allowedDocumentTypes.contains(extension) ||
-           _allowedAudioTypes.contains(extension) ||
-           _allowedVideoTypes.contains(extension);
+        _allowedDocumentTypes.contains(extension) ||
+        _allowedAudioTypes.contains(extension) ||
+        _allowedVideoTypes.contains(extension);
   }
 
-  Future<FileMetadata> _createFileMetadata(File file, Map<String, String>? customMetadata) async {
+  Future<FileMetadata> _createFileMetadata(
+    File file,
+    Map<String, String>? customMetadata,
+  ) async {
     final size = await file.length();
     final bytes = await file.readAsBytes();
     final checksum = sha256.convert(bytes).toString();
     final extension = path.extension(file.path).toLowerCase();
-    
+
     return FileMetadata(
       id: _generateTaskId(),
       fileName: path.basename(file.path),
@@ -624,9 +662,16 @@ class StorageServiceEnhanced {
     }
   }
 
-  String _buildStoragePath(String uid, String noteId, String fileName, [String? folder]) {
+  String _buildStoragePath(
+    String uid,
+    String noteId,
+    String fileName, [
+    String? folder,
+  ]) {
     final basePath = 'users/$uid/notes/$noteId/attachments';
-    return folder != null ? '$basePath/$folder/$fileName' : '$basePath/$fileName';
+    return folder != null
+        ? '$basePath/$folder/$fileName'
+        : '$basePath/$fileName';
   }
 
   String _generateTaskId() {
@@ -651,17 +696,25 @@ class StorageServiceEnhanced {
   storage_ex.StorageException _mapFirebaseException(FirebaseException e) {
     switch (e.code) {
       case 'object-not-found':
-        return storage_ex.FileNotFoundException(e.message ?? 'Archivo no encontrado');
+        return storage_ex.FileNotFoundException(
+          e.message ?? 'Archivo no encontrado',
+        );
       case 'unauthorized':
-        return storage_ex.FileAccessException('Sin permisos para acceder al archivo');
+        return storage_ex.FileAccessException(
+          'Sin permisos para acceder al archivo',
+        );
       case 'canceled':
-        return storage_ex.FileOperationCancelledException('Operación cancelada');
+        return storage_ex.FileOperationCancelledException(
+          'Operación cancelada',
+        );
       case 'invalid-checksum':
         return storage_ex.FileCorruptionException('Archivo corrupto');
       case 'retry-limit-exceeded':
         return storage_ex.NetworkException('Límite de reintentos excedido');
       default:
-        return storage_ex.StorageException(e.message ?? 'Error de almacenamiento');
+        return storage_ex.StorageException(
+          e.message ?? 'Error de almacenamiento',
+        );
     }
   }
 }
@@ -760,32 +813,48 @@ class FileMetadata {
   String get sizeFormatted {
     if (size < 1024) return '${size}B';
     if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)}KB';
-    if (size < 1024 * 1024 * 1024) return '${(size / (1024 * 1024)).toStringAsFixed(1)}MB';
+    if (size < 1024 * 1024 * 1024)
+      return '${(size / (1024 * 1024)).toStringAsFixed(1)}MB';
     return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(1)}GB';
   }
 
   String get fileType {
-    final extension = path.extension(fileName).toLowerCase().replaceFirst('.', '');
+    final extension = path
+        .extension(fileName)
+        .toLowerCase()
+        .replaceFirst('.', '');
     return extension.toUpperCase();
   }
 
   bool get isImage {
-    final extension = path.extension(fileName).toLowerCase().replaceFirst('.', '');
+    final extension = path
+        .extension(fileName)
+        .toLowerCase()
+        .replaceFirst('.', '');
     return StorageServiceEnhanced._allowedImageTypes.contains(extension);
   }
 
   bool get isDocument {
-    final extension = path.extension(fileName).toLowerCase().replaceFirst('.', '');
+    final extension = path
+        .extension(fileName)
+        .toLowerCase()
+        .replaceFirst('.', '');
     return StorageServiceEnhanced._allowedDocumentTypes.contains(extension);
   }
 
   bool get isAudio {
-    final extension = path.extension(fileName).toLowerCase().replaceFirst('.', '');
+    final extension = path
+        .extension(fileName)
+        .toLowerCase()
+        .replaceFirst('.', '');
     return StorageServiceEnhanced._allowedAudioTypes.contains(extension);
   }
 
   bool get isVideo {
-    final extension = path.extension(fileName).toLowerCase().replaceFirst('.', '');
+    final extension = path
+        .extension(fileName)
+        .toLowerCase()
+        .replaceFirst('.', '');
     return StorageServiceEnhanced._allowedVideoTypes.contains(extension);
   }
 
@@ -820,17 +889,19 @@ class StorageStats {
 
   String get totalSizeFormatted {
     if (totalSizeBytes < 1024) return '${totalSizeBytes}B';
-    if (totalSizeBytes < 1024 * 1024) return '${(totalSizeBytes / 1024).toStringAsFixed(1)}KB';
-    if (totalSizeBytes < 1024 * 1024 * 1024) return '${(totalSizeBytes / (1024 * 1024)).toStringAsFixed(1)}MB';
+    if (totalSizeBytes < 1024 * 1024)
+      return '${(totalSizeBytes / 1024).toStringAsFixed(1)}KB';
+    if (totalSizeBytes < 1024 * 1024 * 1024)
+      return '${(totalSizeBytes / (1024 * 1024)).toStringAsFixed(1)}MB';
     return '${(totalSizeBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)}GB';
   }
 
   String get mostUsedFileType {
     if (fileTypeCount.isEmpty) return 'N/A';
-    
+
     final sorted = fileTypeCount.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    
+
     return sorted.first.key.toUpperCase();
   }
 
@@ -846,7 +917,7 @@ class TransferProgress {
   final double progress;
   final TransferState state;
   final DateTime? startTime;
-  
+
   const TransferProgress({
     required this.type,
     required this.bytesTransferred,
@@ -860,12 +931,12 @@ class TransferProgress {
 
   String get speedFormatted {
     if (startTime == null || bytesTransferred == 0) return 'N/A';
-    
+
     final elapsed = DateTime.now().difference(startTime!);
     if (elapsed.inMilliseconds == 0) return 'N/A';
-    
+
     final bytesPerSecond = (bytesTransferred / elapsed.inSeconds);
-    
+
     if (bytesPerSecond < 1024) {
       return '${bytesPerSecond.toStringAsFixed(1)} B/s';
     } else if (bytesPerSecond < 1024 * 1024) {
@@ -879,14 +950,14 @@ class TransferProgress {
     if (startTime == null || bytesTransferred == 0 || progress >= 1.0) {
       return 'N/A';
     }
-    
+
     final elapsed = DateTime.now().difference(startTime!);
     if (elapsed.inMilliseconds == 0) return 'N/A';
-    
+
     final bytesPerSecond = bytesTransferred / elapsed.inSeconds;
     final remainingBytes = totalBytes - bytesTransferred;
     final remainingSeconds = (remainingBytes / bytesPerSecond).ceil();
-    
+
     if (remainingSeconds < 60) {
       return '$remainingSeconds seg';
     } else if (remainingSeconds < 3600) {
@@ -911,13 +982,7 @@ class FileValidation {
 
 enum TransferType { upload, download }
 
-enum TransferState {
-  running,
-  paused,
-  completed,
-  canceled,
-  error,
-}
+enum TransferState { running, paused, completed, canceled, error }
 
 // Tipos de tasks para manejo interno
 typedef FirebaseUploadTask = UploadTask;

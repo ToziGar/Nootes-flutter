@@ -28,6 +28,7 @@ class _NotesPageState extends State<NotesPage> {
   bool _hasMoreNotes = true;
   bool _isLoadingMore = false;
   final List<Map<String, dynamic>> _notesCache = [];
+  String? _lastNoteId;
   final ScrollController _scrollController = ScrollController();
   // Advanced search state
   String? _searchQueryAdvanced;
@@ -38,7 +39,6 @@ class _NotesPageState extends State<NotesPage> {
   bool _sortPinnedFirst = true;
   bool _sortNewestFirst = true;
   late Future<void> _init;
-  List<Map<String, dynamic>> _notes = [];
   List<Map<String, dynamic>> _collections = [];
   List<String> _tags = [];
 
@@ -53,9 +53,9 @@ class _NotesPageState extends State<NotesPage> {
 
   @override
   void initState() {
-  super.initState();
-  _init = _reloadAll();
-  _scrollController.addListener(_onScroll);
+    super.initState();
+    _init = _reloadAll();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
@@ -78,8 +78,12 @@ class _NotesPageState extends State<NotesPage> {
     if (_isLoadingMore || !_hasMoreNotes) return;
     setState(() => _isLoadingMore = true);
     try {
-      await Future.delayed(const Duration(milliseconds: 300));
-      final nextBatch = _notesCache.skip(_notesLoaded).take(_notesPageSize).toList();
+      final svc = FirestoreService.instance;
+      final nextBatch = await svc.listNotesPaginated(
+        uid: _uid,
+        limit: _notesPageSize,
+        startAfterId: _lastNoteId,
+      );
       if (nextBatch.isEmpty) {
         setState(() {
           _hasMoreNotes = false;
@@ -88,9 +92,11 @@ class _NotesPageState extends State<NotesPage> {
         return;
       }
       setState(() {
+        _notesCache.addAll(nextBatch);
         _notesLoaded += nextBatch.length;
+        _lastNoteId = nextBatch.isNotEmpty ? nextBatch.last['id'] : _lastNoteId;
         _isLoadingMore = false;
-        if (_notesLoaded >= _notesCache.length) {
+        if (nextBatch.length < _notesPageSize) {
           _hasMoreNotes = false;
         }
       });
@@ -102,22 +108,17 @@ class _NotesPageState extends State<NotesPage> {
   Future<void> _reloadAll() async {
     final svc = FirestoreService.instance;
     final uid = _uid;
-    final s = _search.text.trim();
-    final notes = s.isEmpty
-        ? await svc.listNotesSummary(uid: uid)
-        : await svc.searchNotesSummary(uid: uid, query: s);
     final cols = await svc.listCollections(uid: uid);
     final tags = await svc.listTags(uid: uid);
     setState(() {
-      _notes = notes;
       _collections = cols;
       _tags = tags;
-      // Cache and pagination reset
       _notesCache.clear();
-      _notesCache.addAll(notes);
-      _notesLoaded = _notesCache.length < _notesPageSize ? _notesCache.length : _notesPageSize;
-      _hasMoreNotes = _notesCache.length > _notesPageSize;
+      _notesLoaded = 0;
+      _hasMoreNotes = true;
+      _lastNoteId = null;
     });
+    await _loadMoreNotes();
   }
 
   Future<void> _createNote() async {
@@ -167,9 +168,10 @@ class _NotesPageState extends State<NotesPage> {
   }
 
   List<Map<String, dynamic>> get _filteredNotes {
-    Iterable<Map<String, dynamic>> list = _notes;
+    Iterable<Map<String, dynamic>> list = _notesCache;
     // Advanced search query
-    if (_searchQueryAdvanced != null && _searchQueryAdvanced!.trim().isNotEmpty) {
+    if (_searchQueryAdvanced != null &&
+        _searchQueryAdvanced!.trim().isNotEmpty) {
       final q = _searchQueryAdvanced!.toLowerCase();
       list = list.where((n) {
         final title = (n['title']?.toString() ?? '').toLowerCase();
@@ -192,7 +194,8 @@ class _NotesPageState extends State<NotesPage> {
         final updated = n['updatedAt'];
         if (updated is int) {
           final date = DateTime.fromMillisecondsSinceEpoch(updated);
-          return date.isAfter(start.subtract(const Duration(days: 1))) && date.isBefore(end.add(const Duration(days: 1)));
+          return date.isAfter(start.subtract(const Duration(days: 1))) &&
+              date.isBefore(end.add(const Duration(days: 1)));
         }
         return true;
       });
@@ -213,19 +216,33 @@ class _NotesPageState extends State<NotesPage> {
     // Advanced sort
     switch (_searchSortOptionAdvanced) {
       case SortOption.dateDesc:
-        result.sort((a, b) => (b['updatedAt'] ?? 0).compareTo(a['updatedAt'] ?? 0));
+        result.sort(
+          (a, b) => (b['updatedAt'] ?? 0).compareTo(a['updatedAt'] ?? 0),
+        );
         break;
       case SortOption.dateAsc:
-        result.sort((a, b) => (a['updatedAt'] ?? 0).compareTo(b['updatedAt'] ?? 0));
+        result.sort(
+          (a, b) => (a['updatedAt'] ?? 0).compareTo(b['updatedAt'] ?? 0),
+        );
         break;
       case SortOption.titleAsc:
-        result.sort((a, b) => (a['title']?.toString() ?? '').compareTo(b['title']?.toString() ?? ''));
+        result.sort(
+          (a, b) => (a['title']?.toString() ?? '').compareTo(
+            b['title']?.toString() ?? '',
+          ),
+        );
         break;
       case SortOption.titleDesc:
-        result.sort((a, b) => (b['title']?.toString() ?? '').compareTo(a['title']?.toString() ?? ''));
+        result.sort(
+          (a, b) => (b['title']?.toString() ?? '').compareTo(
+            a['title']?.toString() ?? '',
+          ),
+        );
         break;
       case SortOption.updated:
-        result.sort((a, b) => (b['updatedAt'] ?? 0).compareTo(a['updatedAt'] ?? 0));
+        result.sort(
+          (a, b) => (b['updatedAt'] ?? 0).compareTo(a['updatedAt'] ?? 0),
+        );
         break;
     }
     // Pinned sort (legacy)
@@ -283,9 +300,14 @@ class _NotesPageState extends State<NotesPage> {
               if (result != null) {
                 setState(() {
                   _searchQueryAdvanced = result['query'] as String?;
-                  _searchTagsAdvanced = (result['tags'] as List?)?.whereType<String>().toList() ?? [];
-                  _searchDateRangeAdvanced = result['dateRange'] as DateTimeRange?;
-                  _searchSortOptionAdvanced = result['sortOption'] as SortOption? ?? SortOption.dateDesc;
+                  _searchTagsAdvanced =
+                      (result['tags'] as List?)?.whereType<String>().toList() ??
+                      [];
+                  _searchDateRangeAdvanced =
+                      result['dateRange'] as DateTimeRange?;
+                  _searchSortOptionAdvanced =
+                      result['sortOption'] as SortOption? ??
+                      SortOption.dateDesc;
                 });
                 await _reloadAll();
               }
@@ -346,30 +368,36 @@ class _NotesPageState extends State<NotesPage> {
                                       value: null,
                                       child: Text('Nota vacía'),
                                     ),
-                                    ...templates.map((t) => DropdownMenuItem(
-                                          value: t.id,
-                                          child: Row(
-                                            children: [
-                                              Icon(t.icon, color: t.color),
-                                              const SizedBox(width: 8),
-                                              Text(t.name),
-                                            ],
-                                          ),
-                                        )),
+                                    ...templates.map(
+                                      (t) => DropdownMenuItem(
+                                        value: t.id,
+                                        child: Row(
+                                          children: [
+                                            Icon(t.icon, color: t.color),
+                                            const SizedBox(width: 8),
+                                            Text(t.name),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   ],
-                                  onChanged: (v) => setState(() => _selectedTemplateId = v),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedTemplateId = v),
                                   decoration: const InputDecoration(
                                     labelText: 'Plantilla',
                                   ),
                                 ),
                                 const SizedBox(height: 12),
                                 Text(
-                  _selectedTemplateId == null
-                    ? 'Crea una nota vacía.'
-                    : templates.firstWhere(
-                      (t) => t.id == _selectedTemplateId,
-                      orElse: () => templates.first,
-                    ).description,
+                                  _selectedTemplateId == null
+                                      ? 'Crea una nota vacía.'
+                                      : templates
+                                            .firstWhere(
+                                              (t) =>
+                                                  t.id == _selectedTemplateId,
+                                              orElse: () => templates.first,
+                                            )
+                                            .description,
                                   style: const TextStyle(fontSize: 14),
                                 ),
                               ],
@@ -584,19 +612,41 @@ class _NotesPageState extends State<NotesPage> {
                     Row(
                       children: [
                         IconButton(
-                          tooltip: _sortPinnedFirst ? 'Mostrar fijadas primero' : 'Ordenar sin fijadas',
-                          icon: Icon(_sortPinnedFirst ? Icons.star : Icons.star_border, color: AppColors.primary),
-                          onPressed: () => setState(() => _sortPinnedFirst = !_sortPinnedFirst),
+                          tooltip: _sortPinnedFirst
+                              ? 'Mostrar fijadas primero'
+                              : 'Ordenar sin fijadas',
+                          icon: Icon(
+                            _sortPinnedFirst ? Icons.star : Icons.star_border,
+                            color: AppColors.primary,
+                          ),
+                          onPressed: () => setState(
+                            () => _sortPinnedFirst = !_sortPinnedFirst,
+                          ),
                         ),
                         IconButton(
-                          tooltip: _sortNewestFirst ? 'Más recientes primero' : 'Más antiguas primero',
-                          icon: Icon(_sortNewestFirst ? Icons.arrow_downward : Icons.arrow_upward, color: AppColors.primary),
-                          onPressed: () => setState(() => _sortNewestFirst = !_sortNewestFirst),
+                          tooltip: _sortNewestFirst
+                              ? 'Más recientes primero'
+                              : 'Más antiguas primero',
+                          icon: Icon(
+                            _sortNewestFirst
+                                ? Icons.arrow_downward
+                                : Icons.arrow_upward,
+                            color: AppColors.primary,
+                          ),
+                          onPressed: () => setState(
+                            () => _sortNewestFirst = !_sortNewestFirst,
+                          ),
                         ),
                         IconButton(
-                          tooltip: _gridView ? 'Vista de lista' : 'Vista de cuadrícula',
-                          icon: Icon(_gridView ? Icons.view_list : Icons.grid_view, color: AppColors.primary),
-                          onPressed: () => setState(() => _gridView = !_gridView),
+                          tooltip: _gridView
+                              ? 'Vista de lista'
+                              : 'Vista de cuadrícula',
+                          icon: Icon(
+                            _gridView ? Icons.view_list : Icons.grid_view,
+                            color: AppColors.primary,
+                          ),
+                          onPressed: () =>
+                              setState(() => _gridView = !_gridView),
                         ),
                       ],
                     ),
@@ -604,155 +654,205 @@ class _NotesPageState extends State<NotesPage> {
                       child: _filteredNotes.isEmpty
                           ? const Center(child: Text('No hay notas'))
                           : _gridView
-                              ? GridView.builder(
-                                  controller: _scrollController,
-                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          ? GridView.builder(
+                              controller: _scrollController,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: 2,
                                     childAspectRatio: 1.6,
                                     crossAxisSpacing: 12,
                                     mainAxisSpacing: 12,
                                   ),
-                                  itemCount: _filteredNotes.length + (_hasMoreNotes ? 1 : 0),
-                                  itemBuilder: (context, i) {
-                                    if (i == _filteredNotes.length) {
-                                      return const Center(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(16.0),
-                                          child: CircularProgressIndicator(),
+                              itemCount:
+                                  _filteredNotes.length +
+                                  (_hasMoreNotes ? 1 : 0),
+                              itemBuilder: (context, i) {
+                                if (i == _filteredNotes.length) {
+                                  return const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(16.0),
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+                                final n = _filteredNotes[i];
+                                final title =
+                                    (n['title']?.toString() ?? '').isEmpty
+                                    ? 'Sin título'
+                                    : n['title'].toString();
+                                final tags =
+                                    (n['tags'] as List?)
+                                        ?.whereType<String>()
+                                        .toList() ??
+                                    const [];
+                                final pinned = n['pinned'] == true;
+                                return _NoteCard(
+                                  note: n,
+                                  title: title,
+                                  tags: tags,
+                                  pinned: pinned,
+                                  onTap: () async {
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => NoteEditorPage(
+                                          noteId: n['id'].toString(),
+                                          onChanged: _reloadAll,
                                         ),
+                                      ),
+                                    );
+                                    await _reloadAll();
+                                  },
+                                  onPin: () => _togglePin(n),
+                                  onMenu: (v) async {
+                                    if (v == 'trash') {
+                                      await _moveToTrash(n);
+                                    } else if (v == 'purge') {
+                                      await FirestoreService.instance.purgeNote(
+                                        uid: _uid,
+                                        noteId: n['id'].toString(),
                                       );
-                                    }
-                                    final n = _filteredNotes[i];
-                                    final title = (n['title']?.toString() ?? '').isEmpty ? 'Sin título' : n['title'].toString();
-                                    final tags = (n['tags'] as List?)?.whereType<String>().toList() ?? const [];
-                                    final pinned = n['pinned'] == true;
-                                    return _NoteCard(
-                                      note: n,
-                                      title: title,
-                                      tags: tags,
-                                      pinned: pinned,
-                                      onTap: () async {
-                                        await Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) => NoteEditorPage(
-                                              noteId: n['id'].toString(),
-                                              onChanged: _reloadAll,
-                                            ),
-                                          ),
-                                        );
-                                        await _reloadAll();
-                                      },
-                                      onPin: () => _togglePin(n),
-                                      onMenu: (v) async {
-                                        if (v == 'trash') {
-                                          await _moveToTrash(n);
-                                        } else if (v == 'purge') {
-                                          await FirestoreService.instance.purgeNote(
-                                            uid: _uid,
-                                            noteId: n['id'].toString(),
-                                          );
-                                          await _reloadAll();
-                                        } else if (v == 'duplicate') {
-                                          final src = n;
-                                          final newId = await FirestoreService.instance.createNote(
+                                      await _reloadAll();
+                                    } else if (v == 'duplicate') {
+                                      final src = n;
+                                      final newId = await FirestoreService
+                                          .instance
+                                          .createNote(
                                             uid: _uid,
                                             data: {
                                               'title': src['title'] ?? '',
                                               'content': src['content'] ?? '',
-                                              'tags': (src['tags'] as List?)?.whereType<String>().toList() ?? <String>[],
-                                              'links': (src['links'] as List?)?.whereType<String>().toList() ?? <String>[],
-                                              if ((src['collectionId']?.toString().isNotEmpty ?? false))
-                                                'collectionId': src['collectionId'].toString(),
+                                              'tags':
+                                                  (src['tags'] as List?)
+                                                      ?.whereType<String>()
+                                                      .toList() ??
+                                                  <String>[],
+                                              'links':
+                                                  (src['links'] as List?)
+                                                      ?.whereType<String>()
+                                                      .toList() ??
+                                                  <String>[],
+                                              if ((src['collectionId']
+                                                      ?.toString()
+                                                      .isNotEmpty ??
+                                                  false))
+                                                'collectionId':
+                                                    src['collectionId']
+                                                        .toString(),
                                             },
                                           );
-                                          if (context.mounted) {
-                                            await Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (_) => NoteEditorPage(
-                                                  noteId: newId,
-                                                  onChanged: _reloadAll,
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                          await _reloadAll();
-                                        }
-                                      },
-                                    );
-                                  },
-                                )
-                              : ListView.separated(
-                                  controller: _scrollController,
-                                  itemCount: _filteredNotes.length + (_hasMoreNotes ? 1 : 0),
-                                  separatorBuilder: (_, __) => const Divider(height: 1),
-                                  itemBuilder: (context, i) {
-                                    if (i == _filteredNotes.length) {
-                                      return const Center(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(16.0),
-                                          child: CircularProgressIndicator(),
-                                        ),
-                                      );
-                                    }
-                                    final n = _filteredNotes[i];
-                                    final title = (n['title']?.toString() ?? '').isEmpty ? 'Sin título' : n['title'].toString();
-                                    final tags = (n['tags'] as List?)?.whereType<String>().toList() ?? const [];
-                                    final pinned = n['pinned'] == true;
-                                    return _NoteCard(
-                                      note: n,
-                                      title: title,
-                                      tags: tags,
-                                      pinned: pinned,
-                                      onTap: () async {
+                                      if (context.mounted) {
                                         await Navigator.of(context).push(
                                           MaterialPageRoute(
                                             builder: (_) => NoteEditorPage(
-                                              noteId: n['id'].toString(),
+                                              noteId: newId,
                                               onChanged: _reloadAll,
                                             ),
                                           ),
                                         );
-                                        await _reloadAll();
-                                      },
-                                      onPin: () => _togglePin(n),
-                                      onMenu: (v) async {
-                                        if (v == 'trash') {
-                                          await _moveToTrash(n);
-                                        } else if (v == 'purge') {
-                                          await FirestoreService.instance.purgeNote(
-                                            uid: _uid,
-                                            noteId: n['id'].toString(),
-                                          );
-                                          await _reloadAll();
-                                        } else if (v == 'duplicate') {
-                                          final src = n;
-                                          final newId = await FirestoreService.instance.createNote(
+                                      }
+                                      await _reloadAll();
+                                    }
+                                  },
+                                );
+                              },
+                            )
+                          : ListView.separated(
+                              controller: _scrollController,
+                              itemCount:
+                                  _filteredNotes.length +
+                                  (_hasMoreNotes ? 1 : 0),
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, i) {
+                                if (i == _filteredNotes.length) {
+                                  return const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(16.0),
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+                                final n = _filteredNotes[i];
+                                final title =
+                                    (n['title']?.toString() ?? '').isEmpty
+                                    ? 'Sin título'
+                                    : n['title'].toString();
+                                final tags =
+                                    (n['tags'] as List?)
+                                        ?.whereType<String>()
+                                        .toList() ??
+                                    const [];
+                                final pinned = n['pinned'] == true;
+                                return _NoteCard(
+                                  note: n,
+                                  title: title,
+                                  tags: tags,
+                                  pinned: pinned,
+                                  onTap: () async {
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => NoteEditorPage(
+                                          noteId: n['id'].toString(),
+                                          onChanged: _reloadAll,
+                                        ),
+                                      ),
+                                    );
+                                    await _reloadAll();
+                                  },
+                                  onPin: () => _togglePin(n),
+                                  onMenu: (v) async {
+                                    if (v == 'trash') {
+                                      await _moveToTrash(n);
+                                    } else if (v == 'purge') {
+                                      await FirestoreService.instance.purgeNote(
+                                        uid: _uid,
+                                        noteId: n['id'].toString(),
+                                      );
+                                      await _reloadAll();
+                                    } else if (v == 'duplicate') {
+                                      final src = n;
+                                      final newId = await FirestoreService
+                                          .instance
+                                          .createNote(
                                             uid: _uid,
                                             data: {
                                               'title': src['title'] ?? '',
                                               'content': src['content'] ?? '',
-                                              'tags': (src['tags'] as List?)?.whereType<String>().toList() ?? <String>[],
-                                              'links': (src['links'] as List?)?.whereType<String>().toList() ?? <String>[],
-                                              if ((src['collectionId']?.toString().isNotEmpty ?? false))
-                                                'collectionId': src['collectionId'].toString(),
+                                              'tags':
+                                                  (src['tags'] as List?)
+                                                      ?.whereType<String>()
+                                                      .toList() ??
+                                                  <String>[],
+                                              'links':
+                                                  (src['links'] as List?)
+                                                      ?.whereType<String>()
+                                                      .toList() ??
+                                                  <String>[],
+                                              if ((src['collectionId']
+                                                      ?.toString()
+                                                      .isNotEmpty ??
+                                                  false))
+                                                'collectionId':
+                                                    src['collectionId']
+                                                        .toString(),
                                             },
                                           );
-                                          if (context.mounted) {
-                                            await Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (_) => NoteEditorPage(
-                                                  noteId: newId,
-                                                  onChanged: _reloadAll,
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                          await _reloadAll();
-                                        }
-                                      },
-                                    );
+                                      if (context.mounted) {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => NoteEditorPage(
+                                              noteId: newId,
+                                              onChanged: _reloadAll,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      await _reloadAll();
+                                    }
                                   },
-                                ),
+                                );
+                              },
+                            ),
                     ),
                   ],
                 ),
@@ -793,7 +893,11 @@ class _NoteCardState extends State<_NoteCard> {
 
   @override
   Widget build(BuildContext context) {
-    final isWeb = Theme.of(context).platform == TargetPlatform.fuchsia || Theme.of(context).platform == TargetPlatform.linux || Theme.of(context).platform == TargetPlatform.windows || Theme.of(context).platform == TargetPlatform.macOS;
+    final isWeb =
+        Theme.of(context).platform == TargetPlatform.fuchsia ||
+        Theme.of(context).platform == TargetPlatform.linux ||
+        Theme.of(context).platform == TargetPlatform.windows ||
+        Theme.of(context).platform == TargetPlatform.macOS;
     Widget card = Semantics(
       label: 'Nota${widget.pinned ? ' fijada' : ''}: ${widget.title}',
       button: true,
@@ -813,16 +917,33 @@ class _NoteCardState extends State<_NoteCard> {
                     if (widget.pinned)
                       Semantics(
                         label: 'Nota fijada',
-                        child: Icon(Icons.star_rounded, color: Colors.amber.shade700, size: 20),
+                        child: Icon(
+                          Icons.star_rounded,
+                          color: Colors.amber.shade700,
+                          size: 20,
+                        ),
                       ),
                     Expanded(
-                      child: Text(widget.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      child: Text(
+                        widget.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                     if (_hovering || !isWeb)
                       FocusTraversalOrder(
                         order: NumericFocusOrder(1.0),
                         child: IconButton(
-                          icon: Icon(widget.pinned ? Icons.star_rounded : Icons.star_border_rounded, color: widget.pinned ? Colors.amber.shade700 : AppColors.primary),
+                          icon: Icon(
+                            widget.pinned
+                                ? Icons.star_rounded
+                                : Icons.star_border_rounded,
+                            color: widget.pinned
+                                ? Colors.amber.shade700
+                                : AppColors.primary,
+                          ),
                           tooltip: widget.pinned ? 'Desfijar' : 'Fijar',
                           onPressed: widget.onPin,
                         ),
@@ -833,7 +954,9 @@ class _NoteCardState extends State<_NoteCard> {
                         child: PopupMenuButton<String>(
                           color: Colors.white,
                           elevation: 8,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           icon: Icon(Icons.more_vert, color: Colors.black87),
                           onSelected: widget.onMenu,
                           itemBuilder: (context) => [
@@ -841,9 +964,19 @@ class _NoteCardState extends State<_NoteCard> {
                               value: 'duplicate',
                               child: Row(
                                 children: [
-                                  Icon(Icons.copy, color: AppColors.primary, size: 20),
+                                  Icon(
+                                    Icons.copy,
+                                    color: AppColors.primary,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 8),
-                                  const Text('Duplicar', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  const Text(
+                                    'Duplicar',
+                                    style: TextStyle(
+                                      color: Colors.black87,
+                                      fontSize: 16,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -851,9 +984,19 @@ class _NoteCardState extends State<_NoteCard> {
                               value: 'trash',
                               child: Row(
                                 children: [
-                                  Icon(Icons.delete, color: Colors.orange, size: 20),
+                                  Icon(
+                                    Icons.delete,
+                                    color: Colors.orange,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 8),
-                                  const Text('Mover a papelera', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  const Text(
+                                    'Mover a papelera',
+                                    style: TextStyle(
+                                      color: Colors.black87,
+                                      fontSize: 16,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -861,9 +1004,19 @@ class _NoteCardState extends State<_NoteCard> {
                               value: 'purge',
                               child: Row(
                                 children: [
-                                  Icon(Icons.delete_forever, color: Colors.red, size: 20),
+                                  Icon(
+                                    Icons.delete_forever,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 8),
-                                  const Text('Eliminar permanentemente', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  const Text(
+                                    'Eliminar permanentemente',
+                                    style: TextStyle(
+                                      color: Colors.black87,
+                                      fontSize: 16,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -878,13 +1031,18 @@ class _NoteCardState extends State<_NoteCard> {
                     child: Wrap(
                       spacing: 6,
                       runSpacing: -6,
-                      children: widget.tags.take(6).map((t) => Semantics(
-                        label: 'Etiqueta $t',
-                        child: ActionChip(
-                          label: Text(t),
-                          onPressed: () {},
-                        ),
-                      )).toList(),
+                      children: widget.tags
+                          .take(6)
+                          .map(
+                            (t) => Semantics(
+                              label: 'Etiqueta $t',
+                              child: ActionChip(
+                                label: Text(t),
+                                onPressed: () {},
+                              ),
+                            ),
+                          )
+                          .toList(),
                     ),
                   ),
               ],

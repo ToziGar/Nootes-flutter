@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -13,12 +12,15 @@ import '../services/editor_config_service.dart';
 class BoldEditorIntent extends Intent {
   const BoldEditorIntent();
 }
+
 class ItalicEditorIntent extends Intent {
   const ItalicEditorIntent();
 }
+
 class SaveEditorIntent extends Intent {
   const SaveEditorIntent();
 }
+
 class FullscreenEditorIntent extends Intent {
   const FullscreenEditorIntent();
 }
@@ -52,7 +54,8 @@ class EnhancedNoteEditor extends StatefulWidget {
   State<EnhancedNoteEditor> createState() => _EnhancedNoteEditorState();
 }
 
-class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProviderStateMixin, WidgetsBindingObserver {
+class _EnhancedNoteEditorState extends State<EnhancedNoteEditor>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   final _configService = EditorConfigService();
   // Controllers y estado principal
   late QuillController _quillController;
@@ -90,7 +93,6 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
   // Colaboración en tiempo real (placeholder) - reservado para futura implementación
   // (Se removió la lógica para evitar warnings hasta implementar colaboración real)
 
-
   @override
   void initState() {
     super.initState();
@@ -118,20 +120,22 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
 
   void _initializeEditor() {
     _titleController = TextEditingController(text: widget.initialTitle ?? '');
-    _markdownController = TextEditingController(text: widget.initialContent ?? '');
+    _markdownController = TextEditingController(
+      text: widget.initialContent ?? '',
+    );
     _titleFocusNode = FocusNode();
     _editorFocusNode = FocusNode();
     _scrollController = ScrollController();
-    
+
     // Inicializar Quill Controller
     _quillController = QuillController.basic();
-    
+
     // Listeners
     _titleController.addListener(_onTitleChanged);
     _markdownController.addListener(_onContentChanged);
     _quillController.addListener(_onQuillChanged);
-  // Listener de foco (por ahora sin lógica específica; reservado para futuras mejoras)
-  _editorFocusNode.addListener(_onFocusChanged);
+    // Listener de foco (por ahora sin lógica específica; reservado para futuras mejoras)
+    _editorFocusNode.addListener(_onFocusChanged);
 
     _currentMode = widget.mode;
   }
@@ -141,27 +145,20 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    
+
     _slideController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
 
     _fadeController.forward();
     _slideController.forward();
@@ -237,8 +234,8 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
 
   // Auto-guardado
   void _scheduleAutoSave() {
-  if (!_settings.enableAutoSave || widget.readOnly) return;
-    
+    if (!_settings.enableAutoSave || widget.readOnly) return;
+
     _autoSaveTimer?.cancel();
     _autoSaveTimer = Timer(const Duration(seconds: 2), () {
       _performAutoSave();
@@ -249,7 +246,7 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
     if (_isSaving || !_hasUnsavedChanges) return;
 
     setState(() => _isSaving = true);
-    
+
     try {
       widget.onSave?.call();
       setState(() {
@@ -273,7 +270,11 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
   }
 
   int _countWords(String text) {
-    return text.trim().split(RegExp(r'\s+')).where((word) => word.isNotEmpty).length;
+    return text
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .length;
   }
 
   int _countParagraphs(String text) {
@@ -297,10 +298,10 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
 
     final text = _quillController.document.toPlainText();
     final position = selection.baseOffset;
-    
+
     // Detectar patrones de autocompletado
     final beforeCursor = text.substring(0, position);
-    
+
     // Detección de menciones @
     final atMatch = RegExp(r'@(\w*)$').firstMatch(beforeCursor);
     if (atMatch != null) {
@@ -327,13 +328,14 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
 
   void _showAutocompleteForMentions(String query) {
     // Implementar autocompletado de menciones
-  _showAutocomplete = true; // mostrar overlay (implementación futura de resultados reales)
+    _showAutocomplete =
+        true; // mostrar overlay (implementación futura de resultados reales)
     setState(() {});
   }
 
   void _showAutocompleteForTags(String query) {
     // Implementar autocompletado de tags
-  _showAutocomplete = true;
+    _showAutocomplete = true;
     setState(() {});
   }
 
@@ -363,8 +365,8 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
     _suggestions = commands
         .where((cmd) => cmd.text.toLowerCase().contains(query.toLowerCase()))
         .toList();
-    
-  _showAutocomplete = true;
+
+    _showAutocomplete = true;
     setState(() {});
   }
 
@@ -468,7 +470,6 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
 
       // Usar el servicio de almacenamiento mejorado
       // Implementar selector de archivos y subida
-      
     } catch (e) {
       debugPrint('Error insertando media: $e');
     }
@@ -478,17 +479,32 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
   Widget build(BuildContext context) {
     return Shortcuts(
       shortcuts: <LogicalKeySet, Intent>{
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyB): const BoldEditorIntent(),
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyI): const ItalicEditorIntent(),
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS): const SaveEditorIntent(),
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift, LogicalKeyboardKey.keyF): const FullscreenEditorIntent(),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyB):
+            const BoldEditorIntent(),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyI):
+            const ItalicEditorIntent(),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
+            const SaveEditorIntent(),
+        LogicalKeySet(
+          LogicalKeyboardKey.control,
+          LogicalKeyboardKey.shift,
+          LogicalKeyboardKey.keyF,
+        ): const FullscreenEditorIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
-          BoldEditorIntent: CallbackAction<BoldEditorIntent>(onInvoke: (intent) => _handleBoldShortcut()),
-          ItalicEditorIntent: CallbackAction<ItalicEditorIntent>(onInvoke: (intent) => _handleItalicShortcut()),
-          SaveEditorIntent: CallbackAction<SaveEditorIntent>(onInvoke: (intent) => _handleSaveShortcut()),
-          FullscreenEditorIntent: CallbackAction<FullscreenEditorIntent>(onInvoke: (intent) => _toggleFullscreen()),
+          BoldEditorIntent: CallbackAction<BoldEditorIntent>(
+            onInvoke: (intent) => _handleBoldShortcut(),
+          ),
+          ItalicEditorIntent: CallbackAction<ItalicEditorIntent>(
+            onInvoke: (intent) => _handleItalicShortcut(),
+          ),
+          SaveEditorIntent: CallbackAction<SaveEditorIntent>(
+            onInvoke: (intent) => _handleSaveShortcut(),
+          ),
+          FullscreenEditorIntent: CallbackAction<FullscreenEditorIntent>(
+            onInvoke: (intent) => _toggleFullscreen(),
+          ),
         },
         child: Focus(
           autofocus: true,
@@ -496,9 +512,9 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
             label: 'Editor de notas',
             explicitChildNodes: true,
             child: Scaffold(
-        backgroundColor: _isFullscreen 
-          ? Theme.of(context).scaffoldBackgroundColor
-          : AppColors.surfaceOverlay,
+              backgroundColor: _isFullscreen
+                  ? Theme.of(context).scaffoldBackgroundColor
+                  : AppColors.surfaceOverlay,
               body: FadeTransition(
                 opacity: _fadeAnimation,
                 child: SlideTransition(
@@ -546,7 +562,6 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
     }
   }
 
-
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -567,9 +582,9 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
               controller: _titleController,
               focusNode: _titleFocusNode,
               readOnly: widget.readOnly,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
               decoration: const InputDecoration(
                 hintText: 'Título de la nota...',
                 border: InputBorder.none,
@@ -607,8 +622,12 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
         else
           IconButton(
             onPressed: _isFullscreen ? _toggleFullscreen : null,
-            icon: Icon(_isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen),
-            tooltip: _isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa',
+            icon: Icon(
+              _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+            ),
+            tooltip: _isFullscreen
+                ? 'Salir de pantalla completa'
+                : 'Pantalla completa',
           ),
         IconButton(
           onPressed: _showSettings,
@@ -625,17 +644,14 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).dividerColor,
-            width: 1,
-          ),
+          bottom: BorderSide(color: Theme.of(context).dividerColor, width: 1),
         ),
       ),
       child: Row(
         children: [
           _buildModeToggle(),
           const SizedBox(width: 16),
-          if (_currentMode == EditorMode.wysiwyg) 
+          if (_currentMode == EditorMode.wysiwyg)
             _buildQuillToolbar()
           else
             _buildMarkdownToolbar(),
@@ -673,10 +689,26 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
     // Toolbar personalizada mínima para evitar dependencias de API cambiantes de flutter_quill
     return Row(
       children: [
-        _formatButton(icon: Icons.format_bold, tooltip: 'Negrita', attribute: Attribute.bold),
-        _formatButton(icon: Icons.format_italic, tooltip: 'Cursiva', attribute: Attribute.italic),
-        _formatButton(icon: Icons.format_underline, tooltip: 'Subrayado', attribute: Attribute.underline),
-        _formatButton(icon: Icons.strikethrough_s, tooltip: 'Tachado', attribute: Attribute.strikeThrough),
+        _formatButton(
+          icon: Icons.format_bold,
+          tooltip: 'Negrita',
+          attribute: Attribute.bold,
+        ),
+        _formatButton(
+          icon: Icons.format_italic,
+          tooltip: 'Cursiva',
+          attribute: Attribute.italic,
+        ),
+        _formatButton(
+          icon: Icons.format_underline,
+          tooltip: 'Subrayado',
+          attribute: Attribute.underline,
+        ),
+        _formatButton(
+          icon: Icons.strikethrough_s,
+          tooltip: 'Tachado',
+          attribute: Attribute.strikeThrough,
+        ),
         const VerticalDivider(),
         IconButton(
           icon: const Icon(Icons.format_list_bulleted),
@@ -691,18 +723,24 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
         IconButton(
           icon: const Icon(Icons.code),
           tooltip: 'Código',
-          onPressed: () => _quillController.formatSelection(Attribute.codeBlock),
+          onPressed: () =>
+              _quillController.formatSelection(Attribute.codeBlock),
         ),
         IconButton(
           icon: const Icon(Icons.format_quote),
           tooltip: 'Cita',
-          onPressed: () => _quillController.formatSelection(Attribute.blockQuote),
+          onPressed: () =>
+              _quillController.formatSelection(Attribute.blockQuote),
         ),
       ],
     );
   }
 
-  Widget _formatButton({required IconData icon, required String tooltip, required Attribute attribute}) {
+  Widget _formatButton({
+    required IconData icon,
+    required String tooltip,
+    required Attribute attribute,
+  }) {
     return IconButton(
       icon: Icon(icon),
       tooltip: tooltip,
@@ -760,7 +798,9 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
         IconButton(
           onPressed: _toggleFullscreen,
           icon: Icon(_isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen),
-          tooltip: _isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa',
+          tooltip: _isFullscreen
+              ? 'Salir de pantalla completa'
+              : 'Pantalla completa',
         ),
       ],
     );
@@ -775,9 +815,8 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
             _buildQuillEditor()
           else
             _buildMarkdownEditor(),
-          
-          if (_showAutocomplete)
-            _buildAutocompleteOverlay(),
+
+          if (_showAutocomplete) _buildAutocompleteOverlay(),
         ],
       ),
     );
@@ -820,10 +859,7 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
         elevation: 8,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          constraints: const BoxConstraints(
-            maxWidth: 300,
-            maxHeight: 200,
-          ),
+          constraints: const BoxConstraints(maxWidth: 300, maxHeight: 200),
           child: ListView.builder(
             shrinkWrap: true,
             itemCount: _suggestions.length,
@@ -851,10 +887,7 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         border: Border(
-          top: BorderSide(
-            color: Theme.of(context).dividerColor,
-            width: 1,
-          ),
+          top: BorderSide(color: Theme.of(context).dividerColor, width: 1),
         ),
       ),
       child: Row(
@@ -877,11 +910,11 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
   void _insertMarkdown(String before, String after) {
     final selection = _markdownController.selection;
     final text = _markdownController.text;
-    
+
     if (selection.isValid) {
       final selectedText = text.substring(selection.start, selection.end);
       final replacement = before + selectedText + after;
-      
+
       _markdownController.value = _markdownController.value.copyWith(
         text: text.replaceRange(selection.start, selection.end, replacement),
         selection: TextSelection.collapsed(
@@ -893,10 +926,10 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor> with TickerProv
 
   String _formatLastSaveTime() {
     if (_lastSaveTime == null) return '';
-    
+
     final now = DateTime.now();
     final diff = now.difference(_lastSaveTime!);
-    
+
     if (diff.inSeconds < 60) {
       return 'hace ${diff.inSeconds}s';
     } else if (diff.inMinutes < 60) {
@@ -989,7 +1022,7 @@ class CollaboratorCursor {
 abstract class EditorPlugin {
   String get name;
   String get version;
-  
+
   void initialize(BuildContext context);
   void dispose();
   Widget? buildToolbarItem();

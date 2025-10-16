@@ -246,7 +246,7 @@ class _ShareDialogState extends State<ShareDialog>
 
       // Usar SharingService para ambos (notas y carpetas) que usa shared_items
       final sharingService = SharingService();
-      
+
       if (widget.itemType == SharedItemType.note) {
         await sharingService.shareNote(
           noteId: widget.itemId,

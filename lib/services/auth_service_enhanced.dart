@@ -19,7 +19,7 @@ class AuthUser {
   final bool emailVerified;
   final DateTime? lastSignInTime;
   final DateTime? creationTime;
-  
+
   const AuthUser({
     required this.uid,
     this.email,
@@ -107,7 +107,9 @@ abstract class AuthService {
   static Future<String> instanceToken() async {
     final t = await instance.getIdToken();
     if (t == null) {
-  throw const GenericAuthException('No hay token de autenticación disponible');
+      throw const GenericAuthException(
+        'No hay token de autenticación disponible',
+      );
     }
     return t;
   }
@@ -133,37 +135,40 @@ abstract class AuthService {
   bool get usesRest;
   AuthUser? get currentUser;
   Stream<AuthUser?> authStateChanges();
-  
+
   // Core authentication methods
   Future<void> init();
   Future<void> signOut();
   Future<AuthUser> signInWithEmailAndPassword(String email, String password);
-  Future<AuthUser> createUserWithEmailAndPassword(String email, String password);
+  Future<AuthUser> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  );
   Future<void> sendPasswordResetEmail(String email);
   Future<String?> getIdToken();
-  
+
   // Enhanced authentication methods
   Future<AuthUser> signInAnonymously();
   Future<void> linkEmailPassword(String email, String password);
   Future<void> sendEmailVerification();
   Future<void> reloadUser();
   Future<void> deleteUser();
-  
+
   // Profile management
   Future<void> updateProfile({String? displayName, String? photoURL});
   Future<void> updateEmail(String newEmail);
   Future<void> updatePassword(String newPassword);
-  
+
   // Session management
   Future<bool> isSessionValid();
   Future<void> refreshToken();
   Future<Map<String, dynamic>> getSessionInfo();
-  
+
   // Security features
   Future<void> enableMFA();
   Future<void> disableMFA();
   Future<List<String>> getLinkedProviders();
-  
+
   // Cleanup and monitoring
   void dispose();
   Stream<AuthSessionEvent> get sessionEvents;
@@ -198,7 +203,7 @@ class AuthSessionEvent {
 class _FirebaseAuthService implements AuthService {
   final fb.FirebaseAuth _auth = fb.FirebaseAuth.instance;
   final _sessionController = StreamController<AuthSessionEvent>.broadcast();
-  
+
   AuthConfig _config = const AuthConfig();
   Timer? _sessionTimer;
 
@@ -209,8 +214,10 @@ class _FirebaseAuthService implements AuthService {
   void updateConfig(AuthConfig newConfig) {
     _config = newConfig;
     if (_config.enableLogging) {
-      LoggingService.info('AuthService configuración actualizada', 
-          data: {'newConfig': _config.toString()});
+      LoggingService.info(
+        'AuthService configuración actualizada',
+        data: {'newConfig': _config.toString()},
+      );
     }
   }
 
@@ -236,28 +243,34 @@ class _FirebaseAuthService implements AuthService {
   @override
   Stream<AuthUser?> authStateChanges() {
     return _auth.authStateChanges().map((user) {
-      final authUser = user != null ? AuthUser(
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        emailVerified: user.emailVerified,
-        lastSignInTime: user.metadata.lastSignInTime,
-        creationTime: user.metadata.creationTime,
-      ) : null;
+      final authUser = user != null
+          ? AuthUser(
+              uid: user.uid,
+              email: user.email,
+              displayName: user.displayName,
+              photoURL: user.photoURL,
+              emailVerified: user.emailVerified,
+              lastSignInTime: user.metadata.lastSignInTime,
+              creationTime: user.metadata.creationTime,
+            )
+          : null;
 
       // Emit session event
       if (authUser != null) {
-        _sessionController.add(AuthSessionEvent(
-          type: AuthSessionEventType.signIn,
-          timestamp: DateTime.now(),
-          user: authUser,
-        ));
+        _sessionController.add(
+          AuthSessionEvent(
+            type: AuthSessionEventType.signIn,
+            timestamp: DateTime.now(),
+            user: authUser,
+          ),
+        );
       } else {
-        _sessionController.add(AuthSessionEvent(
-          type: AuthSessionEventType.signOut,
-          timestamp: DateTime.now(),
-        ));
+        _sessionController.add(
+          AuthSessionEvent(
+            type: AuthSessionEventType.signOut,
+            timestamp: DateTime.now(),
+          ),
+        );
       }
 
       return authUser;
@@ -280,17 +293,26 @@ class _FirebaseAuthService implements AuthService {
         _startSessionMonitoring();
       }
     } catch (e) {
-      throw GenericAuthException('Error al inicializar el servicio de autenticación');
+      throw GenericAuthException(
+        'Error al inicializar el servicio de autenticación',
+      );
     }
   }
 
   @override
-  Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async {
+  Future<AuthUser> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
       _validateEmailAndPassword(email, password);
-      
+
       if (_config.enableLogging) {
-        LoggingService.info('Creando usuario', tag: 'Auth', data: {'email': email});
+        LoggingService.info(
+          'Creando usuario',
+          tag: 'Auth',
+          data: {'email': email},
+        );
       }
 
       final cred = await _auth.createUserWithEmailAndPassword(
@@ -299,7 +321,7 @@ class _FirebaseAuthService implements AuthService {
       );
 
       final user = cred.user!;
-      
+
       // Send verification email if required
       if (_config.requireEmailVerification && !user.emailVerified) {
         await user.sendEmailVerification();
@@ -313,7 +335,11 @@ class _FirebaseAuthService implements AuthService {
       );
 
       if (_config.enableLogging) {
-        LoggingService.info('Usuario creado exitosamente', tag: 'Auth', data: {'uid': user.uid});
+        LoggingService.info(
+          'Usuario creado exitosamente',
+          tag: 'Auth',
+          data: {'uid': user.uid},
+        );
       }
 
       return authUser;
@@ -327,35 +353,50 @@ class _FirebaseAuthService implements AuthService {
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       _validateEmail(email);
-      
+
       final authDomain = DefaultFirebaseOptions.web.authDomain;
       final continueUrl = (authDomain != null && authDomain.isNotEmpty)
           ? 'https://$authDomain'
           : null;
-      
+
       fb.ActionCodeSettings? acs;
       if (continueUrl != null) {
         acs = fb.ActionCodeSettings(url: continueUrl, handleCodeInApp: false);
       }
-      
+
       await _auth.sendPasswordResetEmail(email: email, actionCodeSettings: acs);
-      
+
       if (_config.enableLogging) {
-        LoggingService.info('Email de recuperación enviado', tag: 'Auth', data: {'email': email});
+        LoggingService.info(
+          'Email de recuperación enviado',
+          tag: 'Auth',
+          data: {'email': email},
+        );
       }
     } catch (e) {
-      LoggingService.error('Error enviando email de recuperación', tag: 'Auth', error: e);
+      LoggingService.error(
+        'Error enviando email de recuperación',
+        tag: 'Auth',
+        error: e,
+      );
       throw _mapFirebaseException(e);
     }
   }
 
   @override
-  Future<AuthUser> signInWithEmailAndPassword(String email, String password) async {
+  Future<AuthUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
       _validateEmailAndPassword(email, password);
-      
+
       if (_config.enableLogging) {
-        LoggingService.info('Iniciando sesión', tag: 'Auth', data: {'email': email});
+        LoggingService.info(
+          'Iniciando sesión',
+          tag: 'Auth',
+          data: {'email': email},
+        );
       }
 
       final cred = await _auth.signInWithEmailAndPassword(
@@ -364,7 +405,7 @@ class _FirebaseAuthService implements AuthService {
       );
 
       final user = cred.user!;
-      
+
       // Check email verification if required
       if (_config.requireEmailVerification && !user.emailVerified) {
         await signOut();
@@ -382,7 +423,11 @@ class _FirebaseAuthService implements AuthService {
       );
 
       if (_config.enableLogging) {
-        LoggingService.info('Sesión iniciada exitosamente', tag: 'Auth', data: {'uid': user.uid});
+        LoggingService.info(
+          'Sesión iniciada exitosamente',
+          tag: 'Auth',
+          data: {'uid': user.uid},
+        );
       }
 
       return authUser;
@@ -398,10 +443,10 @@ class _FirebaseAuthService implements AuthService {
       if (_config.enableLogging) {
         LoggingService.info('Cerrando sesión', tag: 'Auth');
       }
-      
+
       await _auth.signOut();
       _sessionTimer?.cancel();
-      
+
       if (_config.enableLogging) {
         LoggingService.info('Sesión cerrada exitosamente', tag: 'Auth');
       }
@@ -416,7 +461,7 @@ class _FirebaseAuthService implements AuthService {
     try {
       final user = _auth.currentUser;
       if (user == null) return null;
-      
+
       return await user.getIdToken(_config.enableTokenRefresh);
     } catch (e) {
       LoggingService.error('Error obteniendo token', tag: 'Auth', error: e);
@@ -441,7 +486,11 @@ class _FirebaseAuthService implements AuthService {
         creationTime: user.metadata.creationTime,
       );
     } catch (e) {
-      LoggingService.error('Error en autenticación anónima', tag: 'Auth', error: e);
+      LoggingService.error(
+        'Error en autenticación anónima',
+        tag: 'Auth',
+        error: e,
+      );
       throw _mapFirebaseException(e);
     }
   }
@@ -454,11 +503,18 @@ class _FirebaseAuthService implements AuthService {
 
       _validateEmailAndPassword(email, password);
 
-      final credential = fb.EmailAuthProvider.credential(email: email, password: password);
+      final credential = fb.EmailAuthProvider.credential(
+        email: email,
+        password: password,
+      );
       await user.linkWithCredential(credential);
 
       if (_config.enableLogging) {
-        LoggingService.info('Cuenta enlazada exitosamente', tag: 'Auth', data: {'email': email});
+        LoggingService.info(
+          'Cuenta enlazada exitosamente',
+          tag: 'Auth',
+          data: {'email': email},
+        );
       }
     } catch (e) {
       LoggingService.error('Error enlazando cuenta', tag: 'Auth', error: e);
@@ -470,15 +526,19 @@ class _FirebaseAuthService implements AuthService {
   Future<void> sendEmailVerification() async {
     try {
       final user = _auth.currentUser;
-  if (user == null) throw const NotAuthenticatedException();
+      if (user == null) throw const NotAuthenticatedException();
 
       await user.sendEmailVerification();
-      
+
       if (_config.enableLogging) {
         LoggingService.info('Email de verificación enviado', tag: 'Auth');
       }
     } catch (e) {
-      LoggingService.error('Error enviando verificación', tag: 'Auth', error: e);
+      LoggingService.error(
+        'Error enviando verificación',
+        tag: 'Auth',
+        error: e,
+      );
       throw _mapFirebaseException(e);
     }
   }
@@ -487,7 +547,7 @@ class _FirebaseAuthService implements AuthService {
   Future<void> reloadUser() async {
     try {
       final user = _auth.currentUser;
-  if (user == null) throw const NotAuthenticatedException();
+      if (user == null) throw const NotAuthenticatedException();
 
       await user.reload();
     } catch (e) {
@@ -503,11 +563,15 @@ class _FirebaseAuthService implements AuthService {
       if (user == null) throw const NotAuthenticatedException();
 
       if (_config.enableLogging) {
-        LoggingService.info('Eliminando cuenta de usuario', tag: 'Auth', data: {'uid': user.uid});
+        LoggingService.info(
+          'Eliminando cuenta de usuario',
+          tag: 'Auth',
+          data: {'uid': user.uid},
+        );
       }
 
       await user.delete();
-      
+
       if (_config.enableLogging) {
         LoggingService.info('Cuenta eliminada exitosamente', tag: 'Auth');
       }
@@ -529,10 +593,11 @@ class _FirebaseAuthService implements AuthService {
       }
 
       if (_config.enableLogging) {
-        LoggingService.info('Perfil actualizado', tag: 'Auth', data: {
-          'displayName': displayName,
-          'photoURL': photoURL,
-        });
+        LoggingService.info(
+          'Perfil actualizado',
+          tag: 'Auth',
+          data: {'displayName': displayName, 'photoURL': photoURL},
+        );
       }
     } catch (e) {
       LoggingService.error('Error actualizando perfil', tag: 'Auth', error: e);
@@ -548,9 +613,9 @@ class _FirebaseAuthService implements AuthService {
       _validateEmail(newEmail);
       try {
         // ignore: deprecated_member_use
-  // API updateEmail no disponible en esta versión de Firebase Auth
-  // ignore: deprecated_member_use
-  await (user as dynamic).updateEmail?.call(newEmail);
+        // API updateEmail no disponible en esta versión de Firebase Auth
+        // ignore: deprecated_member_use
+        await (user as dynamic).updateEmail?.call(newEmail);
       } catch (_) {
         final dynamic dynUser = user;
         try {
@@ -560,13 +625,18 @@ class _FirebaseAuthService implements AuthService {
         }
       }
       if (_config.enableLogging) {
-        LoggingService.info('Email actualizado', tag: 'Auth', data: {'newEmail': newEmail});
+        LoggingService.info(
+          'Email actualizado',
+          tag: 'Auth',
+          data: {'newEmail': newEmail},
+        );
       }
     } catch (e) {
       LoggingService.error('Error actualizando email', tag: 'Auth', error: e);
       throw _mapFirebaseException(e);
     }
   }
+
   @override
   Future<void> updatePassword(String newPassword) async {
     try {
@@ -580,7 +650,11 @@ class _FirebaseAuthService implements AuthService {
         LoggingService.info('Contraseña actualizada', tag: 'Auth');
       }
     } catch (e) {
-      LoggingService.error('Error actualizando contraseña', tag: 'Auth', error: e);
+      LoggingService.error(
+        'Error actualizando contraseña',
+        tag: 'Auth',
+        error: e,
+      );
       throw _mapFirebaseException(e);
     }
   }
@@ -604,12 +678,14 @@ class _FirebaseAuthService implements AuthService {
       if (user == null) throw const NotAuthenticatedException();
 
       await user.getIdToken(true);
-      
-      _sessionController.add(AuthSessionEvent(
-        type: AuthSessionEventType.tokenRefresh,
-        timestamp: DateTime.now(),
-        user: currentUser,
-      ));
+
+      _sessionController.add(
+        AuthSessionEvent(
+          type: AuthSessionEventType.tokenRefresh,
+          timestamp: DateTime.now(),
+          user: currentUser,
+        ),
+      );
 
       if (_config.enableLogging) {
         LoggingService.info('Token actualizado', tag: 'Auth');
@@ -656,7 +732,11 @@ class _FirebaseAuthService implements AuthService {
 
       return user.providerData.map((info) => info.providerId).toList();
     } catch (e) {
-      LoggingService.error('Error obteniendo proveedores', tag: 'Auth', error: e);
+      LoggingService.error(
+        'Error obteniendo proveedores',
+        tag: 'Auth',
+        error: e,
+      );
       return [];
     }
   }
@@ -671,10 +751,12 @@ class _FirebaseAuthService implements AuthService {
   void _startSessionMonitoring() {
     _sessionTimer = Timer.periodic(Duration(minutes: 30), (timer) async {
       if (!(await isSessionValid())) {
-        _sessionController.add(AuthSessionEvent(
-          type: AuthSessionEventType.sessionExpired,
-          timestamp: DateTime.now(),
-        ));
+        _sessionController.add(
+          AuthSessionEvent(
+            type: AuthSessionEventType.sessionExpired,
+            timestamp: DateTime.now(),
+          ),
+        );
         await signOut();
       }
     });
@@ -718,7 +800,7 @@ class _FirebaseAuthService implements AuthService {
           return GenericAuthException(e.message ?? 'Error de autenticación');
       }
     }
-  return GenericAuthException(e.toString());
+    return GenericAuthException(e.toString());
   }
 }
 
@@ -779,7 +861,7 @@ class _RestAuthService implements AuthService {
       if (_config.enablePersistence) {
         await _loadFromStorage();
       }
-      
+
       if (_config.enableTokenRefresh) {
         _startSessionMonitoring();
       }
@@ -788,12 +870,19 @@ class _RestAuthService implements AuthService {
         LoggingService.info('REST AuthService inicializado', tag: 'AuthREST');
       }
     } catch (e) {
-      LoggingService.error('Error inicializando REST AuthService', tag: 'AuthREST', error: e);
+      LoggingService.error(
+        'Error inicializando REST AuthService',
+        tag: 'AuthREST',
+        error: e,
+      );
     }
   }
 
   @override
-  Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async {
+  Future<AuthUser> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
       _validateEmailAndPassword(email, password);
 
@@ -816,24 +905,37 @@ class _RestAuthService implements AuthService {
       await _setUserData(data);
 
       final user = AuthUser(uid: _uid!, email: _email);
-      
+
       if (_config.enableLogging) {
-        LoggingService.info('Usuario creado con REST API', tag: 'AuthREST', data: {'uid': _uid});
+        LoggingService.info(
+          'Usuario creado con REST API',
+          tag: 'AuthREST',
+          data: {'uid': _uid},
+        );
       }
 
       return user;
     } catch (e) {
-      LoggingService.error('Error creando usuario (REST)', tag: 'AuthREST', error: e);
+      LoggingService.error(
+        'Error creando usuario (REST)',
+        tag: 'AuthREST',
+        error: e,
+      );
       throw _mapRestException(e);
     }
   }
 
   @override
-  Future<AuthUser> signInWithEmailAndPassword(String email, String password) async {
+  Future<AuthUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
       _validateEmailAndPassword(email, password);
 
-      final uri = Uri.parse('$_identityBase/accounts:signInWithPassword?key=$_apiKey');
+      final uri = Uri.parse(
+        '$_identityBase/accounts:signInWithPassword?key=$_apiKey',
+      );
       final resp = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
@@ -854,19 +956,29 @@ class _RestAuthService implements AuthService {
       final user = AuthUser(uid: _uid!, email: _email);
       _controller.add(user);
 
-      _sessionController.add(AuthSessionEvent(
-        type: AuthSessionEventType.signIn,
-        timestamp: DateTime.now(),
-        user: user,
-      ));
+      _sessionController.add(
+        AuthSessionEvent(
+          type: AuthSessionEventType.signIn,
+          timestamp: DateTime.now(),
+          user: user,
+        ),
+      );
 
       if (_config.enableLogging) {
-        LoggingService.info('Sesión iniciada con REST API', tag: 'AuthREST', data: {'uid': _uid});
+        LoggingService.info(
+          'Sesión iniciada con REST API',
+          tag: 'AuthREST',
+          data: {'uid': _uid},
+        );
       }
 
       return user;
     } catch (e) {
-      LoggingService.error('Error iniciando sesión (REST)', tag: 'AuthREST', error: e);
+      LoggingService.error(
+        'Error iniciando sesión (REST)',
+        tag: 'AuthREST',
+        error: e,
+      );
       throw _mapRestException(e);
     }
   }
@@ -880,10 +992,7 @@ class _RestAuthService implements AuthService {
       final resp = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'requestType': 'PASSWORD_RESET',
-          'email': email,
-        }),
+        body: jsonEncode({'requestType': 'PASSWORD_RESET', 'email': email}),
       );
 
       if (resp.statusCode != 200) {
@@ -891,10 +1000,18 @@ class _RestAuthService implements AuthService {
       }
 
       if (_config.enableLogging) {
-        LoggingService.info('Email de recuperación enviado (REST)', tag: 'AuthREST', data: {'email': email});
+        LoggingService.info(
+          'Email de recuperación enviado (REST)',
+          tag: 'AuthREST',
+          data: {'email': email},
+        );
       }
     } catch (e) {
-      LoggingService.error('Error enviando email de recuperación (REST)', tag: 'AuthREST', error: e);
+      LoggingService.error(
+        'Error enviando email de recuperación (REST)',
+        tag: 'AuthREST',
+        error: e,
+      );
       throw _mapRestException(e);
     }
   }
@@ -905,26 +1022,32 @@ class _RestAuthService implements AuthService {
       if (_config.enablePersistence) {
         await _clearStorage();
       }
-      
+
       _idToken = null;
       _refreshToken = null;
       _uid = null;
       _email = null;
       _expiry = null;
-      
+
       _controller.add(null);
       _sessionTimer?.cancel();
 
-      _sessionController.add(AuthSessionEvent(
-        type: AuthSessionEventType.signOut,
-        timestamp: DateTime.now(),
-      ));
+      _sessionController.add(
+        AuthSessionEvent(
+          type: AuthSessionEventType.signOut,
+          timestamp: DateTime.now(),
+        ),
+      );
 
       if (_config.enableLogging) {
         LoggingService.info('Sesión cerrada (REST)', tag: 'AuthREST');
       }
     } catch (e) {
-      LoggingService.error('Error cerrando sesión (REST)', tag: 'AuthREST', error: e);
+      LoggingService.error(
+        'Error cerrando sesión (REST)',
+        tag: 'AuthREST',
+        error: e,
+      );
     }
   }
 
@@ -966,7 +1089,9 @@ class _RestAuthService implements AuthService {
 
   @override
   Future<void> updatePassword(String newPassword) async {
-    throw UnimplementedError('Actualización de contraseña no implementada en REST');
+    throw UnimplementedError(
+      'Actualización de contraseña no implementada en REST',
+    );
   }
 
   @override
@@ -1031,20 +1156,28 @@ class _RestAuthService implements AuthService {
         final data = jsonDecode(resp.body);
         _idToken = data['id_token'];
         _refreshToken = data['refresh_token'];
-        _expiry = DateTime.now().add(Duration(seconds: int.parse(data['expires_in'])));
-        
+        _expiry = DateTime.now().add(
+          Duration(seconds: int.parse(data['expires_in'])),
+        );
+
         if (_config.enablePersistence) {
           await _persist();
         }
 
-        _sessionController.add(AuthSessionEvent(
-          type: AuthSessionEventType.tokenRefresh,
-          timestamp: DateTime.now(),
-          user: currentUser,
-        ));
+        _sessionController.add(
+          AuthSessionEvent(
+            type: AuthSessionEventType.tokenRefresh,
+            timestamp: DateTime.now(),
+            user: currentUser,
+          ),
+        );
       }
     } catch (e) {
-      LoggingService.error('Error actualizando token (REST)', tag: 'AuthREST', error: e);
+      LoggingService.error(
+        'Error actualizando token (REST)',
+        tag: 'AuthREST',
+        error: e,
+      );
     }
   }
 
@@ -1053,8 +1186,10 @@ class _RestAuthService implements AuthService {
     _refreshToken = data['refreshToken'];
     _uid = data['localId'];
     _email = data['email'];
-    _expiry = DateTime.now().add(Duration(seconds: int.parse(data['expiresIn'])));
-    
+    _expiry = DateTime.now().add(
+      Duration(seconds: int.parse(data['expiresIn'])),
+    );
+
     if (_config.enablePersistence) {
       await _persist();
     }
@@ -1077,13 +1212,17 @@ class _RestAuthService implements AuthService {
       _refreshToken = await _storage.read(key: 'refreshToken');
       _uid = await _storage.read(key: 'uid');
       _email = await _storage.read(key: 'email');
-      
+
       if (_refreshToken != null) {
         await _refreshIdToken();
         _controller.add(currentUser);
       }
     } catch (e) {
-      LoggingService.error('Error cargando desde storage', tag: 'AuthREST', error: e);
+      LoggingService.error(
+        'Error cargando desde storage',
+        tag: 'AuthREST',
+        error: e,
+      );
     }
   }
 
@@ -1096,10 +1235,12 @@ class _RestAuthService implements AuthService {
   void _startSessionMonitoring() {
     _sessionTimer = Timer.periodic(Duration(minutes: 30), (timer) async {
       if (!(await isSessionValid())) {
-        _sessionController.add(AuthSessionEvent(
-          type: AuthSessionEventType.sessionExpired,
-          timestamp: DateTime.now(),
-        ));
+        _sessionController.add(
+          AuthSessionEvent(
+            type: AuthSessionEventType.sessionExpired,
+            timestamp: DateTime.now(),
+          ),
+        );
         await signOut();
       }
     });
@@ -1124,7 +1265,7 @@ class _RestAuthService implements AuthService {
 
   AuthenticationException _mapRestException(dynamic e) {
     final errorStr = e.toString().toLowerCase();
-    
+
     if (errorStr.contains('email_not_found')) {
       return UserNotFoundException();
     } else if (errorStr.contains('invalid_password')) {
@@ -1138,7 +1279,7 @@ class _RestAuthService implements AuthService {
     } else if (errorStr.contains('too_many_attempts')) {
       return TooManyRequestsException();
     }
-    
+
     return GenericAuthException(e.toString());
   }
 }

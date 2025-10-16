@@ -10,35 +10,46 @@ class PerformanceMonitor {
   /// Inicia el monitoreo de una operación
   static void start(String operationName) {
     _startTimes[operationName] = DateTime.now();
-    LoggingService.debug('Started monitoring: $operationName', tag: 'Performance');
+    LoggingService.debug(
+      'Started monitoring: $operationName',
+      tag: 'Performance',
+    );
   }
 
   /// Finaliza el monitoreo y registra la duración
   static Duration end(String operationName) {
     final startTime = _startTimes.remove(operationName);
     if (startTime == null) {
-      LoggingService.warning('No start time found for operation: $operationName', tag: 'Performance');
+      LoggingService.warning(
+        'No start time found for operation: $operationName',
+        tag: 'Performance',
+      );
       return Duration.zero;
     }
 
     final duration = DateTime.now().difference(startTime);
-    
+
     // Guardar métrica
     _metrics.putIfAbsent(operationName, () => []).add(duration);
-    
+
     LoggingService.logPerformance(operationName, duration);
-    
+
     // Alertar si la operación es muy lenta
     if (duration.inMilliseconds > 5000) {
-      LoggingService.warning('Slow operation detected: $operationName took ${duration.inMilliseconds}ms', 
-                            tag: 'Performance');
+      LoggingService.warning(
+        'Slow operation detected: $operationName took ${duration.inMilliseconds}ms',
+        tag: 'Performance',
+      );
     }
-    
+
     return duration;
   }
 
   /// Ejecuta una operación con monitoreo automático
-  static Future<T> monitor<T>(String operationName, Future<T> Function() operation) async {
+  static Future<T> monitor<T>(
+    String operationName,
+    Future<T> Function() operation,
+  ) async {
     start(operationName);
     try {
       final result = await operation();
@@ -46,7 +57,11 @@ class PerformanceMonitor {
       return result;
     } catch (e) {
       end(operationName);
-      LoggingService.error('Operation failed: $operationName', tag: 'Performance', error: e);
+      LoggingService.error(
+        'Operation failed: $operationName',
+        tag: 'Performance',
+        error: e,
+      );
       rethrow;
     }
   }
@@ -54,16 +69,23 @@ class PerformanceMonitor {
   /// Obtiene estadísticas de rendimiento
   static Map<String, Map<String, dynamic>> getStats() {
     final stats = <String, Map<String, dynamic>>{};
-    
+
     for (final entry in _metrics.entries) {
       final durations = entry.value;
       if (durations.isEmpty) continue;
-      
-      final totalMs = durations.fold<int>(0, (sum, d) => sum + d.inMilliseconds);
+
+      final totalMs = durations.fold<int>(
+        0,
+        (sum, d) => sum + d.inMilliseconds,
+      );
       final avgMs = totalMs / durations.length;
-      final minMs = durations.map((d) => d.inMilliseconds).reduce((a, b) => a < b ? a : b);
-      final maxMs = durations.map((d) => d.inMilliseconds).reduce((a, b) => a > b ? a : b);
-      
+      final minMs = durations
+          .map((d) => d.inMilliseconds)
+          .reduce((a, b) => a < b ? a : b);
+      final maxMs = durations
+          .map((d) => d.inMilliseconds)
+          .reduce((a, b) => a > b ? a : b);
+
       stats[entry.key] = {
         'count': durations.length,
         'avgMs': avgMs.round(),
@@ -72,7 +94,7 @@ class PerformanceMonitor {
         'totalMs': totalMs,
       };
     }
-    
+
     return stats;
   }
 
@@ -92,23 +114,27 @@ class BatchOperationUtils {
     Duration delayBetweenBatches = const Duration(milliseconds: 100),
   }) async {
     final results = <T>[];
-    
+
     for (int i = 0; i < operations.length; i += batchSize) {
-      final batchEnd = (i + batchSize > operations.length) ? operations.length : i + batchSize;
+      final batchEnd = (i + batchSize > operations.length)
+          ? operations.length
+          : i + batchSize;
       final batch = operations.sublist(i, batchEnd);
-      
-      LoggingService.debug('Executing batch ${(i / batchSize).floor() + 1}/${((operations.length - 1) / batchSize).floor() + 1}', 
-                          tag: 'BatchOperation');
-      
+
+      LoggingService.debug(
+        'Executing batch ${(i / batchSize).floor() + 1}/${((operations.length - 1) / batchSize).floor() + 1}',
+        tag: 'BatchOperation',
+      );
+
       final batchResults = await Future.wait(batch.map((op) => op()));
       results.addAll(batchResults);
-      
+
       // Pausa entre lotes para evitar sobrecargar el servidor
       if (i + batchSize < operations.length) {
         await Future.delayed(delayBetweenBatches);
       }
     }
-    
+
     return results;
   }
 
@@ -119,8 +145,17 @@ class BatchOperationUtils {
     int batchSize = 10,
     Duration delayBetweenBatches = const Duration(milliseconds: 100),
   }) async {
-    final operations = items.map((item) => () => processor(item)).toList();
-    return executeBatch(operations, batchSize: batchSize, delayBetweenBatches: delayBetweenBatches);
+    final operations = items
+        .map(
+          (item) =>
+              () => processor(item),
+        )
+        .toList();
+    return executeBatch(
+      operations,
+      batchSize: batchSize,
+      delayBetweenBatches: delayBetweenBatches,
+    );
   }
 }
 
@@ -133,15 +168,18 @@ class FirestoreQueryOptimizer {
     int chunkSize = 10, // Firestore permite máximo 10 elementos en whereIn
   }) async {
     if (values.isEmpty) return [];
-    
+
     final results = <T>[];
-    
+
     for (int i = 0; i < values.length; i += chunkSize) {
-      final chunk = values.sublist(i, i + chunkSize > values.length ? values.length : i + chunkSize);
+      final chunk = values.sublist(
+        i,
+        i + chunkSize > values.length ? values.length : i + chunkSize,
+      );
       final chunkResults = await queryFunction(chunk);
       results.addAll(chunkResults);
     }
-    
+
     return results;
   }
 
@@ -152,15 +190,15 @@ class FirestoreQueryOptimizer {
   }) async* {
     String? lastDocumentId;
     bool hasMore = true;
-    
+
     while (hasMore) {
       final results = await queryFunction(pageSize, lastDocumentId);
-      
+
       if (results.isEmpty) {
         hasMore = false;
       } else {
         yield results;
-        
+
         if (results.length < pageSize) {
           hasMore = false;
         } else {
@@ -218,11 +256,17 @@ class ResourceManager {
       try {
         if (resource is Disposable) {
           resource.dispose();
-        } else if (resource.runtimeType.toString().contains('StreamSubscription')) {
+        } else if (resource.runtimeType.toString().contains(
+          'StreamSubscription',
+        )) {
           (resource as StreamSubscription).cancel();
         }
       } catch (e) {
-        LoggingService.warning('Error disposing resource: $key', tag: 'ResourceManager', data: {'error': e.toString()});
+        LoggingService.warning(
+          'Error disposing resource: $key',
+          tag: 'ResourceManager',
+          data: {'error': e.toString()},
+        );
       }
       LoggingService.debug('Resource released: $key', tag: 'ResourceManager');
     }

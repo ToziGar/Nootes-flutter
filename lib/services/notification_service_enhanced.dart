@@ -5,7 +5,8 @@ import '../services/exceptions/sharing_exceptions.dart';
 
 /// Servicio mejorado para la gestión de notificaciones
 class NotificationServiceEnhanced {
-  static final NotificationServiceEnhanced _instance = NotificationServiceEnhanced._internal();
+  static final NotificationServiceEnhanced _instance =
+      NotificationServiceEnhanced._internal();
   factory NotificationServiceEnhanced() => _instance;
   NotificationServiceEnhanced._internal();
 
@@ -54,7 +55,9 @@ class NotificationServiceEnhanced {
       'targetUserId': uid,
       'createdBy': _authService.currentUser?.uid,
       'createdAt': FieldValue.serverTimestamp(),
-      'scheduledFor': scheduledFor != null ? Timestamp.fromDate(scheduledFor) : null,
+      'scheduledFor': scheduledFor != null
+          ? Timestamp.fromDate(scheduledFor)
+          : null,
       'metadata': metadata ?? {},
       'priority': priority.name,
       'isRead': false,
@@ -100,7 +103,13 @@ class NotificationServiceEnhanced {
     // Verificar cache
     if (!forceRefresh && _isCacheValid(uid)) {
       final cached = _notificationCache[uid] ?? [];
-      return _filterNotifications(cached, unreadOnly, priorityFilter, typeFilter, limit);
+      return _filterNotifications(
+        cached,
+        unreadOnly,
+        priorityFilter,
+        typeFilter,
+        limit,
+      );
     }
 
     try {
@@ -119,22 +128,34 @@ class NotificationServiceEnhanced {
         query = query.where('priority', isEqualTo: priorityFilter.name);
       }
 
-      final snapshot = await query.limit(limit * 2).get(); // Obtener más para filtrar
+      final snapshot = await query
+          .limit(limit * 2)
+          .get(); // Obtener más para filtrar
 
-      final notifications = snapshot.docs.map((doc) {
-        try {
-          return NotificationItem.fromFirestore(doc);
-        } catch (e) {
-          debugPrint('Error parseando notificación ${doc.id}: $e');
-          return null;
-        }
-      }).where((notification) => notification != null).cast<NotificationItem>().toList();
+      final notifications = snapshot.docs
+          .map((doc) {
+            try {
+              return NotificationItem.fromFirestore(doc);
+            } catch (e) {
+              debugPrint('Error parseando notificación ${doc.id}: $e');
+              return null;
+            }
+          })
+          .where((notification) => notification != null)
+          .cast<NotificationItem>()
+          .toList();
 
       // Actualizar cache
       _notificationCache[uid] = notifications;
       _lastCacheUpdate = DateTime.now();
 
-      return _filterNotifications(notifications, unreadOnly, priorityFilter, typeFilter, limit);
+      return _filterNotifications(
+        notifications,
+        unreadOnly,
+        priorityFilter,
+        typeFilter,
+        limit,
+      );
     } catch (e) {
       debugPrint('❌ Error obteniendo notificaciones: $e');
       return [];
@@ -156,19 +177,18 @@ class NotificationServiceEnhanced {
             .doc(uid)
             .collection('notifications')
             .doc(id);
-        
-        batch.update(docRef, {
-          'isRead': true,
-          'readAt': readTimestamp,
-        });
+
+        batch.update(docRef, {'isRead': true, 'readAt': readTimestamp});
       }
 
       await batch.commit();
-      
+
       // Actualizar cache local
       _updateCacheReadStatus(uid, notificationIds, true);
-      
-      debugPrint('✅ ${notificationIds.length} notificaciones marcadas como leídas');
+
+      debugPrint(
+        '✅ ${notificationIds.length} notificaciones marcadas como leídas',
+      );
     } catch (e) {
       debugPrint('❌ Error marcando notificaciones como leídas: $e');
       throw NetworkException();
@@ -189,7 +209,7 @@ class NotificationServiceEnhanced {
             .doc(uid)
             .collection('notifications')
             .doc(id);
-        
+
         // Marcar como inactiva en lugar de eliminar físicamente
         batch.update(docRef, {
           'isActive': false,
@@ -198,10 +218,10 @@ class NotificationServiceEnhanced {
       }
 
       await batch.commit();
-      
+
       // Invalidar cache
       _invalidateCache(uid);
-      
+
       debugPrint('✅ ${notificationIds.length} notificaciones eliminadas');
     } catch (e) {
       debugPrint('❌ Error eliminando notificaciones: $e');
@@ -244,15 +264,15 @@ class NotificationServiceEnhanced {
       for (final doc in notifications) {
         final data = doc.data();
         final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
-        
+
         // Contar por tipo
         final type = data['type'] as String? ?? 'unknown';
         byType[type] = (byType[type] ?? 0) + 1;
-        
+
         // Contar por prioridad
         final priority = data['priority'] as String? ?? 'normal';
         byPriority[priority] = (byPriority[priority] ?? 0) + 1;
-        
+
         // Contar por tiempo
         if (createdAt != null) {
           if (createdAt.isAfter(weekAgo)) thisWeek++;
@@ -262,7 +282,9 @@ class NotificationServiceEnhanced {
 
       return NotificationStats(
         total: notifications.length,
-        unread: notifications.where((doc) => doc.data()['isRead'] == false).length,
+        unread: notifications
+            .where((doc) => doc.data()['isRead'] == false)
+            .length,
         byType: byType,
         byPriority: byPriority,
         thisWeek: thisWeek,
@@ -305,14 +327,20 @@ class NotificationServiceEnhanced {
       }
       await batch.commit();
 
-      debugPrint('✅ ${snapshot.docs.length} notificaciones antiguas eliminadas');
+      debugPrint(
+        '✅ ${snapshot.docs.length} notificaciones antiguas eliminadas',
+      );
     } catch (e) {
       debugPrint('❌ Error limpiando notificaciones: $e');
     }
   }
 
   // Métodos privados de ayuda
-  void _validateNotificationData(String title, String message, NotificationType type) {
+  void _validateNotificationData(
+    String title,
+    String message,
+    NotificationType type,
+  ) {
     if (title.trim().isEmpty) {
       throw ValidationException('El título no puede estar vacío');
     }
@@ -339,7 +367,11 @@ class NotificationServiceEnhanced {
     _lastCacheUpdate = null;
   }
 
-  void _updateCacheReadStatus(String uid, List<String> notificationIds, bool isRead) {
+  void _updateCacheReadStatus(
+    String uid,
+    List<String> notificationIds,
+    bool isRead,
+  ) {
     final cached = _notificationCache[uid];
     if (cached == null) return;
 
@@ -347,7 +379,10 @@ class NotificationServiceEnhanced {
       if (notificationIds.contains(notification.id)) {
         // Crear nueva instancia con estado actualizado
         final index = cached.indexOf(notification);
-        cached[index] = notification.copyWith(isRead: isRead, readAt: DateTime.now());
+        cached[index] = notification.copyWith(
+          isRead: isRead,
+          readAt: DateTime.now(),
+        );
       }
     }
   }
@@ -361,7 +396,8 @@ class NotificationServiceEnhanced {
   ) {
     var filtered = notifications.where((notification) {
       if (unreadOnly == true && notification.isRead) return false;
-      if (priorityFilter != null && notification.priority != priorityFilter) return false;
+      if (priorityFilter != null && notification.priority != priorityFilter)
+        return false;
       if (typeFilter != null && notification.type != typeFilter) return false;
       return true;
     }).toList();
@@ -369,9 +405,12 @@ class NotificationServiceEnhanced {
     return filtered.take(limit).toList();
   }
 
-  Timestamp? _calculateExpirationDate(NotificationType type, DateTime? scheduledFor) {
+  Timestamp? _calculateExpirationDate(
+    NotificationType type,
+    DateTime? scheduledFor,
+  ) {
     DateTime expiration;
-    
+
     switch (type) {
       case NotificationType.reminder:
         expiration = (scheduledFor ?? DateTime.now()).add(Duration(days: 7));
@@ -382,7 +421,7 @@ class NotificationServiceEnhanced {
       default:
         expiration = DateTime.now().add(Duration(days: 30));
     }
-    
+
     return Timestamp.fromDate(expiration);
   }
 
@@ -395,7 +434,10 @@ class NotificationServiceEnhanced {
     await cleanupOldNotifications();
   }
 
-  Future<void> _scheduleNotification(String notificationId, DateTime scheduledFor) async {
+  Future<void> _scheduleNotification(
+    String notificationId,
+    DateTime scheduledFor,
+  ) async {
     // Implementar programación de notificaciones push
     debugPrint('📅 Notificación programada para: $scheduledFor');
   }
@@ -407,12 +449,7 @@ class NotificationServiceEnhanced {
 }
 
 /// Prioridades de notificaciones
-enum NotificationPriority {
-  low,
-  normal,
-  high,
-  urgent,
-}
+enum NotificationPriority { low, normal, high, urgent }
 
 /// Tipos mejorados de notificaciones
 enum NotificationType {
@@ -467,7 +504,7 @@ class NotificationItem {
 
   factory NotificationItem.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    
+
     return NotificationItem(
       id: doc.id,
       title: data['title'] ?? '',

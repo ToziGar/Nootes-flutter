@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart' as theme;
 import '../theme/color_utils.dart';
 import '../theme/icon_registry.dart';
+
 // Custom intent for keyboard delete
 class DeleteNoteIntent extends Intent {}
 
@@ -43,7 +44,7 @@ class NotesSidebarCard extends StatelessWidget {
         ? 'Sin título'
         : note['title'].toString();
     final isPinned = note['pinned'] == true;
-    
+
     // ✅ Convertir el String del icono a IconData
     final IconData? icon;
     if (note['icon'] is IconData) {
@@ -53,7 +54,7 @@ class NotesSidebarCard extends StatelessWidget {
     } else {
       icon = null;
     }
-    
+
     // ✅ Obtener el color del icono desde Firestore
     final Color iconColor;
     if (note['iconColor'] is int) {
@@ -61,22 +62,22 @@ class NotesSidebarCard extends StatelessWidget {
     } else {
       iconColor = theme.AppColors.primary;
     }
-    
+
     final tags = List<String>.from(note['tags'] ?? []);
 
-  final selectedColor = isSelected
-    ? theme.AppColors.activeNote
-    : theme.AppColors.surfaceOverlay;
-  final borderColor = isSelected
-    ? theme.AppColors.primary
-    : theme.AppColors.borderColor;
+    final selectedColor = isSelected
+        ? theme.AppColors.activeNote
+        : theme.AppColors.surfaceOverlay;
+    final borderColor = isSelected
+        ? theme.AppColors.primary
+        : theme.AppColors.borderColor;
 
     Widget card = FocusableActionDetector(
       enabled: true,
       autofocus: isSelected,
       shortcuts: <LogicalKeySet, Intent>{
         LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),
-  LogicalKeySet(LogicalKeyboardKey.delete): DeleteNoteIntent(),
+        LogicalKeySet(LogicalKeyboardKey.delete): DeleteNoteIntent(),
       },
       actions: {
         ActivateIntent: CallbackAction<ActivateIntent>(
@@ -105,8 +106,12 @@ class NotesSidebarCard extends StatelessWidget {
             onLongPress: onPin,
             child: Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: compact ? theme.AppColors.space8 : theme.AppColors.space16,
-                vertical: compact ? theme.AppColors.space8 : theme.AppColors.space12,
+                horizontal: compact
+                    ? theme.AppColors.space8
+                    : theme.AppColors.space16,
+                vertical: compact
+                    ? theme.AppColors.space8
+                    : theme.AppColors.space12,
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,20 +131,20 @@ class NotesSidebarCard extends StatelessWidget {
                                 title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
+                                style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(
                                       fontWeight: FontWeight.w600,
-                    color: isSelected
-                      ? theme.AppColors.primary
-                      : theme.AppColors.textPrimary,
+                                      color: isSelected
+                                          ? theme.AppColors.primary
+                                          : theme.AppColors.textPrimary,
                                     ),
                               ),
                             ),
                             if (isPinned)
                               Padding(
-                                padding: const EdgeInsets.only(left: theme.AppColors.space4),
+                                padding: const EdgeInsets.only(
+                                  left: theme.AppColors.space4,
+                                ),
                                 child: Icon(
                                   Icons.push_pin_rounded,
                                   size: 16,
@@ -160,14 +165,15 @@ class NotesSidebarCard extends StatelessWidget {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: theme.AppColors.primary.withOpacityCompat(0.12),
-                  borderRadius: BorderRadius.circular(theme.AppColors.radiusSm),
+                                  color: theme.AppColors.primary
+                                      .withOpacityCompat(0.12),
+                                  borderRadius: BorderRadius.circular(
+                                    theme.AppColors.radiusSm,
+                                  ),
                                 ),
                                 child: Text(
                                   t,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelSmall
+                                  style: Theme.of(context).textTheme.labelSmall
                                       ?.copyWith(
                                         color: theme.AppColors.primary,
                                         fontSize: 10,
@@ -214,15 +220,14 @@ class NotesSidebarCard extends StatelessWidget {
           child: Opacity(
             opacity: 0.85,
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: theme.AppColors.space32 * 7.5),
+              constraints: BoxConstraints(
+                maxWidth: theme.AppColors.space32 * 7.5,
+              ),
               child: card,
             ),
           ),
         ),
-        childWhenDragging: Opacity(
-          opacity: 0.35,
-          child: card,
-        ),
+        childWhenDragging: Opacity(opacity: 0.35, child: card),
         child: card,
       );
     }
@@ -309,7 +314,11 @@ class _MoreMenu extends StatelessWidget {
           value: 'delete',
           child: Row(
             children: [
-              Icon(Icons.delete_outline_rounded, size: 18, color: theme.AppColors.danger),
+              Icon(
+                Icons.delete_outline_rounded,
+                size: 18,
+                color: theme.AppColors.danger,
+              ),
               const SizedBox(width: 8),
               const Text('Eliminar'),
             ],
@@ -319,7 +328,7 @@ class _MoreMenu extends StatelessWidget {
       icon: Icon(
         Icons.more_vert_rounded,
         size: 20,
-  color: theme.AppColors.textSecondary,
+        color: theme.AppColors.textSecondary,
       ),
     );
   }
@@ -353,17 +362,23 @@ class WorkspaceHeader extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: theme.AppColors.surface,
-        border: Border(bottom: BorderSide(color: theme.AppColors.divider, width: 1)),
+        border: Border(
+          bottom: BorderSide(color: theme.AppColors.divider, width: 1),
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.edit_note_rounded, color: theme.AppColors.primary, size: 28),
+          Icon(
+            Icons.edit_note_rounded,
+            color: theme.AppColors.primary,
+            size: 28,
+          ),
           const SizedBox(width: 12),
           Text(
             'Nootes',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const Spacer(),
           if (saving)
@@ -373,10 +388,7 @@ class WorkspaceHeader extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           else if (saveScale != null)
-            ScaleTransition(
-              scale: saveScale!,
-              child: _saveButton(),
-            )
+            ScaleTransition(scale: saveScale!, child: _saveButton())
           else
             _saveButton(),
           const SizedBox(width: 8),
@@ -427,7 +439,11 @@ class EmptyNotesState extends StatelessWidget {
               color: theme.AppColors.primary,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.note_add_rounded, size: 48, color: Colors.white),
+            child: const Icon(
+              Icons.note_add_rounded,
+              size: 48,
+              color: Colors.white,
+            ),
           ),
           SizedBox(height: theme.AppColors.space24),
           Text(
@@ -437,10 +453,9 @@ class EmptyNotesState extends StatelessWidget {
           SizedBox(height: theme.AppColors.space8),
           Text(
             'Crea tu primera nota y organiza tus ideas',
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: theme.AppColors.textSecondary),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: theme.AppColors.textSecondary,
+            ),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: theme.AppColors.space32),

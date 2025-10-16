@@ -9,20 +9,28 @@ class SharingUtils {
 
   /// Genera un token seguro para enlaces públicos
   static String generateSecureToken([int length = 32]) {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const chars =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = Random.secure();
-    return List.generate(length, (index) => chars[random.nextInt(chars.length)]).join();
+    return List.generate(
+      length,
+      (index) => chars[random.nextInt(chars.length)],
+    ).join();
   }
 
   /// Valida un email
   static bool isValidEmail(String email) {
-    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email);
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(email);
   }
 
   /// Valida un nombre de usuario (@username)
   static bool isValidUsername(String username) {
     // Remueve el @ si está presente
-    final cleanUsername = username.startsWith('@') ? username.substring(1) : username;
+    final cleanUsername = username.startsWith('@')
+        ? username.substring(1)
+        : username;
     return RegExp(r'^[a-z0-9._]{3,20}$').hasMatch(cleanUsername);
   }
 
@@ -57,7 +65,10 @@ class SharingUtils {
   }
 
   /// Valida que un mapa contenga los campos requeridos
-  static void validateRequiredFields(Map<String, dynamic> data, List<String> requiredFields) {
+  static void validateRequiredFields(
+    Map<String, dynamic> data,
+    List<String> requiredFields,
+  ) {
     for (final field in requiredFields) {
       if (!data.containsKey(field) || data[field] == null) {
         throw ValidationException('Campo requerido faltante: $field');
@@ -76,7 +87,9 @@ class SharingUtils {
   static String normalizeUserIdentifier(String identifier) {
     final cleaned = identifier.trim();
     if (cleaned.isEmpty) {
-      throw ValidationException('Identificador de usuario no puede estar vacío');
+      throw ValidationException(
+        'Identificador de usuario no puede estar vacío',
+      );
     }
 
     if (cleaned.contains('@') && !cleaned.startsWith('@')) {
@@ -92,7 +105,9 @@ class SharingUtils {
       }
       return cleaned.toLowerCase();
     } else {
-      throw ValidationException('Identificador debe ser un email o @username: $cleaned');
+      throw ValidationException(
+        'Identificador debe ser un email o @username: $cleaned',
+      );
     }
   }
 
@@ -162,28 +177,36 @@ class SharingUtils {
     required bool requireRecipient,
   }) {
     if (requireOwner && ownerId != currentUserId) {
-      throw PermissionDeniedException('Solo el propietario puede realizar esta operación');
+      throw PermissionDeniedException(
+        'Solo el propietario puede realizar esta operación',
+      );
     }
 
     if (requireRecipient && recipientId != currentUserId) {
-      throw PermissionDeniedException('Solo el receptor puede realizar esta operación');
+      throw PermissionDeniedException(
+        'Solo el receptor puede realizar esta operación',
+      );
     }
 
-    if (!requireOwner && !requireRecipient && 
-        ownerId != currentUserId && recipientId != currentUserId) {
-      throw PermissionDeniedException('No tienes permisos para realizar esta operación');
+    if (!requireOwner &&
+        !requireRecipient &&
+        ownerId != currentUserId &&
+        recipientId != currentUserId) {
+      throw PermissionDeniedException(
+        'No tienes permisos para realizar esta operación',
+      );
     }
   }
 
   /// Sanitiza datos para logging
   static Map<String, dynamic> sanitizeForLogging(Map<String, dynamic> data) {
     final sanitized = Map<String, dynamic>.from(data);
-    
+
     // Remover información sensible
     sanitized.remove('password');
     sanitized.remove('token');
     sanitized.remove('secret');
-    
+
     // Truncar emails para privacidad
     if (sanitized.containsKey('email')) {
       final email = sanitized['email'] as String?;
@@ -215,8 +238,14 @@ class SharingValidation {
   static void validateSharedItemData(Map<String, dynamic> data) {
     // Campos requeridos
     SharingUtils.validateRequiredFields(data, [
-      'itemId', 'type', 'ownerId', 'ownerEmail', 
-      'recipientId', 'recipientEmail', 'permission', 'status'
+      'itemId',
+      'type',
+      'ownerId',
+      'ownerEmail',
+      'recipientId',
+      'recipientEmail',
+      'permission',
+      'status',
     ]);
 
     // Validaciones específicas
@@ -226,11 +255,15 @@ class SharingValidation {
 
     // Validar email format
     if (!SharingUtils.isValidEmail(data['ownerEmail'])) {
-      throw ValidationException('Email del propietario inválido: ${data['ownerEmail']}');
+      throw ValidationException(
+        'Email del propietario inválido: ${data['ownerEmail']}',
+      );
     }
 
     if (!SharingUtils.isValidEmail(data['recipientEmail'])) {
-      throw ValidationException('Email del receptor inválido: ${data['recipientEmail']}');
+      throw ValidationException(
+        'Email del receptor inválido: ${data['recipientEmail']}',
+      );
     }
 
     // Validar enums
@@ -248,7 +281,9 @@ class SharingValidation {
 
     // Validar que owner y recipient sean diferentes
     if (data['ownerId'] == data['recipientId']) {
-      throw ValidationException('El propietario y receptor no pueden ser la misma persona');
+      throw ValidationException(
+        'El propietario y receptor no pueden ser la misma persona',
+      );
     }
   }
 
@@ -263,7 +298,9 @@ class SharingValidation {
     SharingUtils.validateNotEmpty(ownerId, 'ownerId');
 
     if (expiresAt != null && expiresAt.isBefore(DateTime.now())) {
-      throw ValidationException('La fecha de expiración no puede ser en el pasado');
+      throw ValidationException(
+        'La fecha de expiración no puede ser en el pasado',
+      );
     }
 
     if (permission == null) {

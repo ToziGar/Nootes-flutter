@@ -11,12 +11,16 @@ import 'dart:math';
 enum SharingStatus {
   /// Pendiente de aceptación por parte del receptor
   pending,
+
   /// Aceptada por el receptor - el contenido está siendo compartido activamente
   accepted,
+
   /// Rechazada por el receptor - el receptor declinó la invitación
   rejected,
+
   /// Revocada por el propietario - el propietario canceló la compartición
   revoked,
+
   /// El receptor se salió voluntariamente de la compartición
   left,
 }
@@ -25,8 +29,10 @@ enum SharingStatus {
 enum SharedItemType {
   /// Nota individual
   note,
+
   /// Carpeta con sus notas
   folder,
+
   /// Colección con sus notas
   collection,
 }
@@ -35,8 +41,10 @@ enum SharedItemType {
 enum PermissionLevel {
   /// Solo lectura - puede ver el contenido pero no modificarlo
   read,
+
   /// Lectura y comentarios - puede ver y comentar pero no editar
   comment,
+
   /// Lectura y edición - puede ver, comentar y editar el contenido
   edit,
 }
@@ -152,16 +160,15 @@ class SharedItem {
 
   /// Obtiene el título del elemento desde metadata
   String get itemTitle {
-    return metadata?['noteTitle'] ?? 
-           metadata?['folderName'] ?? 
-           metadata?['collectionName'] ?? 
-           'Sin título';
+    return metadata?['noteTitle'] ??
+        metadata?['folderName'] ??
+        metadata?['collectionName'] ??
+        'Sin título';
   }
 
   /// Obtiene el nombre del propietario desde metadata
   String get ownerName {
-    return metadata?['ownerName'] ?? 
-           ownerEmail.split('@').first;
+    return metadata?['ownerName'] ?? ownerEmail.split('@').first;
   }
 
   /// Crea una instancia desde un documento de Firestore
@@ -172,31 +179,46 @@ class SharedItem {
         itemId: _validateString(data['itemId'], 'itemId'),
         type: SharedItemType.values.firstWhere(
           (e) => e.name == data['type'],
-          orElse: () => throw ValidationException('type', 'Tipo de compartición inválido'),
+          orElse: () => throw ValidationException(
+            'type',
+            'Tipo de compartición inválido',
+          ),
         ),
         ownerId: _validateString(data['ownerId'], 'ownerId'),
         ownerEmail: _validateString(data['ownerEmail'], 'ownerEmail'),
         recipientId: _validateString(data['recipientId'], 'recipientId'),
-        recipientEmail: _validateString(data['recipientEmail'], 'recipientEmail'),
+        recipientEmail: _validateString(
+          data['recipientEmail'],
+          'recipientEmail',
+        ),
         permission: PermissionLevel.values.firstWhere(
           (e) => e.name == data['permission'],
-          orElse: () => throw ValidationException('permission', 'Nivel de permiso inválido'),
+          orElse: () => throw ValidationException(
+            'permission',
+            'Nivel de permiso inválido',
+          ),
         ),
         status: SharingStatus.values.firstWhere(
           (e) => e.name == data['status'],
-          orElse: () => throw ValidationException('status', 'Estado de compartición inválido'),
+          orElse: () => throw ValidationException(
+            'status',
+            'Estado de compartición inválido',
+          ),
         ),
-        createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        createdAt:
+            (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
         updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
         expiresAt: (data['expiresAt'] as Timestamp?)?.toDate(),
         message: data['message'] as String?,
         metadata: data['metadata'] as Map<String, dynamic>?,
       );
     } catch (e) {
-      LoggingService.error('Error parsing SharedItem from Firestore data', 
-                          tag: 'SharedItem', 
-                          data: {'id': id, 'rawData': data}, 
-                          error: e);
+      LoggingService.error(
+        'Error parsing SharedItem from Firestore data',
+        tag: 'SharedItem',
+        data: {'id': id, 'rawData': data},
+        error: e,
+      );
       rethrow;
     }
   }
@@ -204,7 +226,10 @@ class SharedItem {
   /// Valida que un campo string no esté vacío
   static String _validateString(dynamic value, String fieldName) {
     if (value == null || value.toString().isEmpty) {
-      throw ValidationException(fieldName, 'Campo $fieldName no puede estar vacío');
+      throw ValidationException(
+        fieldName,
+        'Campo $fieldName no puede estar vacío',
+      );
     }
     return value.toString();
   }
@@ -272,7 +297,8 @@ class _SharingCache {
 
   static T? get<T>(String key) {
     final timestamp = _cacheTimestamps[key];
-    if (timestamp == null || DateTime.now().difference(timestamp) > _cacheExpiry) {
+    if (timestamp == null ||
+        DateTime.now().difference(timestamp) > _cacheExpiry) {
       _cache.remove(key);
       _cacheTimestamps.remove(key);
       return null;
@@ -297,7 +323,7 @@ class _SharingCache {
 }
 
 /// Servicio principal para manejar el sistema de compartir notas y carpetas
-/// 
+///
 /// Este servicio maneja todas las operaciones relacionadas con compartir contenido:
 /// - Compartir notas y carpetas con otros usuarios
 /// - Gestionar permisos y estados de compartición
@@ -319,7 +345,10 @@ class SharingService {
   /// Actualizar configuración del servicio
   void updateConfig(SharingConfig newConfig) {
     _config = newConfig;
-    LoggingService.info('SharingService configuration updated', tag: 'SharingService');
+    LoggingService.info(
+      'SharingService configuration updated',
+      tag: 'SharingService',
+    );
   }
 
   /// UID del usuario autenticado
@@ -335,7 +364,9 @@ class SharingService {
   String get currentUserEmail {
     final email = _authService.currentUser?.email;
     if (email == null) {
-      throw const AuthenticationException('No se pudo obtener el email del usuario');
+      throw const AuthenticationException(
+        'No se pudo obtener el email del usuario',
+      );
     }
     return email;
   }
@@ -345,12 +376,12 @@ class SharingService {
   // =====================================================================
 
   /// Obtiene todas las comparticiones para un elemento específico
-  /// 
+  ///
   /// [itemId]: ID del elemento (nota, carpeta, colección)
   /// [type]: Tipo del elemento que se está compartiendo
   /// [ownerId]: ID del propietario (opcional, usa el usuario actual si no se especifica)
   /// [includeInactive]: Si incluir comparticiones inactivas (revocadas, rechazadas, etc.)
-  /// 
+  ///
   /// Retorna una lista de [SharedItem] asociados al elemento
   Future<List<SharedItem>> getSharingsForItem({
     required String itemId,
@@ -359,17 +390,23 @@ class SharingService {
     bool includeInactive = false,
   }) async {
     try {
-      LoggingService.debug('Getting sharings for item', 
-                          tag: 'SharingService', 
-                          data: {'itemId': itemId, 'type': type.name, 'ownerId': ownerId});
+      LoggingService.debug(
+        'Getting sharings for item',
+        tag: 'SharingService',
+        data: {'itemId': itemId, 'type': type.name, 'ownerId': ownerId},
+      );
 
       final uid = ownerId ?? currentUserId;
-      final cacheKey = 'sharings_${uid}_${itemId}_${type.name}_$includeInactive';
-      
+      final cacheKey =
+          'sharings_${uid}_${itemId}_${type.name}_$includeInactive';
+
       // Verificar caché primero
       final cached = _SharingCache.get<List<SharedItem>>(cacheKey);
       if (cached != null) {
-        LoggingService.debug('Returning cached sharings', tag: 'SharingService');
+        LoggingService.debug(
+          'Returning cached sharings',
+          tag: 'SharingService',
+        );
         return cached;
       }
 
@@ -380,109 +417,131 @@ class SharingService {
           .where('ownerId', isEqualTo: uid);
 
       if (!includeInactive) {
-        query = query.where('status', whereIn: [
-          SharingStatus.pending.name,
-          SharingStatus.accepted.name,
-        ]);
+        query = query.where(
+          'status',
+          whereIn: [SharingStatus.pending.name, SharingStatus.accepted.name],
+        );
       }
 
       final querySnapshot = await query.get();
       final items = querySnapshot.docs
-          .map((doc) => SharedItem.fromMap(doc.id, doc.data() as Map<String, dynamic>))
+          .map(
+            (doc) =>
+                SharedItem.fromMap(doc.id, doc.data() as Map<String, dynamic>),
+          )
           .where((item) => includeInactive || !item.isExpired)
           .toList();
 
       // Guardar en caché
       _SharingCache.set(cacheKey, items);
-      
-      LoggingService.info('Retrieved ${items.length} sharings for item $itemId', 
-                         tag: 'SharingService');
-      return items;
 
+      LoggingService.info(
+        'Retrieved ${items.length} sharings for item $itemId',
+        tag: 'SharingService',
+      );
+      return items;
     } catch (e, stackTrace) {
-      LoggingService.error('Error getting sharings for item', 
-                          tag: 'SharingService',
-                          data: {'itemId': itemId, 'type': type.name},
-                          error: e,
-                          stackTrace: stackTrace);
-      
+      LoggingService.error(
+        'Error getting sharings for item',
+        tag: 'SharingService',
+        data: {'itemId': itemId, 'type': type.name},
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       if (e is SharingException) rethrow;
-      throw FirestoreException('Error obteniendo comparticiones: ${e.toString()}');
+      throw FirestoreException(
+        'Error obteniendo comparticiones: ${e.toString()}',
+      );
     }
   }
 
   /// Revoca una compartición y la elimina de forma segura
-  /// 
+  ///
   /// Esta operación primero cambia el estado a 'revoked' y luego elimina el documento.
   /// Las reglas de Firestore solo permiten eliminar documentos en estados terminales.
-  /// 
+  ///
   /// [shareId]: ID de la compartición a revocar y eliminar
   Future<void> revokeAndDelete(String shareId) async {
     try {
-      LoggingService.info('Revoking and deleting sharing', 
-                         tag: 'SharingService', 
-                         data: {'shareId': shareId});
+      LoggingService.info(
+        'Revoking and deleting sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+      );
 
       await revokeSharing(shareId);
       await _firestore.collection('shared_items').doc(shareId).delete();
-      
+
       // Limpiar caché relacionado
       _SharingCache.clear();
-      
-      LoggingService.info('Successfully revoked and deleted sharing', 
-                         tag: 'SharingService',
-                         data: {'shareId': shareId});
 
+      LoggingService.info(
+        'Successfully revoked and deleted sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+      );
     } catch (e, stackTrace) {
-      LoggingService.error('Error revoking and deleting sharing', 
-                          tag: 'SharingService',
-                          data: {'shareId': shareId},
-                          error: e,
-                          stackTrace: stackTrace);
+      LoggingService.error(
+        'Error revoking and deleting sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     }
   }
 
   /// El receptor abandona una compartición y la elimina
-  /// 
+  ///
   /// [shareId]: ID de la compartición que el receptor desea abandonar
   Future<void> leaveAndDelete(String shareId) async {
     try {
-      LoggingService.info('Leaving and deleting sharing', 
-                         tag: 'SharingService', 
-                         data: {'shareId': shareId});
+      LoggingService.info(
+        'Leaving and deleting sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+      );
 
       await leaveSharing(shareId);
-      await _firestore.collection('shared_items').doc(shareId).delete();
-      
+      // Try to delete only when terminal state is persisted server-side.
+      // If rules still block (race/replication), swallow and let cleanup happen later.
+      await _tryDeleteSharingIfTerminal(shareId);
+
       // Limpiar caché relacionado
       _SharingCache.clear();
-      
-      LoggingService.info('Successfully left and deleted sharing', 
-                         tag: 'SharingService',
-                         data: {'shareId': shareId});
 
+      LoggingService.info(
+        'Successfully left and deleted sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+      );
     } catch (e, stackTrace) {
-      LoggingService.error('Error leaving and deleting sharing', 
-                          tag: 'SharingService',
-                          data: {'shareId': shareId},
-                          error: e,
-                          stackTrace: stackTrace);
+      LoggingService.error(
+        'Error leaving and deleting sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     }
   }
 
   /// Elimina de forma segura una compartición sin importar su estado actual
-  /// 
+  ///
   /// Transiciona la compartición a un estado terminal válido antes de eliminarla,
   /// basándose en el rol del usuario (propietario o receptor).
-  /// 
+  ///
   /// [shareId]: ID de la compartición a eliminar
   Future<void> safeDeleteSharing(String shareId) async {
     try {
-      LoggingService.info('Safely deleting sharing', 
-                         tag: 'SharingService', 
-                         data: {'shareId': shareId});
+      LoggingService.info(
+        'Safely deleting sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+      );
 
       final currentUser = _authService.currentUser;
       if (currentUser == null) {
@@ -491,10 +550,10 @@ class SharingService {
 
       final ref = _firestore.collection('shared_items').doc(shareId);
       final snap = await ref.get();
-      
+
       if (!snap.exists) {
         LoggingService.debug('Sharing already deleted', tag: 'SharingService');
-        return; 
+        return;
       }
 
       final data = snap.data() as Map<String, dynamic>;
@@ -503,7 +562,7 @@ class SharingService {
         (s) => s.name == statusStr,
         orElse: () => SharingStatus.pending,
       );
-      
+
       final ownerId = data['ownerId']?.toString() ?? '';
       final recipientId = data['recipientId']?.toString() ?? '';
 
@@ -512,7 +571,7 @@ class SharingService {
 
       if (!isOwner && !isRecipient) {
         throw const PermissionDeniedException(
-          'No tienes permisos para eliminar esta compartición'
+          'No tienes permisos para eliminar esta compartición',
         );
       }
 
@@ -521,7 +580,10 @@ class SharingService {
           status == SharingStatus.left ||
           status == SharingStatus.rejected) {
         await ref.delete();
-        LoggingService.debug('Deleted sharing in terminal state', tag: 'SharingService');
+        LoggingService.debug(
+          'Deleted sharing in terminal state',
+          tag: 'SharingService',
+        );
         return;
       }
 
@@ -540,30 +602,119 @@ class SharingService {
           'status': newStatus.name,
           'updatedAt': fs.FieldValue.serverTimestamp(),
         });
-        LoggingService.debug('Updated sharing status as recipient', 
-                           tag: 'SharingService', 
-                           data: {'newStatus': newStatus.name});
+        LoggingService.debug(
+          'Updated sharing status as recipient',
+          tag: 'SharingService',
+          data: {'newStatus': newStatus.name},
+        );
       }
 
-      // Ahora eliminar (las reglas deberían permitirlo)
-      await ref.delete();
-      
+  // Re-read to ensure terminal state is visible to rules, then delete.
+  await _tryDeleteSharingIfTerminal(shareId);
+
       // Limpiar caché
       _SharingCache.clear();
-      
-      LoggingService.info('Successfully safely deleted sharing', 
-                         tag: 'SharingService',
-                         data: {'shareId': shareId});
 
+      LoggingService.info(
+        'Successfully safely deleted sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+      );
     } catch (e, stackTrace) {
-      LoggingService.error('Error safely deleting sharing', 
-                          tag: 'SharingService',
-                          data: {'shareId': shareId},
-                          error: e,
-                          stackTrace: stackTrace);
-      
+      LoggingService.error(
+        'Error safely deleting sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       if (e is SharingException) rethrow;
-      throw FirestoreException('Error eliminando compartición: ${e.toString()}');
+      throw FirestoreException(
+        'Error eliminando compartición: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Intenta eliminar el documento de compartición solo si está en un estado terminal
+  /// y el usuario actual es el propietario o el receptor.
+  /// Si falla por permisos (por una carrera de propagación), registra y continúa.
+  Future<void> _tryDeleteSharingIfTerminal(String shareId) async {
+    try {
+      final currentUser = _authService.currentUser;
+      if (currentUser == null) throw const AuthenticationException();
+
+      final ref = _firestore.collection('shared_items').doc(shareId);
+
+      // Pequeño reintento con backoff para cubrir carreras de propagación
+      const int maxAttempts = 3;
+      const Duration backoff = Duration(milliseconds: 200);
+      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          // Releer estado actual en servidor
+          final snap = await ref.get();
+          if (!snap.exists) return; // ya eliminado
+          final data = snap.data() as Map<String, dynamic>;
+          final statusStr =
+              (data['status'] as String?) ?? SharingStatus.pending.name;
+          final status = SharingStatus.values.firstWhere(
+            (s) => s.name == statusStr,
+            orElse: () => SharingStatus.pending,
+          );
+
+          // Solo eliminar si el estado ya es terminal
+          final isTerminal = status == SharingStatus.revoked ||
+              status == SharingStatus.left ||
+              status == SharingStatus.rejected;
+          if (!isTerminal) {
+            if (attempt < maxAttempts) {
+              await Future.delayed(backoff);
+              continue;
+            }
+            return; // no terminal después de reintentos; dejar limpieza para luego
+          }
+
+          final ownerId = data['ownerId']?.toString() ?? '';
+          final recipientId = data['recipientId']?.toString() ?? '';
+          final canDeleteAsOwner = currentUser.uid == ownerId;
+          final canDeleteAsRecipient = currentUser.uid == recipientId;
+          if (canDeleteAsOwner || canDeleteAsRecipient) {
+            await ref.delete();
+          }
+          return; // eliminado o no se tenían permisos, en ambos casos salir
+        } catch (inner) {
+          final msg = inner.toString().toLowerCase();
+          final isPermission =
+              msg.contains('permission-denied') || msg.contains('permission');
+          if (isPermission) {
+            if (attempt < maxAttempts) {
+              await Future.delayed(backoff);
+              continue; // reintentar tras breve espera
+            }
+            // Ignorar definitivamente: el estado ya es terminal; limpieza posterior
+            LoggingService.warning(
+              'Delete blocked by rules; leaving status set',
+              tag: 'SharingService',
+              data: {
+                'shareId': shareId,
+                'error': inner.toString(),
+                'attempt': attempt,
+              },
+            );
+            return;
+          }
+          // Otros errores, propagar inmediatamente
+          rethrow;
+        }
+      }
+    } catch (e) {
+      // Errores no relacionados con permisos ya fueron propagados; aquí sólo
+      // hacemos logging por si algo inesperado ocurre a nivel superior.
+      LoggingService.warning(
+        'Unexpected error while trying to delete terminal sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId, 'error': e.toString()},
+      );
     }
   }
 
@@ -572,22 +723,24 @@ class SharingService {
   // =====================================================================
 
   /// Genera o regenera un enlace público para una nota
-  /// 
+  ///
   /// Los enlaces públicos permiten compartir una nota con cualquier persona
   /// que tenga el enlace, sin necesidad de que tengan cuenta en la aplicación.
-  /// 
+  ///
   /// [noteId]: ID de la nota para la cual generar el enlace
   /// [expiresAt]: Fecha de expiración opcional para el enlace
-  /// 
+  ///
   /// Retorna el token del enlace público generado
   Future<String> generatePublicLink({
     required String noteId,
     DateTime? expiresAt,
   }) async {
     try {
-      LoggingService.info('Generating public link for note', 
-                         tag: 'SharingService', 
-                         data: {'noteId': noteId});
+      LoggingService.info(
+        'Generating public link for note',
+        tag: 'SharingService',
+        data: {'noteId': noteId},
+      );
 
       final currentUser = _authService.currentUser;
       if (currentUser == null) {
@@ -626,36 +779,45 @@ class SharingService {
           'shareToken': token,
           'shareEnabled': true,
           'sharedAt': fs.FieldValue.serverTimestamp(),
-          'shareExpiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt) : null,
+          'shareExpiresAt': expiresAt != null
+              ? Timestamp.fromDate(expiresAt)
+              : null,
         },
       );
 
-      LoggingService.info('Successfully generated public link', 
-                         tag: 'SharingService',
-                         data: {'noteId': noteId, 'token': token});
+      LoggingService.info(
+        'Successfully generated public link',
+        tag: 'SharingService',
+        data: {'noteId': noteId, 'token': token},
+      );
 
       return token;
-
     } catch (e, stackTrace) {
-      LoggingService.error('Error generating public link', 
-                          tag: 'SharingService',
-                          data: {'noteId': noteId},
-                          error: e,
-                          stackTrace: stackTrace);
-      
+      LoggingService.error(
+        'Error generating public link',
+        tag: 'SharingService',
+        data: {'noteId': noteId},
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       if (e is SharingException) rethrow;
-      throw FirestoreException('Error generando enlace público: ${e.toString()}');
+      throw FirestoreException(
+        'Error generando enlace público: ${e.toString()}',
+      );
     }
   }
 
   /// Revoca un enlace público existente
-  /// 
+  ///
   /// [noteId]: ID de la nota cuyo enlace público se desea revocar
   Future<void> revokePublicLink({required String noteId}) async {
     try {
-      LoggingService.info('Revoking public link for note', 
-                         tag: 'SharingService', 
-                         data: {'noteId': noteId});
+      LoggingService.info(
+        'Revoking public link for note',
+        tag: 'SharingService',
+        data: {'noteId': noteId},
+      );
 
       final currentUser = _authService.currentUser;
       if (currentUser == null) {
@@ -691,32 +853,39 @@ class SharingService {
         },
       );
 
-      LoggingService.info('Successfully revoked public link', 
-                         tag: 'SharingService',
-                         data: {'noteId': noteId});
-
+      LoggingService.info(
+        'Successfully revoked public link',
+        tag: 'SharingService',
+        data: {'noteId': noteId},
+      );
     } catch (e, stackTrace) {
-      LoggingService.error('Error revoking public link', 
-                          tag: 'SharingService',
-                          data: {'noteId': noteId},
-                          error: e,
-                          stackTrace: stackTrace);
-      
+      LoggingService.error(
+        'Error revoking public link',
+        tag: 'SharingService',
+        data: {'noteId': noteId},
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       if (e is SharingException) rethrow;
-      throw FirestoreException('Error revocando enlace público: ${e.toString()}');
+      throw FirestoreException(
+        'Error revocando enlace público: ${e.toString()}',
+      );
     }
   }
 
   /// Obtiene el token de enlace público para una nota (si está habilitado)
-  /// 
+  ///
   /// [noteId]: ID de la nota
-  /// 
+  ///
   /// Retorna el token del enlace público o null si no existe o está deshabilitado
   Future<String?> getPublicLinkToken({required String noteId}) async {
     try {
-      LoggingService.debug('Getting public link token for note', 
-                          tag: 'SharingService', 
-                          data: {'noteId': noteId});
+      LoggingService.debug(
+        'Getting public link token for note',
+        tag: 'SharingService',
+        data: {'noteId': noteId},
+      );
 
       final currentUser = _authService.currentUser;
       if (currentUser == null) {
@@ -742,7 +911,10 @@ class SharingService {
       }
 
       // Verificar que el enlace aún está habilitado
-      final linkDoc = await _firestore.collection('public_links').doc(token).get();
+      final linkDoc = await _firestore
+          .collection('public_links')
+          .doc(token)
+          .get();
       if (!linkDoc.exists || (linkDoc.data()?['enabled'] != true)) {
         return null;
       }
@@ -754,35 +926,44 @@ class SharingService {
       }
 
       return token;
-
     } catch (e, stackTrace) {
-      LoggingService.error('Error getting public link token', 
-                          tag: 'SharingService',
-                          data: {'noteId': noteId},
-                          error: e,
-                          stackTrace: stackTrace);
+      LoggingService.error(
+        'Error getting public link token',
+        tag: 'SharingService',
+        data: {'noteId': noteId},
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
 
   /// Resuelve un token público a información de la nota
-  /// 
+  ///
   /// [token]: Token del enlace público
-  /// 
+  ///
   /// Retorna un mapa con la información de la nota o null si el token es inválido
   Future<Map<String, String>?> resolvePublicToken(String token) async {
     try {
-      LoggingService.debug('Resolving public token', 
-                          tag: 'SharingService', 
-                          data: {'token': token});
+      LoggingService.debug(
+        'Resolving public token',
+        tag: 'SharingService',
+        data: {'token': token},
+      );
 
       if (token.isEmpty) {
         return null;
       }
 
-      final linkDoc = await _firestore.collection('public_links').doc(token).get();
+      final linkDoc = await _firestore
+          .collection('public_links')
+          .doc(token)
+          .get();
       if (!linkDoc.exists) {
-        LoggingService.debug('Public link token not found', tag: 'SharingService');
+        LoggingService.debug(
+          'Public link token not found',
+          tag: 'SharingService',
+        );
         return null;
       }
 
@@ -803,9 +984,11 @@ class SharingService {
       final noteId = data['noteId']?.toString() ?? '';
 
       if (ownerId.isEmpty || noteId.isEmpty) {
-        LoggingService.warning('Invalid public link data', 
-                              tag: 'SharingService', 
-                              data: {'ownerId': ownerId, 'noteId': noteId});
+        LoggingService.warning(
+          'Invalid public link data',
+          tag: 'SharingService',
+          data: {'ownerId': ownerId, 'noteId': noteId},
+        );
         return null;
       }
 
@@ -815,27 +998,28 @@ class SharingService {
         'lastAccessedAt': fs.FieldValue.serverTimestamp(),
       });
 
-      return {
-        'ownerId': ownerId,
-        'noteId': noteId,
-        'token': token,
-      };
-
+      return {'ownerId': ownerId, 'noteId': noteId, 'token': token};
     } catch (e, stackTrace) {
-      LoggingService.error('Error resolving public token', 
-                          tag: 'SharingService',
-                          data: {'token': token},
-                          error: e,
-                          stackTrace: stackTrace);
+      LoggingService.error(
+        'Error resolving public token',
+        tag: 'SharingService',
+        data: {'token': token},
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
 
   /// Genera un token seguro para enlaces públicos
   String _generateSecureToken(int length) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    const chars =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
     final random = Random.secure();
-    return List.generate(length, (_) => chars[random.nextInt(chars.length)]).join();
+    return List.generate(
+      length,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
   }
 
   // =====================================================================
@@ -843,9 +1027,9 @@ class SharingService {
   // =====================================================================
 
   /// Busca un usuario por email con validación y caché
-  /// 
+  ///
   /// [email]: Email del usuario a buscar
-  /// 
+  ///
   /// Retorna información del usuario o null si no se encuentra
   Future<Map<String, dynamic>?> findUserByEmail(String email) async {
     try {
@@ -854,16 +1038,21 @@ class SharingService {
       }
 
       final normalizedEmail = email.trim().toLowerCase();
-      
-      LoggingService.debug('Finding user by email', 
-                          tag: 'SharingService', 
-                          data: {'email': normalizedEmail});
+
+      LoggingService.debug(
+        'Finding user by email',
+        tag: 'SharingService',
+        data: {'email': normalizedEmail},
+      );
 
       // Verificar caché
       final cacheKey = 'user_email_$normalizedEmail';
       final cached = _SharingCache.get<Map<String, dynamic>>(cacheKey);
       if (cached != null) {
-        LoggingService.debug('Returning cached user data', tag: 'SharingService');
+        LoggingService.debug(
+          'Returning cached user data',
+          tag: 'SharingService',
+        );
         return cached;
       }
 
@@ -874,9 +1063,11 @@ class SharingService {
           .get();
 
       if (snapshot.docs.isEmpty) {
-        LoggingService.debug('User not found by email', 
-                           tag: 'SharingService', 
-                           data: {'email': normalizedEmail});
+        LoggingService.debug(
+          'User not found by email',
+          tag: 'SharingService',
+          data: {'email': normalizedEmail},
+        );
         return null;
       }
 
@@ -891,75 +1082,97 @@ class SharingService {
       // Guardar en caché
       _SharingCache.set(cacheKey, result);
 
-      LoggingService.info('User found by email', 
-                         tag: 'SharingService',
-                         data: {'email': normalizedEmail, 'uid': result['uid']});
-      
-      return result;
+      LoggingService.info(
+        'User found by email',
+        tag: 'SharingService',
+        data: {'email': normalizedEmail, 'uid': result['uid']},
+      );
 
+      return result;
     } catch (e, stackTrace) {
-      LoggingService.error('Error finding user by email', 
-                          tag: 'SharingService',
-                          data: {'email': email},
-                          error: e,
-                          stackTrace: stackTrace);
-      
+      LoggingService.error(
+        'Error finding user by email',
+        tag: 'SharingService',
+        data: {'email': email},
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       if (e is SharingException) rethrow;
-      
+
       final errorStr = e.toString().toLowerCase();
       if (errorStr.contains('permission') || errorStr.contains('denied')) {
         throw const PermissionDeniedException(
-          'Sin permisos para buscar usuarios. Verifica las reglas de Firestore.'
+          'Sin permisos para buscar usuarios. Verifica las reglas de Firestore.',
         );
       }
-      
-      throw FirestoreException('Error buscando usuario por email: ${e.toString()}');
+
+      throw FirestoreException(
+        'Error buscando usuario por email: ${e.toString()}',
+      );
     }
   }
 
   /// Busca un usuario por username con validación y caché
-  /// 
+  ///
   /// [username]: Username del usuario a buscar (sin @)
-  /// 
+  ///
   /// Retorna información del usuario o null si no se encuentra
   Future<Map<String, dynamic>?> findUserByUsername(String username) async {
     try {
       if (username.trim().isEmpty) {
-        throw const ValidationException('username', 'Username no puede estar vacío');
+        throw const ValidationException(
+          'username',
+          'Username no puede estar vacío',
+        );
       }
 
-      final normalizedUsername = username.trim().toLowerCase().replaceAll('@', '');
-      
-      LoggingService.debug('Finding user by username', 
-                          tag: 'SharingService', 
-                          data: {'username': normalizedUsername});
+      final normalizedUsername = username.trim().toLowerCase().replaceAll(
+        '@',
+        '',
+      );
+
+      LoggingService.debug(
+        'Finding user by username',
+        tag: 'SharingService',
+        data: {'username': normalizedUsername},
+      );
 
       // Verificar caché
       final cacheKey = 'user_username_$normalizedUsername';
       final cached = _SharingCache.get<Map<String, dynamic>>(cacheKey);
       if (cached != null) {
-        LoggingService.debug('Returning cached user data', tag: 'SharingService');
+        LoggingService.debug(
+          'Returning cached user data',
+          tag: 'SharingService',
+        );
         return cached;
       }
 
       final handle = await FirestoreService.instance.getHandle(
         username: normalizedUsername,
       );
-      
+
       if (handle == null) {
-        LoggingService.debug('Handle not found for username', 
-                           tag: 'SharingService', 
-                           data: {'username': normalizedUsername});
+        LoggingService.debug(
+          'Handle not found for username',
+          tag: 'SharingService',
+          data: {'username': normalizedUsername},
+        );
         return null;
       }
 
       final uid = handle['uid'];
-      final userProfile = await FirestoreService.instance.getUserProfile(uid: uid);
+      final userProfile = await FirestoreService.instance.getUserProfile(
+        uid: uid,
+      );
 
       if (userProfile == null) {
-        LoggingService.warning('User profile not found for handle', 
-                              tag: 'SharingService', 
-                              data: {'username': normalizedUsername, 'uid': uid});
+        LoggingService.warning(
+          'User profile not found for handle',
+          tag: 'SharingService',
+          data: {'username': normalizedUsername, 'uid': uid},
+        );
         return null;
       }
 
@@ -973,36 +1186,45 @@ class SharingService {
       // Guardar en caché
       _SharingCache.set(cacheKey, result);
 
-      LoggingService.info('User found by username', 
-                         tag: 'SharingService',
-                         data: {'username': normalizedUsername, 'uid': uid});
-      
-      return result;
+      LoggingService.info(
+        'User found by username',
+        tag: 'SharingService',
+        data: {'username': normalizedUsername, 'uid': uid},
+      );
 
+      return result;
     } catch (e, stackTrace) {
-      LoggingService.error('Error finding user by username', 
-                          tag: 'SharingService',
-                          data: {'username': username},
-                          error: e,
-                          stackTrace: stackTrace);
-      
+      LoggingService.error(
+        'Error finding user by username',
+        tag: 'SharingService',
+        data: {'username': username},
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       if (e is SharingException) rethrow;
-      
+
       final errorStr = e.toString().toLowerCase();
       if (errorStr.contains('permission') || errorStr.contains('denied')) {
         throw const PermissionDeniedException(
-          'Sin permisos para buscar usuarios. Verifica las reglas de Firestore.'
+          'Sin permisos para buscar usuarios. Verifica las reglas de Firestore.',
         );
       }
-      
-      throw FirestoreException('Error buscando usuario por username: ${e.toString()}');
+
+      throw FirestoreException(
+        'Error buscando usuario por username: ${e.toString()}',
+      );
     }
   }
 
   // Placeholder methods that need to be implemented
   Future<void> revokeSharing(String shareId) async {
     try {
-      LoggingService.info('Revoking sharing', tag: 'SharingService', data: {'shareId': shareId});
+      LoggingService.info(
+        'Revoking sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+      );
 
       final currentUser = _authService.currentUser;
       if (currentUser == null) throw const AuthenticationException();
@@ -1014,18 +1236,27 @@ class SharingService {
       final data = snap.data() as Map<String, dynamic>;
       final ownerId = data['ownerId']?.toString() ?? '';
       if (ownerId != currentUser.uid) {
-        throw const PermissionDeniedException('Solo el propietario puede revocar la compartición');
+        throw const PermissionDeniedException(
+          'Solo el propietario puede revocar la compartición',
+        );
       }
 
-      final statusStr = (data['status'] as String?) ?? SharingStatus.pending.name;
+      final statusStr =
+          (data['status'] as String?) ?? SharingStatus.pending.name;
       final status = SharingStatus.values.firstWhere(
         (s) => s.name == statusStr,
         orElse: () => SharingStatus.pending,
       );
 
-      if (status == SharingStatus.revoked || status == SharingStatus.left || status == SharingStatus.rejected) {
+      if (status == SharingStatus.revoked ||
+          status == SharingStatus.left ||
+          status == SharingStatus.rejected) {
         // Already terminal
-        LoggingService.debug('Sharing already in terminal state', tag: 'SharingService', data: {'shareId': shareId, 'status': status.name});
+        LoggingService.debug(
+          'Sharing already in terminal state',
+          tag: 'SharingService',
+          data: {'shareId': shareId, 'status': status.name},
+        );
         return;
       }
 
@@ -1037,11 +1268,16 @@ class SharingService {
       // Optionally send notification to recipient
       try {
         final recipientId = data['recipientId']?.toString();
-            if (recipientId != null && recipientId.isNotEmpty && _config.enableNotifications) {
+        if (recipientId != null &&
+            recipientId.isNotEmpty &&
+            _config.enableNotifications) {
           // Use NotificationService helper for share revoked
           try {
             final ownerName = currentUser.email?.split('@').first ?? 'Usuario';
-            final itemTitle = (data['metadata'] as Map<String, dynamic>?)?['noteTitle'] ?? (data['metadata'] as Map<String, dynamic>?)?['folderName'] ?? '';
+            final itemTitle =
+                (data['metadata'] as Map<String, dynamic>?)?['noteTitle'] ??
+                (data['metadata'] as Map<String, dynamic>?)?['folderName'] ??
+                '';
             await NotificationService().notifyShareRevoked(
               recipientId: recipientId,
               ownerName: ownerName,
@@ -1049,7 +1285,11 @@ class SharingService {
               shareId: shareId,
             );
           } catch (nErr) {
-            LoggingService.warning('Failed to send revoke notification', tag: 'SharingService', data: {'err': nErr.toString()});
+            LoggingService.warning(
+              'Failed to send revoke notification',
+              tag: 'SharingService',
+              data: {'err': nErr.toString()},
+            );
           }
         }
       } catch (_) {
@@ -1059,10 +1299,19 @@ class SharingService {
       // Invalidate related cache entries
       _SharingCache.clear();
 
-      LoggingService.info('Sharing revoked', tag: 'SharingService', data: {'shareId': shareId});
-
+      LoggingService.info(
+        'Sharing revoked',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+      );
     } catch (e, stackTrace) {
-      LoggingService.error('Error revoking sharing', tag: 'SharingService', data: {'shareId': shareId}, error: e, stackTrace: stackTrace);
+      LoggingService.error(
+        'Error revoking sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (e is SharingException) rethrow;
       throw FirestoreException('Error revocando compartición: ${e.toString()}');
     }
@@ -1070,7 +1319,11 @@ class SharingService {
 
   Future<void> leaveSharing(String shareId) async {
     try {
-      LoggingService.info('Leaving sharing', tag: 'SharingService', data: {'shareId': shareId});
+      LoggingService.info(
+        'Leaving sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+      );
 
       final currentUser = _authService.currentUser;
       if (currentUser == null) throw const AuthenticationException();
@@ -1082,21 +1335,32 @@ class SharingService {
       final data = snap.data() as Map<String, dynamic>;
       final recipientId = data['recipientId']?.toString() ?? '';
       if (recipientId != currentUser.uid) {
-        throw const PermissionDeniedException('Solo el receptor puede abandonar la compartición');
+        throw const PermissionDeniedException(
+          'Solo el receptor puede abandonar la compartición',
+        );
       }
 
-      final statusStr = (data['status'] as String?) ?? SharingStatus.pending.name;
+      final statusStr =
+          (data['status'] as String?) ?? SharingStatus.pending.name;
       final status = SharingStatus.values.firstWhere(
         (s) => s.name == statusStr,
         orElse: () => SharingStatus.pending,
       );
 
-      if (status == SharingStatus.left || status == SharingStatus.revoked || status == SharingStatus.rejected) {
-        LoggingService.debug('Sharing already in terminal state', tag: 'SharingService', data: {'shareId': shareId, 'status': status.name});
+      if (status == SharingStatus.left ||
+          status == SharingStatus.revoked ||
+          status == SharingStatus.rejected) {
+        LoggingService.debug(
+          'Sharing already in terminal state',
+          tag: 'SharingService',
+          data: {'shareId': shareId, 'status': status.name},
+        );
         return;
       }
 
-      final newStatus = (status == SharingStatus.pending) ? SharingStatus.rejected : SharingStatus.left;
+      final newStatus = (status == SharingStatus.pending)
+          ? SharingStatus.rejected
+          : SharingStatus.left;
 
       await ref.update({
         'status': newStatus.name,
@@ -1106,11 +1370,17 @@ class SharingService {
       // Send notification to owner if configured
       try {
         final ownerId = data['ownerId']?.toString();
-            if (ownerId != null && ownerId.isNotEmpty && _config.enableNotifications) {
+        if (ownerId != null &&
+            ownerId.isNotEmpty &&
+            _config.enableNotifications) {
           try {
-            final recipientName = currentUser.email?.split('@').first ?? 'Usuario';
+            final recipientName =
+                currentUser.email?.split('@').first ?? 'Usuario';
             final recipientEmail = currentUser.email ?? '';
-            final itemTitle = (data['metadata'] as Map<String, dynamic>?)?['noteTitle'] ?? (data['metadata'] as Map<String, dynamic>?)?['folderName'] ?? '';
+            final itemTitle =
+                (data['metadata'] as Map<String, dynamic>?)?['noteTitle'] ??
+                (data['metadata'] as Map<String, dynamic>?)?['folderName'] ??
+                '';
             await NotificationService().notifyShareLeft(
               ownerId: ownerId,
               recipientName: recipientName,
@@ -1119,19 +1389,34 @@ class SharingService {
               shareId: shareId,
             );
           } catch (nErr) {
-            LoggingService.warning('Failed to send leave notification', tag: 'SharingService', data: {'err': nErr.toString()});
+            LoggingService.warning(
+              'Failed to send leave notification',
+              tag: 'SharingService',
+              data: {'err': nErr.toString()},
+            );
           }
         }
       } catch (_) {}
 
       _SharingCache.clear();
 
-      LoggingService.info('User left sharing', tag: 'SharingService', data: {'shareId': shareId, 'newStatus': newStatus.name});
-
+      LoggingService.info(
+        'User left sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId, 'newStatus': newStatus.name},
+      );
     } catch (e, stackTrace) {
-      LoggingService.error('Error leaving sharing', tag: 'SharingService', data: {'shareId': shareId}, error: e, stackTrace: stackTrace);
+      LoggingService.error(
+        'Error leaving sharing',
+        tag: 'SharingService',
+        data: {'shareId': shareId},
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (e is SharingException) rethrow;
-      throw FirestoreException('Error abandonando compartición: ${e.toString()}');
+      throw FirestoreException(
+        'Error abandonando compartición: ${e.toString()}',
+      );
     }
   }
 }

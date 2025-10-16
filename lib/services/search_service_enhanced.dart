@@ -6,7 +6,8 @@ import '../services/exceptions/sharing_exceptions.dart';
 
 /// Servicio mejorado de búsqueda con capacidades avanzadas
 class SearchServiceEnhanced {
-  static final SearchServiceEnhanced _instance = SearchServiceEnhanced._internal();
+  static final SearchServiceEnhanced _instance =
+      SearchServiceEnhanced._internal();
   factory SearchServiceEnhanced() => _instance;
   SearchServiceEnhanced._internal();
 
@@ -50,7 +51,7 @@ class SearchServiceEnhanced {
 
     try {
       final results = await _performSearch(uid, normalizedQuery, filter, limit);
-      
+
       // Guardar en cache
       final searchResult = SearchResult(
         query: query,
@@ -59,7 +60,7 @@ class SearchServiceEnhanced {
         timestamp: DateTime.now(),
         filter: filter,
       );
-      
+
       _searchCache[cacheKey] = searchResult;
       _addToRecentSearches(query);
 
@@ -84,22 +85,34 @@ class SearchServiceEnhanced {
 
     try {
       final suggestions = <SearchSuggestion>[];
-      
+
       // Sugerencias de títulos de notas
-      final titleSuggestions = await _getTitleSuggestions(uid, partialQuery, limit ~/ 2);
+      final titleSuggestions = await _getTitleSuggestions(
+        uid,
+        partialQuery,
+        limit ~/ 2,
+      );
       suggestions.addAll(titleSuggestions);
 
       // Sugerencias de tags
-      final tagSuggestions = await _getTagSuggestions(uid, partialQuery, limit ~/ 4);
+      final tagSuggestions = await _getTagSuggestions(
+        uid,
+        partialQuery,
+        limit ~/ 4,
+      );
       suggestions.addAll(tagSuggestions);
 
       // Sugerencias de carpetas
-      final folderSuggestions = await _getFolderSuggestions(uid, partialQuery, limit ~/ 4);
+      final folderSuggestions = await _getFolderSuggestions(
+        uid,
+        partialQuery,
+        limit ~/ 4,
+      );
       suggestions.addAll(folderSuggestions);
 
       // Ordenar por relevancia
       suggestions.sort((a, b) => b.score.compareTo(a.score));
-      
+
       return suggestions.take(limit).toList();
     } catch (e) {
       debugPrint('Error obteniendo sugerencias: $e');
@@ -156,7 +169,7 @@ class SearchServiceEnhanced {
           .get();
 
       final searchHistory = snapshot.docs.map((doc) => doc.data()).toList();
-      
+
       return _calculateSearchStats(searchHistory);
     } catch (e) {
       debugPrint('Error obteniendo estadísticas de búsqueda: $e');
@@ -180,11 +193,11 @@ class SearchServiceEnhanced {
           .doc(uid)
           .collection('searchHistory')
           .add({
-        'query': query.trim(),
-        'resultCount': resultCount,
-        'timestamp': FieldValue.serverTimestamp(),
-        'date': DateTime.now().toString().substring(0, 10),
-      });
+            'query': query.trim(),
+            'resultCount': resultCount,
+            'timestamp': FieldValue.serverTimestamp(),
+            'date': DateTime.now().toString().substring(0, 10),
+          });
     } catch (e) {
       debugPrint('Error guardando búsqueda en historial: $e');
     }
@@ -243,7 +256,7 @@ class SearchServiceEnhanced {
     int limit,
   ) async {
     final results = <SearchResultItem>[];
-    
+
     // Búsqueda por título
     final titleResults = await _searchByTitle(uid, query, limit);
     results.addAll(titleResults);
@@ -261,112 +274,144 @@ class SearchServiceEnhanced {
     final filteredResults = _applyFilters(uniqueResults, filter);
 
     // Ordenar por relevancia
-    filteredResults.sort((a, b) => b.relevanceScore.compareTo(a.relevanceScore));
+    filteredResults.sort(
+      (a, b) => b.relevanceScore.compareTo(a.relevanceScore),
+    );
 
     return filteredResults.take(limit).toList();
   }
 
-  Future<List<SearchResultItem>> _searchByTitle(String uid, String query, int limit) async {
+  Future<List<SearchResultItem>> _searchByTitle(
+    String uid,
+    String query,
+    int limit,
+  ) async {
     final notes = await _firestoreService.listNotes(uid: uid);
     final results = <SearchResultItem>[];
 
     for (final note in notes) {
       final title = note['title']?.toString() ?? '';
-      final score = _calculateRelevanceScore(query, title, SearchMatchType.title);
-      
+      final score = _calculateRelevanceScore(
+        query,
+        title,
+        SearchMatchType.title,
+      );
+
       if (score > 0) {
-        results.add(SearchResultItem(
-          id: note['id'],
-          title: title,
-          content: note['content']?.toString() ?? '',
-          type: SearchResultType.note,
-          relevanceScore: score,
-          matchType: SearchMatchType.title,
-          highlightedText: _highlightText(title, query),
-          createdAt: _parseTimestamp(note['createdAt']),
-          updatedAt: _parseTimestamp(note['updatedAt']),
-        ));
+        results.add(
+          SearchResultItem(
+            id: note['id'],
+            title: title,
+            content: note['content']?.toString() ?? '',
+            type: SearchResultType.note,
+            relevanceScore: score,
+            matchType: SearchMatchType.title,
+            highlightedText: _highlightText(title, query),
+            createdAt: _parseTimestamp(note['createdAt']),
+            updatedAt: _parseTimestamp(note['updatedAt']),
+          ),
+        );
       }
     }
 
     return results;
   }
 
-  Future<List<SearchResultItem>> _searchByContent(String uid, String query, int limit) async {
+  Future<List<SearchResultItem>> _searchByContent(
+    String uid,
+    String query,
+    int limit,
+  ) async {
     final notes = await _firestoreService.listNotes(uid: uid);
     final results = <SearchResultItem>[];
 
     for (final note in notes) {
       final content = note['content']?.toString() ?? '';
-      final score = _calculateRelevanceScore(query, content, SearchMatchType.content);
-      
+      final score = _calculateRelevanceScore(
+        query,
+        content,
+        SearchMatchType.content,
+      );
+
       if (score > 0) {
-        results.add(SearchResultItem(
-          id: note['id'],
-          title: note['title']?.toString() ?? '',
-          content: content,
-          type: SearchResultType.note,
-          relevanceScore: score,
-          matchType: SearchMatchType.content,
-          highlightedText: _extractRelevantSnippet(content, query),
-          createdAt: _parseTimestamp(note['createdAt']),
-          updatedAt: _parseTimestamp(note['updatedAt']),
-        ));
+        results.add(
+          SearchResultItem(
+            id: note['id'],
+            title: note['title']?.toString() ?? '',
+            content: content,
+            type: SearchResultType.note,
+            relevanceScore: score,
+            matchType: SearchMatchType.content,
+            highlightedText: _extractRelevantSnippet(content, query),
+            createdAt: _parseTimestamp(note['createdAt']),
+            updatedAt: _parseTimestamp(note['updatedAt']),
+          ),
+        );
       }
     }
 
     return results;
   }
 
-  Future<List<SearchResultItem>> _searchByTags(String uid, String query, int limit) async {
+  Future<List<SearchResultItem>> _searchByTags(
+    String uid,
+    String query,
+    int limit,
+  ) async {
     final notes = await _firestoreService.listNotes(uid: uid);
     final results = <SearchResultItem>[];
 
     for (final note in notes) {
       final tags = List<String>.from(note['tags'] ?? []);
       final tagScore = _calculateTagRelevanceScore(query, tags);
-      
+
       if (tagScore > 0) {
-        results.add(SearchResultItem(
-          id: note['id'],
-          title: note['title']?.toString() ?? '',
-          content: note['content']?.toString() ?? '',
-          type: SearchResultType.note,
-          relevanceScore: tagScore,
-          matchType: SearchMatchType.tag,
-          highlightedText: tags.join(', '),
-          createdAt: _parseTimestamp(note['createdAt']),
-          updatedAt: _parseTimestamp(note['updatedAt']),
-        ));
+        results.add(
+          SearchResultItem(
+            id: note['id'],
+            title: note['title']?.toString() ?? '',
+            content: note['content']?.toString() ?? '',
+            type: SearchResultType.note,
+            relevanceScore: tagScore,
+            matchType: SearchMatchType.tag,
+            highlightedText: tags.join(', '),
+            createdAt: _parseTimestamp(note['createdAt']),
+            updatedAt: _parseTimestamp(note['updatedAt']),
+          ),
+        );
       }
     }
 
     return results;
   }
 
-  double _calculateRelevanceScore(String query, String text, SearchMatchType matchType) {
+  double _calculateRelevanceScore(
+    String query,
+    String text,
+    SearchMatchType matchType,
+  ) {
     if (text.isEmpty) return 0;
 
     final normalizedQuery = query.toLowerCase();
     final normalizedText = text.toLowerCase();
-    
+
     double score = 0;
-    
+
     // Puntuación base por tipo de coincidencia
     final baseScore = matchType == SearchMatchType.title ? 3.0 : 1.0;
-    
+
     // Coincidencia exacta
     if (normalizedText.contains(normalizedQuery)) {
       score += baseScore * 2;
     }
-    
+
     // Coincidencias de palabras individuales
     final queryWords = normalizedQuery.split(' ');
     final textWords = normalizedText.split(' ');
-    
+
     for (final queryWord in queryWords) {
       if (queryWord.length < 2) continue;
-      
+
       for (final textWord in textWords) {
         if (textWord.startsWith(queryWord)) {
           score += baseScore * 0.8;
@@ -375,14 +420,14 @@ class SearchServiceEnhanced {
         }
       }
     }
-    
+
     return score;
   }
 
   double _calculateTagRelevanceScore(String query, List<String> tags) {
     final normalizedQuery = query.toLowerCase();
     double score = 0;
-    
+
     for (final tag in tags) {
       final normalizedTag = tag.toLowerCase();
       if (normalizedTag == normalizedQuery) {
@@ -391,7 +436,7 @@ class SearchServiceEnhanced {
         score += 3.0; // Coincidencia parcial
       }
     }
-    
+
     return score;
   }
 
@@ -400,15 +445,18 @@ class SearchServiceEnhanced {
     return results.where((item) => seen.add(item.id)).toList();
   }
 
-  List<SearchResultItem> _applyFilters(List<SearchResultItem> results, SearchFilter? filter) {
+  List<SearchResultItem> _applyFilters(
+    List<SearchResultItem> results,
+    SearchFilter? filter,
+  ) {
     if (filter == null) return results;
-    
+
     return results.where((item) {
       // Filtro por tipo
       if (filter.types != null && !filter.types!.contains(item.type)) {
         return false;
       }
-      
+
       // Filtro por fecha
       if (filter.dateRange != null) {
         final itemDate = item.updatedAt ?? item.createdAt;
@@ -421,7 +469,7 @@ class SearchServiceEnhanced {
           }
         }
       }
-      
+
       return true;
     }).toList();
   }
@@ -430,31 +478,35 @@ class SearchServiceEnhanced {
     // Implementación básica de resaltado
     final normalizedQuery = query.toLowerCase();
     final normalizedText = text.toLowerCase();
-    
+
     final index = normalizedText.indexOf(normalizedQuery);
     if (index == -1) return text;
-    
+
     return '${text.substring(0, index)}**${text.substring(index, index + query.length)}**${text.substring(index + query.length)}';
   }
 
-  String _extractRelevantSnippet(String content, String query, {int maxLength = 200}) {
+  String _extractRelevantSnippet(
+    String content,
+    String query, {
+    int maxLength = 200,
+  }) {
     final normalizedQuery = query.toLowerCase();
     final normalizedContent = content.toLowerCase();
-    
+
     final index = normalizedContent.indexOf(normalizedQuery);
     if (index == -1) {
-      return content.length > maxLength 
+      return content.length > maxLength
           ? '${content.substring(0, maxLength)}...'
           : content;
     }
-    
+
     final start = (index - 50).clamp(0, content.length);
     final end = (index + query.length + 50).clamp(0, content.length);
-    
+
     String snippet = content.substring(start, end);
     if (start > 0) snippet = '...$snippet';
     if (end < content.length) snippet = '$snippet...';
-    
+
     return snippet;
   }
 
@@ -479,38 +531,58 @@ class SearchServiceEnhanced {
   void _addToRecentSearches(String query) {
     _recentSearches.remove(query);
     _recentSearches.insert(0, query);
-    
+
     if (_recentSearches.length > _maxRecentSearches) {
       _recentSearches.removeRange(_maxRecentSearches, _recentSearches.length);
     }
   }
 
   List<SearchSuggestion> _getRecentSearchSuggestions(int limit) {
-    return _recentSearches.take(limit).map((query) =>
-      SearchSuggestion(
-        text: query,
-        type: SearchSuggestionType.recent,
-        score: 1.0,
-      )
-    ).toList();
+    return _recentSearches
+        .take(limit)
+        .map(
+          (query) => SearchSuggestion(
+            text: query,
+            type: SearchSuggestionType.recent,
+            score: 1.0,
+          ),
+        )
+        .toList();
   }
 
-  Future<List<SearchSuggestion>> _getTitleSuggestions(String uid, String partialQuery, int limit) async {
+  Future<List<SearchSuggestion>> _getTitleSuggestions(
+    String uid,
+    String partialQuery,
+    int limit,
+  ) async {
     // Implementación simplificada
     return [];
   }
 
-  Future<List<SearchSuggestion>> _getTagSuggestions(String uid, String partialQuery, int limit) async {
+  Future<List<SearchSuggestion>> _getTagSuggestions(
+    String uid,
+    String partialQuery,
+    int limit,
+  ) async {
     // Implementación simplificada
     return [];
   }
 
-  Future<List<SearchSuggestion>> _getFolderSuggestions(String uid, String partialQuery, int limit) async {
+  Future<List<SearchSuggestion>> _getFolderSuggestions(
+    String uid,
+    String partialQuery,
+    int limit,
+  ) async {
     // Implementación simplificada
     return [];
   }
 
-  Stream<SearchResult> _createRealtimeSearchStream(String uid, String query, SearchFilter? filter, int limit) async* {
+  Stream<SearchResult> _createRealtimeSearchStream(
+    String uid,
+    String query,
+    SearchFilter? filter,
+    int limit,
+  ) async* {
     // Stream simplificado - implementar con snapshots en tiempo real
     yield SearchResult.empty();
   }
@@ -518,18 +590,21 @@ class SearchServiceEnhanced {
   SearchStats _calculateSearchStats(List<Map<String, dynamic>> searchHistory) {
     final topTerms = <String, int>{};
     final trends = <String, int>{};
-    
+
     for (final search in searchHistory) {
       final query = search['query'] as String? ?? '';
       final date = search['date'] as String? ?? '';
-      
+
       topTerms[query] = (topTerms[query] ?? 0) + 1;
       trends[date] = (trends[date] ?? 0) + 1;
     }
-    
+
     return SearchStats(
       totalSearches: searchHistory.length,
-      recentSearches: searchHistory.take(10).map((s) => s['query'] as String).toList(),
+      recentSearches: searchHistory
+          .take(10)
+          .map((s) => s['query'] as String)
+          .toList(),
       topSearchTerms: topTerms,
       searchTrends: trends,
     );
@@ -673,25 +748,8 @@ class SearchStats {
 
 /// Enums para el sistema de búsqueda
 
-enum SearchResultType {
-  note,
-  folder,
-  collection,
-  tag,
-  user,
-}
+enum SearchResultType { note, folder, collection, tag, user }
 
-enum SearchMatchType {
-  title,
-  content,
-  tag,
-  metadata,
-}
+enum SearchMatchType { title, content, tag, metadata }
 
-enum SearchSuggestionType {
-  recent,
-  popular,
-  title,
-  tag,
-  folder,
-}
+enum SearchSuggestionType { recent, popular, title, tag, folder }

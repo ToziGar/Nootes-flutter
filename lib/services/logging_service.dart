@@ -21,7 +21,7 @@ class LoggingService {
   LoggingService._internal();
 
   static LogLevel _minLevel = kDebugMode ? LogLevel.debug : LogLevel.info;
-  
+
   /// Set minimum log level
   static void setMinLevel(LogLevel level) {
     _minLevel = level;
@@ -38,23 +38,53 @@ class LoggingService {
   }
 
   /// Log a warning message
-  static void warning(String message, {String? tag, Map<String, dynamic>? data}) {
+  static void warning(
+    String message, {
+    String? tag,
+    Map<String, dynamic>? data,
+  }) {
     _log(LogLevel.warning, message, tag: tag, data: data);
   }
 
   /// Log an error message
-  static void error(String message, {String? tag, Map<String, dynamic>? data, Object? error, StackTrace? stackTrace}) {
-    _log(LogLevel.error, message, tag: tag, data: data, error: error, stackTrace: stackTrace);
+  static void error(
+    String message, {
+    String? tag,
+    Map<String, dynamic>? data,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    _log(
+      LogLevel.error,
+      message,
+      tag: tag,
+      data: data,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   /// Log a critical error message
-  static void critical(String message, {String? tag, Map<String, dynamic>? data, Object? error, StackTrace? stackTrace}) {
-    _log(LogLevel.critical, message, tag: tag, data: data, error: error, stackTrace: stackTrace);
+  static void critical(
+    String message, {
+    String? tag,
+    Map<String, dynamic>? data,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    _log(
+      LogLevel.critical,
+      message,
+      tag: tag,
+      data: data,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   /// Internal logging method
   static void _log(
-    LogLevel level, 
+    LogLevel level,
     String message, {
     String? tag,
     Map<String, dynamic>? data,
@@ -67,16 +97,17 @@ class LoggingService {
     final tagStr = tag != null ? '[$tag] ' : '';
     final dataStr = data != null && data.isNotEmpty ? ' | Data: $data' : '';
     final errorStr = error != null ? ' | Error: $error' : '';
-    
-    final logMessage = '${level.emoji} $timestamp $tagStr$message$dataStr$errorStr';
-    
+
+    final logMessage =
+        '${level.emoji} $timestamp $tagStr$message$dataStr$errorStr';
+
     if (kDebugMode) {
       print(logMessage);
       if (stackTrace != null && level.value >= LogLevel.error.value) {
         print('Stack trace:\n$stackTrace');
       }
     }
-    
+
     // Here you could also send logs to external services like Firebase Crashlytics,
     // Sentry, or other logging providers
     _sendToExternalService(level, message, tag, data, error, stackTrace);
@@ -104,21 +135,34 @@ class LoggingService {
   }
 
   /// Log performance metrics
-  static void logPerformance(String operation, Duration duration, {Map<String, dynamic>? metadata}) {
-    info('Performance: $operation took ${duration.inMilliseconds}ms', 
-         tag: 'Performance', 
-         data: {'duration_ms': duration.inMilliseconds, ...?metadata});
+  static void logPerformance(
+    String operation,
+    Duration duration, {
+    Map<String, dynamic>? metadata,
+  }) {
+    info(
+      'Performance: $operation took ${duration.inMilliseconds}ms',
+      tag: 'Performance',
+      data: {'duration_ms': duration.inMilliseconds, ...?metadata},
+    );
   }
 
   /// Log API calls
-  static void logApiCall(String endpoint, {String? method, int? statusCode, Duration? duration}) {
-    info('API call: ${method ?? 'GET'} $endpoint', 
-         tag: 'API', 
-         data: {
-           'endpoint': endpoint,
-           'method': method,
-           'status_code': statusCode,
-           'duration_ms': duration?.inMilliseconds,
-         });
+  static void logApiCall(
+    String endpoint, {
+    String? method,
+    int? statusCode,
+    Duration? duration,
+  }) {
+    info(
+      'API call: ${method ?? 'GET'} $endpoint',
+      tag: 'API',
+      data: {
+        'endpoint': endpoint,
+        'method': method,
+        'status_code': statusCode,
+        'duration_ms': duration?.inMilliseconds,
+      },
+    );
   }
 }

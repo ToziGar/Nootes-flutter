@@ -39,7 +39,11 @@ class FileNotFoundException extends StorageException {
 
 /// Excepción para errores de validación de archivos
 class FileValidationException extends StorageException {
-  const FileValidationException(super.message, {super.code, super.originalError});
+  const FileValidationException(
+    super.message, {
+    super.code,
+    super.originalError,
+  });
 
   @override
   String toString() => 'FileValidationException: $message';
@@ -79,7 +83,11 @@ class FileMoveException extends StorageException {
 
 /// Excepción para archivos corruptos
 class FileCorruptionException extends StorageException {
-  const FileCorruptionException(super.message, {super.code, super.originalError});
+  const FileCorruptionException(
+    super.message, {
+    super.code,
+    super.originalError,
+  });
 
   @override
   String toString() => 'FileCorruptionException: $message';
@@ -87,7 +95,11 @@ class FileCorruptionException extends StorageException {
 
 /// Excepción para operaciones canceladas
 class FileOperationCancelledException extends StorageException {
-  const FileOperationCancelledException(super.message, {super.code, super.originalError});
+  const FileOperationCancelledException(
+    super.message, {
+    super.code,
+    super.originalError,
+  });
 
   @override
   String toString() => 'FileOperationCancelledException: $message';
@@ -115,15 +127,16 @@ class StorageQuotaExceededException extends StorageException {
   final int maxSize;
 
   const StorageQuotaExceededException(
-    super.message, 
-    this.currentSize, 
+    super.message,
+    this.currentSize,
     this.maxSize, {
-    super.code, 
-    super.originalError
+    super.code,
+    super.originalError,
   });
 
   @override
-  String toString() => 'StorageQuotaExceededException: $message (${currentSize}B/${maxSize}B)';
+  String toString() =>
+      'StorageQuotaExceededException: $message (${currentSize}B/${maxSize}B)';
 }
 
 /// Excepción para tipos de archivo no permitidos
@@ -136,11 +149,12 @@ class UnsupportedFileTypeException extends FileValidationException {
     this.fileExtension,
     this.allowedTypes, {
     super.code,
-    super.originalError
+    super.originalError,
   });
 
   @override
-  String toString() => 'UnsupportedFileTypeException: $message (.$fileExtension no está en ${allowedTypes.join(', ')})';
+  String toString() =>
+      'UnsupportedFileTypeException: $message (.$fileExtension no está en ${allowedTypes.join(', ')})';
 }
 
 /// Excepción para archivos demasiado grandes
@@ -153,11 +167,12 @@ class FileSizeExceededException extends FileValidationException {
     this.fileSize,
     this.maxSize, {
     super.code,
-    super.originalError
+    super.originalError,
   });
 
   @override
-  String toString() => 'FileSizeExceededException: $message (${fileSize}B > ${maxSize}B)';
+  String toString() =>
+      'FileSizeExceededException: $message (${fileSize}B > ${maxSize}B)';
 }
 
 /// Excepción para metadatos inválidos
@@ -168,7 +183,7 @@ class InvalidMetadataException extends StorageException {
     super.message,
     this.metadata, {
     super.code,
-    super.originalError
+    super.originalError,
   });
 
   @override
@@ -177,7 +192,11 @@ class InvalidMetadataException extends StorageException {
 
 /// Excepción de autenticación para operaciones de almacenamiento
 class AuthenticationException extends StorageException {
-  const AuthenticationException(super.message, {super.code, super.originalError});
+  const AuthenticationException(
+    super.message, {
+    super.code,
+    super.originalError,
+  });
 
   @override
   String toString() => 'AuthenticationException: $message';

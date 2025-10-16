@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
-
 import 'auth_service.dart';
 import '../firebase_options.dart';
 
@@ -65,14 +64,18 @@ abstract class FirestoreService {
     required String noteId,
     required bool pinned,
   });
-
-  // Soft-delete / trash
   Future<void> softDeleteNote({required String uid, required String noteId});
   Future<void> restoreNote({required String uid, required String noteId});
   Future<void> purgeNote({required String uid, required String noteId});
   Future<List<Map<String, dynamic>>> listTrashedNotesSummary({
     required String uid,
   });
+  Future<List<Map<String, dynamic>>> listNotesPaginated({
+    required String uid,
+    int limit,
+    String? startAfterId,
+  });
+  // ...existing code...
 
   // Collections (users/{uid}/collections)
   Future<List<Map<String, dynamic>>> listCollections({required String uid});
@@ -183,6 +186,47 @@ abstract class FirestoreService {
 
 class _FirebaseFirestoreService implements FirestoreService {
   final _db = fs.FirebaseFirestore.instance;
+
+  @override
+  Future<List<Map<String, dynamic>>> listNotesPaginated({
+    required String uid,
+    int limit = 30,
+    String? startAfterId,
+  }) async {
+    var query = _db
+        .collection('users')
+        .doc(uid)
+        .collection('notes')
+        .orderBy('updatedAt', descending: true);
+
+    if (startAfterId != null && startAfterId.isNotEmpty) {
+      final startDoc = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('notes')
+          .doc(startAfterId)
+          .get();
+      if (startDoc.exists) {
+        query = query.startAfterDocument(startDoc);
+      }
+    }
+
+    final q = await query.limit(limit).get();
+    return q.docs.map((d) {
+      final data = d.data();
+      return {
+        'id': d.id,
+        'title': data['title'] ?? '',
+        'pinned': data['pinned'] ?? false,
+        'icon': data['icon'],
+        'iconColor': data['iconColor'],
+        'collectionId': data['collectionId'],
+        'tags':
+            (data['tags'] as List?)?.whereType<String>().toList() ?? <String>[],
+        'updatedAt': data['updatedAt'],
+      };
+    }).toList();
+  }
 
   @override
   Future<void> reserveHandle({
@@ -951,6 +995,22 @@ class _RestFirestoreService implements FirestoreService {
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-update-user-${resp.statusCode}');
     }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listNotesPaginated({
+    required String uid,
+    int limit = 30,
+    String? startAfterId,
+  }) async {
+    // Fallback simple: utilizar listNotesSummary y paginar en cliente
+    final all = await listNotesSummary(uid: uid);
+    if (startAfterId != null && startAfterId.isNotEmpty) {
+      final startIndex = all.indexWhere((e) => e['id'] == startAfterId);
+      final sliceStart = startIndex >= 0 ? startIndex + 1 : 0;
+      return all.skip(sliceStart).take(limit).toList();
+    }
+    return all.take(limit).toList();
   }
 
   @override

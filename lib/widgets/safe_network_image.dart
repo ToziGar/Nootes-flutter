@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// A small widget that displays a network image with a retry button and
 /// a friendly placeholder when loading fails (useful for web/CORS issues).
@@ -46,16 +47,18 @@ class _SafeNetworkImageState extends State<SafeNetworkImage> {
     return SizedBox(
       height: widget.height,
       width: widget.width,
-      child: Image.network(
-        correctedUrl,
+      child: CachedNetworkImage(
+        imageUrl: correctedUrl,
         key: ValueKey('safe-$correctedUrl-$_reloadToken'),
         fit: widget.fit,
-        // show a spinner while loading
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return const Center(child: CircularProgressIndicator());
-        },
-        errorBuilder: (context, error, stack) {
+        placeholder: (context, url) => const Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+        errorWidget: (context, url, error) {
           return Container(
             padding: const EdgeInsets.all(8),
             color: Colors.black12,

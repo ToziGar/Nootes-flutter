@@ -28,16 +28,22 @@ extension SharingServiceCompat on SharingService {
     if (limit != null) query = query.limit(limit);
 
     final snap = await query.get();
-  var items = snap.docs
-    .map((d) => SharedItem.fromMap(d.id, Map<String, dynamic>.from(d.data() as Map)))
+    var items = snap.docs
+        .map(
+          (d) => SharedItem.fromMap(
+            d.id,
+            Map<String, dynamic>.from(d.data() as Map),
+          ),
+        )
         .toList();
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final q = searchQuery.toLowerCase();
       items = items.where((item) {
-        final title = (item.metadata?['noteTitle'] ?? item.metadata?['folderName'] ?? '')
-            .toString()
-            .toLowerCase();
+        final title =
+            (item.metadata?['noteTitle'] ?? item.metadata?['folderName'] ?? '')
+                .toString()
+                .toLowerCase();
         final email = item.recipientEmail.toLowerCase();
         return title.contains(q) || email.contains(q);
       }).toList();
@@ -55,8 +61,8 @@ extension SharingServiceCompat on SharingService {
     final currentUser = AuthService.instance.currentUser;
     if (currentUser == null) return [];
 
-  fs.Query query = fs.FirebaseFirestore.instance
-    .collection('shared_items')
+    fs.Query query = fs.FirebaseFirestore.instance
+        .collection('shared_items')
         .where('recipientId', isEqualTo: currentUser.uid);
 
     if (status != null) query = query.where('status', isEqualTo: status.name);
@@ -65,16 +71,22 @@ extension SharingServiceCompat on SharingService {
     if (limit != null) query = query.limit(limit);
 
     final snap = await query.get();
-  var items = snap.docs
-    .map((d) => SharedItem.fromMap(d.id, Map<String, dynamic>.from(d.data() as Map)))
+    var items = snap.docs
+        .map(
+          (d) => SharedItem.fromMap(
+            d.id,
+            Map<String, dynamic>.from(d.data() as Map),
+          ),
+        )
         .toList();
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final q = searchQuery.toLowerCase();
       items = items.where((item) {
-        final title = (item.metadata?['noteTitle'] ?? item.metadata?['folderName'] ?? '')
-            .toString()
-            .toLowerCase();
+        final title =
+            (item.metadata?['noteTitle'] ?? item.metadata?['folderName'] ?? '')
+                .toString()
+                .toLowerCase();
         final email = item.ownerEmail.toLowerCase();
         return title.contains(q) || email.contains(q);
       }).toList();
@@ -87,8 +99,8 @@ extension SharingServiceCompat on SharingService {
     final currentUser = AuthService.instance.currentUser;
     if (currentUser == null) return [];
 
-  final sharedItems = await fs.FirebaseFirestore.instance
-    .collection('shared_items')
+    final sharedItems = await fs.FirebaseFirestore.instance
+        .collection('shared_items')
         .where('recipientId', isEqualTo: currentUser.uid)
         .where('type', isEqualTo: SharedItemType.note.name)
         .where('status', isEqualTo: SharingStatus.accepted.name)
@@ -96,8 +108,11 @@ extension SharingServiceCompat on SharingService {
 
     final List<Map<String, dynamic>> notes = [];
 
-  for (final doc in sharedItems.docs) {
-  final sharing = SharedItem.fromMap(doc.id, Map<String, dynamic>.from(doc.data() as Map));
+    for (final doc in sharedItems.docs) {
+      final sharing = SharedItem.fromMap(
+        doc.id,
+        Map<String, dynamic>.from(doc.data() as Map),
+      );
       final note = await FirestoreService.instance.getNote(
         uid: sharing.ownerId,
         noteId: sharing.itemId,
@@ -122,8 +137,8 @@ extension SharingServiceCompat on SharingService {
     final currentUser = AuthService.instance.currentUser;
     if (currentUser == null) return [];
 
-  final snap = await fs.FirebaseFirestore.instance
-    .collection('shared_items')
+    final snap = await fs.FirebaseFirestore.instance
+        .collection('shared_items')
         .where('type', isEqualTo: SharedItemType.folder.name)
         .where('itemId', isEqualTo: folderId)
         .where('ownerId', isEqualTo: currentUser.uid)
@@ -131,34 +146,55 @@ extension SharingServiceCompat on SharingService {
         .get();
 
     final items = snap.docs
-       .map((d) => SharedItem.fromMap(d.id, d.data()))
-        .where((s) => s.status != SharingStatus.revoked && s.status != SharingStatus.left)
+        .map((d) => SharedItem.fromMap(d.id, d.data()))
+        .where(
+          (s) =>
+              s.status != SharingStatus.revoked &&
+              s.status != SharingStatus.left,
+        )
         .toList();
     return items;
   }
 
-  Future<void> updateSharingPermission(String sharingId, PermissionLevel permission) async {
+  Future<void> updateSharingPermission(
+    String sharingId,
+    PermissionLevel permission,
+  ) async {
     final currentUser = AuthService.instance.currentUser;
     if (currentUser == null) throw const AuthenticationException();
 
-  final doc = await fs.FirebaseFirestore.instance.collection('shared_items').doc(sharingId).get();
+    final doc = await fs.FirebaseFirestore.instance
+        .collection('shared_items')
+        .doc(sharingId)
+        .get();
     if (!doc.exists) throw Exception('Compartición no encontrada');
     final data = doc.data() as Map<String, dynamic>;
-    if (data['ownerId'] != currentUser.uid) throw Exception('Solo el propietario puede cambiar los permisos');
+    if (data['ownerId'] != currentUser.uid) {
+      throw Exception('Solo el propietario puede cambiar los permisos');
+    }
 
-    await fs.FirebaseFirestore.instance.collection('shared_items').doc(sharingId).update({
-      'permission': permission.name,
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    });
+    await fs.FirebaseFirestore.instance
+        .collection('shared_items')
+        .doc(sharingId)
+        .update({
+          'permission': permission.name,
+          'updatedAt': fs.FieldValue.serverTimestamp(),
+        });
   }
 
   Future<Map<String, int>> getSharingStats() async {
     final sentPending = await getSharedByMe(status: SharingStatus.pending);
     final sentAccepted = await getSharedByMe(status: SharingStatus.accepted);
     final sentRejected = await getSharedByMe(status: SharingStatus.rejected);
-    final receivedPending = await getSharedWithMe(status: SharingStatus.pending);
-    final receivedAccepted = await getSharedWithMe(status: SharingStatus.accepted);
-    final receivedRejected = await getSharedWithMe(status: SharingStatus.rejected);
+    final receivedPending = await getSharedWithMe(
+      status: SharingStatus.pending,
+    );
+    final receivedAccepted = await getSharedWithMe(
+      status: SharingStatus.accepted,
+    );
+    final receivedRejected = await getSharedWithMe(
+      status: SharingStatus.rejected,
+    );
 
     return {
       'sentPending': sentPending.length,
@@ -171,19 +207,28 @@ extension SharingServiceCompat on SharingService {
   }
 
   Future<void> acceptSharing(String sharingId) async {
-  final shareDoc = await fs.FirebaseFirestore.instance.collection('shared_items').doc(sharingId).get();
+    final shareDoc = await fs.FirebaseFirestore.instance
+        .collection('shared_items')
+        .doc(sharingId)
+        .get();
     if (!shareDoc.exists) return;
     final data = shareDoc.data() as Map<String, dynamic>;
     final ownerId = data['ownerId'] as String;
-    final itemTitle = data['metadata']?['noteTitle'] ?? data['metadata']?['folderName'] ?? 'Sin título';
+    final itemTitle =
+        data['metadata']?['noteTitle'] ??
+        data['metadata']?['folderName'] ??
+        'Sin título';
 
     final currentUser = AuthService.instance.currentUser;
     if (currentUser == null) return;
 
-    await fs.FirebaseFirestore.instance.collection('shared_items').doc(sharingId).update({
-      'status': SharingStatus.accepted.name,
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    });
+    await fs.FirebaseFirestore.instance
+        .collection('shared_items')
+        .doc(sharingId)
+        .update({
+          'status': SharingStatus.accepted.name,
+          'updatedAt': fs.FieldValue.serverTimestamp(),
+        });
 
     final notificationService = NotificationService();
     await notificationService.notifyShareAccepted(
@@ -196,19 +241,28 @@ extension SharingServiceCompat on SharingService {
   }
 
   Future<void> rejectSharing(String sharingId) async {
-  final shareDoc = await fs.FirebaseFirestore.instance.collection('shared_items').doc(sharingId).get();
+    final shareDoc = await fs.FirebaseFirestore.instance
+        .collection('shared_items')
+        .doc(sharingId)
+        .get();
     if (!shareDoc.exists) return;
     final data = shareDoc.data() as Map<String, dynamic>;
     final ownerId = data['ownerId'] as String;
-    final itemTitle = data['metadata']?['noteTitle'] ?? data['metadata']?['folderName'] ?? 'Sin título';
+    final itemTitle =
+        data['metadata']?['noteTitle'] ??
+        data['metadata']?['folderName'] ??
+        'Sin título';
 
     final currentUser = AuthService.instance.currentUser;
     if (currentUser == null) return;
 
-    await fs.FirebaseFirestore.instance.collection('shared_items').doc(sharingId).update({
-      'status': SharingStatus.rejected.name,
-      'updatedAt': fs.FieldValue.serverTimestamp(),
-    });
+    await fs.FirebaseFirestore.instance
+        .collection('shared_items')
+        .doc(sharingId)
+        .update({
+          'status': SharingStatus.rejected.name,
+          'updatedAt': fs.FieldValue.serverTimestamp(),
+        });
 
     final notificationService = NotificationService();
     await notificationService.notifyShareRejected(
@@ -220,13 +274,18 @@ extension SharingServiceCompat on SharingService {
     );
   }
 
-  Future<Map<String, dynamic>?> checkNoteAccess(String noteId, String noteOwnerId) async {
+  Future<Map<String, dynamic>?> checkNoteAccess(
+    String noteId,
+    String noteOwnerId,
+  ) async {
     final currentUser = AuthService.instance.currentUser;
     if (currentUser == null) return null;
-    if (currentUser.uid == noteOwnerId) return {'hasAccess': true, 'permission': 'owner', 'isOwner': true};
+    if (currentUser.uid == noteOwnerId) {
+      return {'hasAccess': true, 'permission': 'owner', 'isOwner': true};
+    }
 
-  final snapshot = await fs.FirebaseFirestore.instance
-    .collection('shared_items')
+    final snapshot = await fs.FirebaseFirestore.instance
+        .collection('shared_items')
         .where('itemId', isEqualTo: noteId)
         .where('ownerId', isEqualTo: noteOwnerId)
         .where('recipientId', isEqualTo: currentUser.uid)
@@ -235,7 +294,10 @@ extension SharingServiceCompat on SharingService {
 
     if (snapshot.docs.isEmpty) return {'hasAccess': false, 'isOwner': false};
 
-    final sharing = SharedItem.fromMap(snapshot.docs.first.id, snapshot.docs.first.data());
+    final sharing = SharedItem.fromMap(
+      snapshot.docs.first.id,
+      snapshot.docs.first.data(),
+    );
 
     return {
       'hasAccess': true,
@@ -250,32 +312,50 @@ extension SharingServiceCompat on SharingService {
   /// Create a sharing for a folder. Backwards-compatible: callers can pass
   /// either a `recipient` map (new code) or a `recipientIdentifier` string
   /// (email or @username) used by older UI code.
-  Future<String> shareFolder({Map<String, dynamic>? recipient, String? recipientIdentifier, required String folderId, required PermissionLevel permission, String? message}) async {
+  Future<String> shareFolder({
+    Map<String, dynamic>? recipient,
+    String? recipientIdentifier,
+    required String folderId,
+    required PermissionLevel permission,
+    String? message,
+  }) async {
     final currentUser = AuthService.instance.currentUser;
     if (currentUser == null) throw const AuthenticationException();
 
     Map<String, dynamic>? finalRecipient = recipient;
     if (finalRecipient == null && recipientIdentifier != null) {
-      finalRecipient = await findUserByEmail(recipientIdentifier) ?? await findUserByUsername(recipientIdentifier.replaceAll('@', ''));
+      finalRecipient =
+          await findUserByEmail(recipientIdentifier) ??
+          await findUserByUsername(recipientIdentifier.replaceAll('@', ''));
     }
 
-    if (finalRecipient == null) throw Exception('Recipient missing or not found');
+    if (finalRecipient == null) {
+      throw Exception('Recipient missing or not found');
+    }
 
-    final folder = await FirestoreService.instance.getFolder(uid: currentUser.uid, folderId: folderId);
+    final folder = await FirestoreService.instance.getFolder(
+      uid: currentUser.uid,
+      folderId: folderId,
+    );
     if (folder == null) throw Exception('Carpeta no encontrada');
 
     final shareId = '${finalRecipient['uid']}_${currentUser.uid}_$folderId';
-    final docRef = fs.FirebaseFirestore.instance.collection('shared_items').doc(shareId);
+    final docRef = fs.FirebaseFirestore.instance
+        .collection('shared_items')
+        .doc(shareId);
     final existing = await docRef.get();
     if (existing.exists) {
       final data = existing.data() as Map<String, dynamic>;
       final existingStatus = (data['status'] as String?) ?? 'pending';
-      if (existingStatus == SharingStatus.pending.name || existingStatus == SharingStatus.accepted.name) {
+      if (existingStatus == SharingStatus.pending.name ||
+          existingStatus == SharingStatus.accepted.name) {
         throw Exception('Esta carpeta ya está compartida con este usuario');
       }
     }
 
-    final ownerProfile = await FirestoreService.instance.getUserProfile(uid: currentUser.uid);
+    final ownerProfile = await FirestoreService.instance.getUserProfile(
+      uid: currentUser.uid,
+    );
 
     final sharedItem = SharedItem(
       id: shareId,
@@ -302,7 +382,10 @@ extension SharingServiceCompat on SharingService {
       final notificationService = NotificationService();
       await notificationService.notifyNewShare(
         recipientId: finalRecipient['uid'],
-        senderName: ownerProfile?['fullName'] ?? currentUser.email?.split('@').first ?? 'Usuario',
+        senderName:
+            ownerProfile?['fullName'] ??
+            currentUser.email?.split('@').first ??
+            'Usuario',
         senderEmail: currentUser.email ?? '',
         itemTitle: folder['name'] ?? 'Sin nombre',
         shareId: docRef.id,
@@ -316,32 +399,50 @@ extension SharingServiceCompat on SharingService {
   }
 
   /// Share a note with another user
-  Future<String> shareNote({Map<String, dynamic>? recipient, String? recipientIdentifier, required String noteId, required PermissionLevel permission, String? message}) async {
+  Future<String> shareNote({
+    Map<String, dynamic>? recipient,
+    String? recipientIdentifier,
+    required String noteId,
+    required PermissionLevel permission,
+    String? message,
+  }) async {
     final currentUser = AuthService.instance.currentUser;
     if (currentUser == null) throw const AuthenticationException();
 
     Map<String, dynamic>? finalRecipient = recipient;
     if (finalRecipient == null && recipientIdentifier != null) {
-      finalRecipient = await findUserByEmail(recipientIdentifier) ?? await findUserByUsername(recipientIdentifier.replaceAll('@', ''));
+      finalRecipient =
+          await findUserByEmail(recipientIdentifier) ??
+          await findUserByUsername(recipientIdentifier.replaceAll('@', ''));
     }
 
-    if (finalRecipient == null) throw Exception('Recipient missing or not found');
+    if (finalRecipient == null) {
+      throw Exception('Recipient missing or not found');
+    }
 
-    final note = await FirestoreService.instance.getNote(uid: currentUser.uid, noteId: noteId);
+    final note = await FirestoreService.instance.getNote(
+      uid: currentUser.uid,
+      noteId: noteId,
+    );
     if (note == null) throw Exception('Nota no encontrada');
 
     final shareId = '${finalRecipient['uid']}_${currentUser.uid}_$noteId';
-    final docRef = fs.FirebaseFirestore.instance.collection('shared_items').doc(shareId);
+    final docRef = fs.FirebaseFirestore.instance
+        .collection('shared_items')
+        .doc(shareId);
     final existing = await docRef.get();
     if (existing.exists) {
       final data = existing.data() as Map<String, dynamic>;
       final existingStatus = (data['status'] as String?) ?? 'pending';
-      if (existingStatus == SharingStatus.pending.name || existingStatus == SharingStatus.accepted.name) {
+      if (existingStatus == SharingStatus.pending.name ||
+          existingStatus == SharingStatus.accepted.name) {
         throw Exception('Esta nota ya está compartida con este usuario');
       }
     }
 
-    final ownerProfile = await FirestoreService.instance.getUserProfile(uid: currentUser.uid);
+    final ownerProfile = await FirestoreService.instance.getUserProfile(
+      uid: currentUser.uid,
+    );
 
     final sharedItem = SharedItem(
       id: shareId,
@@ -367,7 +468,10 @@ extension SharingServiceCompat on SharingService {
       final notificationService = NotificationService();
       await notificationService.notifyNewShare(
         recipientId: finalRecipient['uid'],
-        senderName: ownerProfile?['fullName'] ?? currentUser.email?.split('@').first ?? 'Usuario',
+        senderName:
+            ownerProfile?['fullName'] ??
+            currentUser.email?.split('@').first ??
+            'Usuario',
         senderEmail: currentUser.email ?? '',
         itemTitle: note['title'] ?? 'Sin título',
         shareId: docRef.id,
