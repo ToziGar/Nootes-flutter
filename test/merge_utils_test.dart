@@ -32,4 +32,72 @@ void main() {
     // Since lists aren't string lists, incoming should overwrite
     expect(merged['nums'], [3]);
   });
+
+  test('preserves order when merging string lists', () {
+    final current = {'tags': ['a', 'b']};
+    final incoming = {'tags': ['b', 'c', 'd']};
+    final merged = mergeNoteMaps(current, incoming);
+    // Expect order: current items first, then new incoming items in incoming order
+    expect(merged['tags'], ['a', 'b', 'c', 'd']);
+  });
+
+  test('incoming null overwrites existing value', () {
+    final current = {'title': 'Old', 'pinned': true};
+    final incoming = {'pinned': null};
+    final merged = mergeNoteMaps(current, incoming);
+    expect(merged.containsKey('pinned'), true);
+    expect(merged['pinned'], null);
+  });
+
+  test('LWW: incoming with newer timestamp wins', () {
+    final current = {
+      'title': 'Old',
+      'lastClientUpdateAt': '2025-10-01T12:00:00Z'
+    };
+    final incoming = {
+      'title': 'New',
+      'lastClientUpdateAt': '2025-10-02T12:00:00Z'
+    };
+    final merged = mergeNoteMaps(current, incoming);
+    expect(merged['title'], 'New');
+  });
+
+  test('LWW: incoming with older timestamp does not overwrite', () {
+    final current = {
+      'title': 'Current',
+      'lastClientUpdateAt': '2025-10-03T12:00:00Z'
+    };
+    final incoming = {
+      'title': 'Older',
+      'lastClientUpdateAt': '2025-10-02T12:00:00Z'
+    };
+    final merged = mergeNoteMaps(current, incoming);
+    expect(merged['title'], 'Current');
+  });
+
+  test('Per-field LWW: field-level newer timestamp wins', () {
+    final current = {
+      'title': 'CurrentTitle',
+      'title_lastClientUpdateAt': '2025-10-01T10:00:00Z'
+    };
+    final incoming = {
+      'title': 'IncomingTitle',
+      'title_lastClientUpdateAt': '2025-10-02T10:00:00Z'
+    };
+    final merged = mergeNoteMaps(current, incoming);
+    expect(merged['title'], 'IncomingTitle');
+  });
+
+  test('Per-field LWW: field-level older timestamp does not overwrite', () {
+    final current = {
+      'title': 'CurrentTitle',
+      'title_lastClientUpdateAt': '2025-10-03T10:00:00Z'
+    };
+    final incoming = {
+      'title': 'IncomingOlder',
+      'title_lastClientUpdateAt': '2025-10-02T10:00:00Z'
+    };
+    final merged = mergeNoteMaps(current, incoming);
+    expect(merged['title'], 'CurrentTitle');
+  });
 }

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:nootes/services/auth_service.dart';
 import 'package:nootes/services/firestore_service.dart';
+import 'package:nootes/services/field_timestamp_helper.dart';
 import 'package:nootes/services/logging_service.dart';
 import 'package:nootes/services/notification_service.dart';
 import 'package:nootes/services/exceptions/sharing_exceptions.dart';
@@ -332,8 +333,14 @@ class _SharingCache {
 /// - Caché para mejorar rendimiento
 class SharingService {
   static final SharingService _instance = SharingService._internal();
-  factory SharingService() => _instance;
+  static SharingService? _testOverride;
+
+  /// Factory returns a test override when provided (tests can set via `testInstance`).
+  factory SharingService() => _testOverride ?? _instance;
   SharingService._internal();
+
+  /// Testing helper: set a fake instance for tests.
+  static set testInstance(SharingService? v) => _testOverride = v;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService.instance;
@@ -772,17 +779,21 @@ class SharingService {
       });
 
       // Actualizar la nota con información del enlace
+      Map<String, dynamic> shareData = {
+        'shareToken': token,
+        'shareEnabled': true,
+        'sharedAt': fs.FieldValue.serverTimestamp(),
+        'shareExpiresAt': expiresAt != null
+            ? Timestamp.fromDate(expiresAt)
+            : null,
+      };
+      try {
+        shareData = attachFieldTimestamps(shareData);
+      } catch (_) {}
       await FirestoreService.instance.updateNote(
         uid: currentUser.uid,
         noteId: noteId,
-        data: {
-          'shareToken': token,
-          'shareEnabled': true,
-          'sharedAt': fs.FieldValue.serverTimestamp(),
-          'shareExpiresAt': expiresAt != null
-              ? Timestamp.fromDate(expiresAt)
-              : null,
-        },
+        data: shareData,
       );
 
       LoggingService.info(
@@ -844,13 +855,17 @@ class SharingService {
       }
 
       // Actualizar la nota
+      Map<String, dynamic> revokeData = {
+        'shareEnabled': false,
+        'shareRevokedAt': fs.FieldValue.serverTimestamp(),
+      };
+      try {
+        revokeData = attachFieldTimestamps(revokeData);
+      } catch (_) {}
       await FirestoreService.instance.updateNote(
         uid: currentUser.uid,
         noteId: noteId,
-        data: {
-          'shareEnabled': false,
-          'shareRevokedAt': fs.FieldValue.serverTimestamp(),
-        },
+        data: revokeData,
       );
 
       LoggingService.info(

@@ -6,10 +6,14 @@ import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'auth_service.dart';
 import '../firebase_options.dart';
 import 'merge_utils.dart';
+import 'field_timestamp_helper.dart';
 
 abstract class FirestoreService {
   static FirestoreService? _instance;
   static FirestoreService get instance => _instance ??= _resolve();
+
+  // Testing helper: allow injecting a fake implementation in tests.
+  static set testInstance(FirestoreService? v) => _instance = v;
 
   static FirestoreService _resolve() {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
@@ -767,7 +771,11 @@ class _FirebaseFirestoreService implements FirestoreService {
 
         // Use the smart merge utility to handle list unions and conservative
         // overwrites for other fields.
-        final merged = mergeNoteMaps(current, data);
+  var merged = mergeNoteMaps(current, data);
+
+  // Attach per-field companion timestamps for scalar fields so the
+  // merge utility's per-field LWW can operate deterministically.
+  merged = attachFieldTimestamps(merged);
 
         // Annotate with server timestamp for canonical ordering and a
         // client-side timestamp to help offline reconciliation/debugging.
@@ -779,7 +787,8 @@ class _FirebaseFirestoreService implements FirestoreService {
     } catch (e) {
       // Fallback for offline or transaction failures: merge locally and
       // set so the write takes effect and will sync later.
-      final merged = mergeNoteMaps(<String, dynamic>{}, data);
+      var merged = mergeNoteMaps(<String, dynamic>{}, data);
+      merged = attachFieldTimestamps(merged);
       merged['updatedAt'] = fs.FieldValue.serverTimestamp();
       merged['lastClientUpdateAt'] = DateTime.now().toUtc();
       await ref.set(merged, fs.SetOptions(merge: true));
@@ -1341,6 +1350,33 @@ class _RestFirestoreService implements FirestoreService {
   ) async {
     // Ensure updatedAt is always bumped
     final patched = Map<String, dynamic>.from(fields);
+
+    // Attach per-field companion timestamps for scalar fields so clients
+    // using per-field LWW have the metadata they need. We only add for
+    // scalar encoded values (stringValue, integerValue, doubleValue,
+    // booleanValue, nullValue, timestampValue). Skip keys that already
+    // look like companion timestamps or metadata.
+    for (final key in fields.keys.toList()) {
+      if (key.endsWith('_lastClientUpdateAt') || key.endsWith('_updatedAt')) continue;
+      final v = fields[key];
+      bool isScalarEncoded = false;
+      if (v is Map<String, dynamic>) {
+        if (v.containsKey('stringValue') ||
+            v.containsKey('integerValue') ||
+            v.containsKey('doubleValue') ||
+            v.containsKey('booleanValue') ||
+            v.containsKey('nullValue') ||
+            v.containsKey('timestampValue')) {
+          isScalarEncoded = true;
+        }
+      }
+      if (isScalarEncoded) {
+        // Use the same encoding helper so Firestore REST accepts the value
+        patched['${key}_lastClientUpdateAt'] = _encodeValue(DateTime.now().toUtc());
+      }
+    }
+
+    // Always bump map-level updatedAt
     patched['updatedAt'] = _encodeValue(DateTime.now().toUtc());
     // Build update mask so only provided fields are modified (non-destructive)
     final qs = patched.keys

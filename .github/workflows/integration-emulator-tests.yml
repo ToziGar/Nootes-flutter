@@ -1,0 +1,44 @@
+name: Integration tests (Firestore emulator)
+
+on:
+  push:
+    branches: [ main, feature/expanded-mvp ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Firebase CLI
+        run: |
+          npm ci --no-audit --no-fund
+          npm install -g firebase-tools
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Run integration tests with Firestore emulator
+        # Use firebase emulators:exec so the emulator runs only for this command
+        run: |
+          npx firebase emulators:exec --only firestore -- bash -lc "flutter test test/integration/update_note_service_emulator_test.dart test/integration/update_note_emulator_test.dart"

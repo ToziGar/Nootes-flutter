@@ -5,7 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import '../pages/sync_debug_page.dart';
+import '../widgets/enhanced_note_editor.dart';
 import '../services/firestore_service.dart';
+import '../services/field_timestamp_helper.dart';
 import '../services/export_import_service.dart';
 import '../services/toast_service.dart';
 // Markdown and legacy rich editors removed in favor of Quill WYSIWYG
@@ -52,8 +56,8 @@ class _WorkspacePageState extends State<WorkspacePage>
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
+              children: [
+                SizedBox(
             width: 100,
             child: Text(
               '$label:',
@@ -65,6 +69,26 @@ class _WorkspacePageState extends State<WorkspacePage>
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          // Developer-only quick access to Sync Debug
+          if (kDebugMode)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppColors.space12),
+              child: ListTile(
+                leading: const Icon(Icons.bug_report_outlined),
+                title: const Text('Sync Debug (dev)'),
+                onTap: () {
+                  final uid = AuthService.instance.currentUser?.uid;
+                  if (uid != null) {
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => SyncDebugPage(uid: uid),
+                      fullscreenDialog: true,
+                    ));
+                  } else {
+                    ToastService.error('No user signed in');
+                  }
+                },
+              ),
+            ),
           Expanded(
             child: SelectableText(
               value,
@@ -837,7 +861,7 @@ class _WorkspacePageState extends State<WorkspacePage>
     _saving = true;
 
     try {
-      final data = {
+      Map<String, dynamic> data = {
         'title': _title.text,
         'content': _content.text,
         'tags': _tags,
@@ -845,6 +869,9 @@ class _WorkspacePageState extends State<WorkspacePage>
       if (_richJson.isNotEmpty) {
         data['rich'] = _richJson;
       }
+      try {
+        data = attachFieldTimestamps(data);
+      } catch (_) {}
       await FirestoreService.instance.updateNote(
         uid: getUid(),
         noteId: _selectedId!,
@@ -1734,11 +1761,15 @@ class _WorkspacePageState extends State<WorkspacePage>
   // --- New helper methods for extended context menu actions ---
 
   Future<void> _togglePinNote(String noteId, bool pin) async {
-    try {
+      try {
+      Map<String, dynamic> pinnedData = {'pinned': pin};
+      try {
+        pinnedData = attachFieldTimestamps(pinnedData);
+      } catch (_) {}
       await FirestoreService.instance.updateNote(
         uid: getUid(),
         noteId: noteId,
-        data: {'pinned': pin},
+        data: pinnedData,
       );
       if (mounted) {
         setState(() {
@@ -1759,11 +1790,15 @@ class _WorkspacePageState extends State<WorkspacePage>
   }
 
   Future<void> _toggleFavoriteNote(String noteId, bool fav) async {
-    try {
+      try {
+      Map<String, dynamic> favData = {'favorite': fav};
+      try {
+        favData = attachFieldTimestamps(favData);
+      } catch (_) {}
       await FirestoreService.instance.updateNote(
         uid: getUid(),
         noteId: noteId,
-        data: {'favorite': fav},
+        data: favData,
       );
       if (mounted) {
         setState(() {
@@ -1786,11 +1821,15 @@ class _WorkspacePageState extends State<WorkspacePage>
   }
 
   Future<void> _toggleArchiveNote(String noteId, bool archive) async {
-    try {
+      try {
+      Map<String, dynamic> archiveData = {'archived': archive};
+      try {
+        archiveData = attachFieldTimestamps(archiveData);
+      } catch (_) {}
       await FirestoreService.instance.updateNote(
         uid: getUid(),
         noteId: noteId,
-        data: {'archived': archive},
+        data: archiveData,
       );
       if (mounted) {
         setState(() {
@@ -1841,10 +1880,14 @@ class _WorkspacePageState extends State<WorkspacePage>
           .where((s) => s.isNotEmpty)
           .toList();
       try {
+        Map<String, dynamic> tagsData = {'tags': tags};
+        try {
+          tagsData = attachFieldTimestamps(tagsData);
+        } catch (_) {}
         await FirestoreService.instance.updateNote(
           uid: getUid(),
           noteId: noteId,
-          data: {'tags': tags},
+          data: tagsData,
         );
         if (mounted) {
           setState(() {
@@ -3524,10 +3567,14 @@ class _WorkspacePageState extends State<WorkspacePage>
     );
 
     if (result == true && selectedIcon != null) {
+      Map<String, dynamic> iconData = {'icon': selectedIcon, 'iconColor': selectedColor.toARGB32()};
+      try {
+        iconData = attachFieldTimestamps(iconData);
+      } catch (_) {}
       await FirestoreService.instance.updateNote(
         uid: getUid(),
         noteId: noteId,
-        data: {'icon': selectedIcon, 'iconColor': selectedColor.toARGB32()},
+        data: iconData,
       );
       // ✅ CORRECCIÓN: Actualizar solo la nota específica en lugar de recargar todo
       _updateNoteInList(noteId, {
@@ -3538,10 +3585,14 @@ class _WorkspacePageState extends State<WorkspacePage>
   }
 
   Future<void> _clearNoteIcon(String noteId) async {
+    Map<String, dynamic> clearIconData = {'icon': null, 'iconColor': null};
+    try {
+      clearIconData = attachFieldTimestamps(clearIconData);
+    } catch (_) {}
     await FirestoreService.instance.updateNote(
       uid: getUid(),
       noteId: noteId,
-      data: {'icon': null, 'iconColor': null},
+      data: clearIconData,
     );
     // ✅ CORRECCIÓN: Actualizar solo la nota específica en lugar de recargar todo
     _updateNoteInList(noteId, {'icon': null, 'iconColor': null});
@@ -3610,10 +3661,14 @@ class _WorkspacePageState extends State<WorkspacePage>
       ToastService.warning('El título no puede estar vacío');
       return;
     }
+    Map<String, dynamic> renameData = {'title': newTitle};
+    try {
+      renameData = attachFieldTimestamps(renameData);
+    } catch (_) {}
     await FirestoreService.instance.updateNote(
       uid: getUid(),
       noteId: noteId,
-      data: {'title': newTitle},
+      data: renameData,
     );
     _updateNoteInList(noteId, {'title': newTitle});
   }

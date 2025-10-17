@@ -15,6 +15,10 @@ class BoldIntent extends Intent {
   const BoldIntent();
 }
 
+class SaveIntent extends Intent {
+  const SaveIntent();
+}
+
 class ItalicIntent extends Intent {
   const ItalicIntent();
 }
@@ -54,6 +58,8 @@ class MarkdownEditor extends StatefulWidget {
     this.showSplitToggle = true,
     this.readOnly = false,
     this.previewTitle,
+    this.autoSaveInterval,
+    this.onAutoSave,
   });
 
   final TextEditingController controller;
@@ -71,6 +77,10 @@ class MarkdownEditor extends StatefulWidget {
   final bool readOnly;
   // Optional title rendered above the preview pane (live-updating).
   final String? previewTitle;
+  // Optional debounced autosave interval. If null, autosave is disabled.
+  final Duration? autoSaveInterval;
+  // Called after the user stops typing for [autoSaveInterval]. Also triggered by SaveIntent.
+  final ValueChanged<String>? onAutoSave;
 
   @override
   State<MarkdownEditor> createState() => _MarkdownEditorState();
@@ -102,6 +112,13 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
   void _instantRender() {
     setState(() => _rendered = widget.controller.text);
     widget.onChanged?.call(widget.controller.text);
+    // Autosave: debounce if configured
+    if (widget.autoSaveInterval != null) {
+      _debounce?.cancel();
+      _debounce = Timer(widget.autoSaveInterval!, () {
+        widget.onAutoSave?.call(widget.controller.text);
+      });
+    }
   }
 
   void _wrapSelection(String left, [String right = '']) {
@@ -283,6 +300,11 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
         if (!widget.forceSplit)
           LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.slash):
               const ToggleSplitIntent(),
+        // Ctrl/Cmd + S -> save
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
+            const SaveIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyS):
+            const SaveIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -329,6 +351,15 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
                 return null;
               },
             ),
+          SaveIntent: CallbackAction<SaveIntent>(
+            onInvoke: (intent) {
+              // Trigger immediate autosave if configured, otherwise call onChanged
+              if (widget.onAutoSave != null) {
+                widget.onAutoSave!(widget.controller.text);
+              }
+              return null;
+            },
+          ),
         },
         child: Focus(
           focusNode: _focus,

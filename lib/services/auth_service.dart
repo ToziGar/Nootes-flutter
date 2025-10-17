@@ -20,6 +20,9 @@ abstract class AuthService {
   static AuthService? _instance;
   static AuthService get instance => _instance ??= _resolve();
 
+  // Testing helper: allow tests to inject a fake implementation.
+  static set testInstance(AuthService? v) => _instance = v;
+
   // Helper to obtain a valid ID token for REST calls
   static Future<String> instanceToken() async {
     final t = await instance.getIdToken();

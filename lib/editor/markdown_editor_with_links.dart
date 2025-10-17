@@ -18,6 +18,8 @@ class MarkdownEditorWithLinks extends StatefulWidget {
     this.forceSplit = false,
     this.showSplitToggle = true,
     this.previewTitle,
+    this.autoSaveInterval,
+    this.onAutoSave,
   });
 
   final TextEditingController controller;
@@ -31,6 +33,8 @@ class MarkdownEditorWithLinks extends StatefulWidget {
   final bool forceSplit;
   final bool showSplitToggle;
   final String? previewTitle;
+  final Duration? autoSaveInterval;
+  final ValueChanged<String>? onAutoSave;
 
   @override
   State<MarkdownEditorWithLinks> createState() =>
@@ -232,6 +236,8 @@ class _MarkdownEditorWithLinksState extends State<MarkdownEditorWithLinks> {
       forceSplit: widget.forceSplit,
       showSplitToggle: widget.showSplitToggle,
       previewTitle: widget.previewTitle,
+      autoSaveInterval: widget.autoSaveInterval,
+      onAutoSave: widget.onAutoSave,
       wikiIndex: wikiIndex,
       onOpenNote: widget.onNoteOpen,
     );
