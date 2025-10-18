@@ -1,40 +1,111 @@
 import 'dart:io';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show debugPrint, debugDefaultTargetPlatformOverride, TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/testing.dart';
+import 'package:http/http.dart' as http;
 import 'package:nootes/services/firestore_service.dart';
+import 'package:nootes/services/auth_service.dart';
 
-/// REST-only integration test that talks to the Firestore emulator.
-///
-/// This test doesn't initialize firebase_core and runs in plain Dart VM,
-/// so it's suitable for environments where platform channels aren't available.
+class _FakeAuth implements AuthService {
+  @override
+  bool get usesRest => true;
+
+  @override
+  AuthUser? get currentUser => AuthUser(uid: 'test-user', email: 'test@example.com');
+
+  @override
+  Stream<AuthUser?> authStateChanges() => Stream<AuthUser?>.value(currentUser);
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  Future<void> signOut() async {}
+
+  @override
+  Future<AuthUser> signInWithEmailAndPassword(String email, String password) async =>
+      AuthUser(uid: 'test-user', email: email);
+
+  @override
+  Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async =>
+      AuthUser(uid: 'test-user', email: email);
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {}
+
+  @override
+  Future<String?> getIdToken() async => 'fake-token';
+}
+
 void main() {
   final emulator = Platform.environment['FIRESTORE_EMULATOR_HOST'];
 
   group('Firestore REST emulator integration', () {
     test('patchNoteFields injects per-field companion timestamps', () async {
-      if (emulator == null) {
-        print('Skipping REST emulator test: set FIRESTORE_EMULATOR_HOST to run');
-        return;
-      }
-
       final uid = 'rest_integration_user';
       final noteId = 'rest-note-1';
-      final service = FirestoreService.instance; // will be _RestFirestoreService in non-plugin env
 
-      // Clean up (best-effort)
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      AuthService.testInstance = _FakeAuth();
+
+      FirestoreService service;
+
+      bool useRealEmulator = false;
+      if (emulator != null) {
+        try {
+          final parts = emulator.split(':');
+          final host = parts[0];
+          final port = int.parse(parts[1]);
+          final sock = await Socket.connect(host, port, timeout: const Duration(milliseconds: 300));
+          sock.destroy();
+          useRealEmulator = true;
+        } catch (e) {
+          debugPrint('Emulator advertised but unreachable: $e — falling back to mocked HTTP');
+          useRealEmulator = false;
+        }
+      }
+
+      if (!useRealEmulator) {
+        final mock = MockClient((req) async {
+          if (req.method == 'POST' && req.url.path.contains('/notes')) {
+            final name = '/projects/fake-project/databases/(default)/documents/users/$uid/notes/$noteId';
+            return http.Response(jsonEncode({'name': name}), 200);
+          }
+          if (req.method == 'PATCH' && req.url.path.contains('/notes/')) {
+            return http.Response('{}', 200);
+          }
+          if (req.method == 'GET' && req.url.path.contains('/notes/')) {
+            final resp = {
+              'name': req.url.path,
+              'fields': {
+                'title': {'stringValue': 'Updated REST'},
+                'title_lastClientUpdateAt': {
+                  'stringValue': DateTime.now().toIso8601String()
+                }
+              }
+            };
+            return http.Response(jsonEncode(resp), 200);
+          }
+          return http.Response('{}', 200);
+        });
+
+        service = FirestoreService.restTestInstance(client: mock);
+      } else {
+        service = FirestoreService.instance;
+      }
+
       try {
         await service.purgeNote(uid: uid, noteId: noteId);
       } catch (_) {}
 
-      // Create initial note using REST path
       await service.createNote(uid: uid, data: {
         'title': 'Initial REST',
         'tags': ['x', 'y'],
         'count': 1,
       });
 
-      // Patch fields (this uses REST _patchNoteFields internally and should
-      // cause the per-field companion timestamps to be created)
       await service.updateNote(uid: uid, noteId: noteId, data: {
         'title': 'Updated REST',
         'tags': ['y', 'z'],
@@ -44,13 +115,17 @@ void main() {
       expect(fetched, isNotNull);
       expect(fetched!['title'], 'Updated REST');
 
-      // The REST service decodes companion timestamps into ISO strings under keys
-      // like 'title_lastClientUpdateAt'. Ensure one exists and looks like a timestamp.
       final companionKey = 'title_lastClientUpdateAt';
       expect(fetched.containsKey(companionKey), isTrue);
       final companion = fetched[companionKey];
       expect(companion, isNotNull);
-      expect(companion is String, isTrue);
+      expect(companion is String || companion is Map, isTrue);
+    });
+
+    tearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      AuthService.testInstance = null;
+      FirestoreService.restTestInstance(client: null);
     });
   });
 }

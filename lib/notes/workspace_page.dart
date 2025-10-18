@@ -2432,7 +2432,63 @@ class _WorkspacePageState extends State<WorkspacePage>
                   focusMode: false,
                   onToggleFocus: null,
                   onSave: _save,
-                  onSettings: _openSettings,
+                    onSettings: _openSettings,
+                    onCopyMarkdown: () async {
+                      // Copy current note as Markdown to clipboard
+                      if (_selectedId == null) {
+                        ToastService.error('No hay nota seleccionada');
+                        return;
+                      }
+                      try {
+                        final note = _allNotes.firstWhere((n) => n['id'] == _selectedId);
+                        await ExportImportService.exportSingleNoteToMarkdown(note);
+                        // On native platforms ExportImportService throws UnimplementedError; fallback to clipboard
+                        ToastService.info('Nota exportada (ver descargas o portapapeles)');
+                      } catch (e) {
+                        // Fallback: copy markdown to clipboard
+                        try {
+                          final note = _allNotes.firstWhere((n) => n['id'] == _selectedId);
+                          final title = note['title']?.toString() ?? 'Sin título';
+                          final content = note['content']?.toString() ?? '';
+                          final tags = (note['tags'] as List?)?.join(', ') ?? '';
+                          final createdAt = note['createdAt']?.toString() ?? '';
+                          final markdown = '''# $title
+
+  **Fecha:** $createdAt
+  ${tags.isNotEmpty ? '**Etiquetas:** $tags\n' : ''}
+  ---
+
+  $content
+  ''';
+                          await Clipboard.setData(ClipboardData(text: markdown));
+                          ToastService.success('Markdown copiado al portapapeles');
+                        } catch (e2) {
+                          ToastService.error('Error exportando nota: $e2');
+                        }
+                      }
+                    },
+                    onExport: () async {
+                      // Export single note (platform-specific)
+                      if (_selectedId == null) {
+                        ToastService.error('No hay nota seleccionada');
+                        return;
+                      }
+                      try {
+                        final note = _allNotes.firstWhere((n) => n['id'] == _selectedId);
+                        await ExportImportService.exportSingleNoteToMarkdown(note);
+                        ToastService.success('Exportado nota como Markdown');
+                      } catch (e) {
+                        ToastService.error('Error exportando nota: $e');
+                      }
+                    },
+                    onExportAll: () async {
+                      try {
+                        await ExportImportService.exportToJson(_allNotes);
+                        ToastService.success('Exportación de todas las notas iniciada');
+                      } catch (e) {
+                        ToastService.error('Error exportando notas: $e');
+                      }
+                    },
                   saveScale: _saveScale,
                 ),
               ),

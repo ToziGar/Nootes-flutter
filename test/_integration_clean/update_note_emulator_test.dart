@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nootes/services/merge_utils.dart';
 import 'package:nootes/firebase_options.dart';
+import 'package:nootes/test/test_utils/emulator_probe.dart';
 
 /// Minimal integration test that runs against the Firestore emulator.
 /// Skips when FIRESTORE_EMULATOR_HOST is not set.
@@ -19,6 +20,13 @@ void main() {
       if (emulator == null) return;
       TestWidgetsFlutterBinding.ensureInitialized();
       try {
+        final reachable = await isEmulatorReachable(emulator);
+        if (!reachable) {
+          firebaseAvailable = false;
+          debugPrint('Emulator advertised but unreachable: $emulator');
+          return;
+        }
+
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
         );

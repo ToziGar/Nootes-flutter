@@ -6,25 +6,31 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nootes/services/merge_utils.dart';
 import 'package:nootes/firebase_options.dart';
+import 'package:nootes/test/test_utils/emulator_probe.dart';
 
-/// Integration test that runs against the Firestore emulator.
-///
-/// This test will be skipped unless the environment variable
-/// `FIRESTORE_EMULATOR_HOST` is set (e.g. "localhost:8080").
+/// Minimal integration test that runs against the Firestore emulator.
+/// Skips when FIRESTORE_EMULATOR_HOST is not set.
 void main() {
   final emulator = Platform.environment['FIRESTORE_EMULATOR_HOST'];
 
   group('Firestore emulator integration', () {
     var firebaseAvailable = true;
+
     setUpAll(() async {
       if (emulator == null) return;
       TestWidgetsFlutterBinding.ensureInitialized();
       try {
+        final reachable = await isEmulatorReachable(emulator);
+        if (!reachable) {
+          firebaseAvailable = false;
+          debugPrint('Emulator advertised but unreachable: $emulator');
+          return;
+        }
+
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
         );
 
-        // Configure firestore to use emulator
         final parts = emulator.split(':');
         final host = parts[0];
         final port = int.tryParse(parts.length > 1 ? parts[1] : '8080') ?? 8080;
@@ -37,7 +43,6 @@ void main() {
 
     test('transactional merge via mergeNoteMaps', () async {
       if (emulator == null) {
-        // When the emulator is not configured, skip this test at runtime.
         debugPrint('Skipping emulator integration test: set FIRESTORE_EMULATOR_HOST to run');
         return;
       }
@@ -79,3 +84,4 @@ void main() {
     });
   });
 }
+

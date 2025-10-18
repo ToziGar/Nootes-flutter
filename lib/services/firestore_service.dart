@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
@@ -20,6 +21,14 @@ abstract class FirestoreService {
       return _RestFirestoreService();
     }
     return _FirebaseFirestoreService();
+  }
+
+  /// Test helper: create a REST-backed instance and optionally inject a
+  /// mock `http.Client` to intercept outgoing requests. This lets tests
+  /// validate REST payloads without relying on the emulator or platform.
+  static FirestoreService restTestInstance({http.Client? client}) {
+    _RestFirestoreService.testClient = client;
+    return _RestFirestoreService();
   }
 
   Future<void> reserveHandle({required String username, required String uid});
@@ -965,11 +974,33 @@ class _FirebaseFirestoreService implements FirestoreService {
 }
 
 class _RestFirestoreService implements FirestoreService {
+  // Test hook: allow injecting a mock http.Client for tests that assert
+  // outgoing REST payloads without requiring a running emulator.
+  static http.Client? testClient;
+
+  // Internal client used when no testClient is provided.
+  final http.Client _internalClient = http.Client();
+
+  http.Client get _client => testClient ?? _internalClient;
   String get _projectId => DefaultFirebaseOptions.web.projectId;
-  String get _base =>
-      'https://firestore.googleapis.com/v1/projects/$_projectId/databases/(default)/documents';
+  String get _base {
+    final emulator = Platform.environment['FIRESTORE_EMULATOR_HOST'];
+    if (emulator != null && emulator.isNotEmpty) {
+      return 'http://$emulator/v1/projects/$_projectId/databases/(default)/documents';
+    }
+    return 'https://firestore.googleapis.com/v1/projects/$_projectId/databases/(default)/documents';
+  }
 
   Future<Map<String, String>> _authHeader() async {
+    // When running against the local Firestore emulator the emulator does
+    // not require (and may reject) real Authorization headers. Allow tests
+    // and local runs to set FIRESTORE_EMULATOR_HOST so we avoid fetching a
+    // real ID token and omit the Authorization header in that case.
+    final emulator = Platform.environment['FIRESTORE_EMULATOR_HOST'];
+    if (emulator != null && emulator.isNotEmpty) {
+      return {'Content-Type': 'application/json'};
+    }
+
     final token = await AuthService.instanceToken();
     return {
       'Authorization': 'Bearer $token',
@@ -982,7 +1013,7 @@ class _RestFirestoreService implements FirestoreService {
   Future<Map<String, dynamic>?> getUserSettings({required String uid}) async {
     final headers = await _authHeader();
     final url = '$_base/users/$uid';
-    final resp = await http.get(Uri.parse(url), headers: headers);
+  final resp = await _client.get(Uri.parse(url), headers: headers);
     if (resp.statusCode == 404) return null;
     if (resp.statusCode != 200) return null;
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -1002,7 +1033,7 @@ class _RestFirestoreService implements FirestoreService {
     if (current.isNotEmpty) return current;
     // Fallback: legacy location users/{uid}/meta/settings
     final legacyUrl = '$_base/users/$uid/meta/settings';
-    final legacyResp = await http.get(Uri.parse(legacyUrl), headers: headers);
+  final legacyResp = await _client.get(Uri.parse(legacyUrl), headers: headers);
     if (legacyResp.statusCode != 200) return null;
     final legacyData = jsonDecode(legacyResp.body) as Map<String, dynamic>;
     return _decodeFields(legacyData['fields'] as Map<String, dynamic>?);
@@ -1023,7 +1054,7 @@ class _RestFirestoreService implements FirestoreService {
         .join('&');
     final url = '$_base/users/$uid?$updateMask';
     final payload = jsonEncode({'fields': fields});
-    final resp = await http.patch(
+    final resp = await _client.patch(
       Uri.parse(url),
       headers: headers,
       body: payload,
@@ -1063,7 +1094,7 @@ class _RestFirestoreService implements FirestoreService {
         },
       },
     });
-    final resp = await http.post(uri, headers: await _authHeader(), body: body);
+  final resp = await _client.post(uri, headers: await _authHeader(), body: body);
     if (resp.statusCode == 409) {
       throw Exception('handle-already-exists');
     }
@@ -1089,7 +1120,7 @@ class _RestFirestoreService implements FirestoreService {
       'timestampValue': DateTime.now().toUtc().toIso8601String(),
     };
     final body = jsonEncode({'fields': fields});
-    final resp = await http.post(uri, headers: await _authHeader(), body: body);
+  final resp = await _client.post(uri, headers: await _authHeader(), body: body);
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-user-failed-${resp.statusCode}');
     }
@@ -1098,7 +1129,7 @@ class _RestFirestoreService implements FirestoreService {
   @override
   Future<List<Map<String, dynamic>>> listUserProfiles({int limit = 50}) async {
     final uri = Uri.parse('$_base/users');
-    final resp = await http.get(uri, headers: await _authHeader());
+  final resp = await _client.get(uri, headers: await _authHeader());
     if (resp.statusCode != 200) return [];
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     final docs = (data['documents'] as List?) ?? [];
@@ -1115,7 +1146,7 @@ class _RestFirestoreService implements FirestoreService {
   @override
   Future<Map<String, dynamic>?> getUserProfile({required String uid}) async {
     final uri = Uri.parse('$_base/users/$uid');
-    final resp = await http.get(uri, headers: await _authHeader());
+  final resp = await _client.get(uri, headers: await _authHeader());
     if (resp.statusCode != 200) return null;
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     final fields = _decodeFields(data['fields'] as Map<String, dynamic>?);
@@ -1144,7 +1175,7 @@ class _RestFirestoreService implements FirestoreService {
         .join('&');
     final uri = Uri.parse('$_base/users/$uid?$qs');
     final body = jsonEncode({'fields': fields});
-    final resp = await http.patch(
+    final resp = await _client.patch(
       uri,
       headers: await _authHeader(),
       body: body,
@@ -1157,7 +1188,7 @@ class _RestFirestoreService implements FirestoreService {
   @override
   Future<List<Map<String, dynamic>>> listHandles({int limit = 50}) async {
     final uri = Uri.parse('$_base/handles');
-    final resp = await http.get(uri, headers: await _authHeader());
+  final resp = await _client.get(uri, headers: await _authHeader());
     if (resp.statusCode != 200) return [];
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     final docs = (data['documents'] as List?) ?? [];
@@ -1174,7 +1205,7 @@ class _RestFirestoreService implements FirestoreService {
   @override
   Future<Map<String, dynamic>?> getHandle({required String username}) async {
     final uri = Uri.parse('$_base/handles/$username');
-    final resp = await http.get(uri, headers: await _authHeader());
+  final resp = await _client.get(uri, headers: await _authHeader());
     if (resp.statusCode != 200) return null;
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     final fields = _decodeFields(data['fields'] as Map<String, dynamic>?);
@@ -1214,7 +1245,7 @@ class _RestFirestoreService implements FirestoreService {
         },
       },
     });
-    final createResp = await http.post(
+    final createResp = await _client.post(
       createUri,
       headers: await _authHeader(),
       body: createBody,
@@ -1239,7 +1270,7 @@ class _RestFirestoreService implements FirestoreService {
           },
         },
       });
-      final patchResp = await http.patch(
+      final patchResp = await _client.patch(
         uri,
         headers: await _authHeader(),
         body: body,
@@ -1250,7 +1281,7 @@ class _RestFirestoreService implements FirestoreService {
 
       // 5) Delete old handle
       final delUri = Uri.parse('$_base/handles/$currentUsername');
-      final delResp = await http.delete(delUri, headers: await _authHeader());
+  final delResp = await _client.delete(delUri, headers: await _authHeader());
       if (delResp.statusCode < 200 || delResp.statusCode >= 300) {
         throw Exception('firestore-delete-old-handle-${delResp.statusCode}');
       }
@@ -1258,7 +1289,7 @@ class _RestFirestoreService implements FirestoreService {
       // Rollback: try delete new handle if something failed
       try {
         final delUri = Uri.parse('$_base/handles/$newUser');
-        await http.delete(delUri, headers: await _authHeader());
+  await _client.delete(delUri, headers: await _authHeader());
       } catch (_) {}
       rethrow;
     }
@@ -1267,7 +1298,7 @@ class _RestFirestoreService implements FirestoreService {
   @override
   Future<List<Map<String, dynamic>>> listNotes({required String uid}) async {
     final uri = Uri.parse('$_base/users/$uid/notes');
-    final resp = await http.get(uri, headers: await _authHeader());
+  final resp = await _client.get(uri, headers: await _authHeader());
     if (resp.statusCode != 200) return [];
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     final docs = (data['documents'] as List?) ?? [];
@@ -1285,7 +1316,7 @@ class _RestFirestoreService implements FirestoreService {
     required String noteId,
   }) async {
     final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
-    final resp = await http.get(uri, headers: await _authHeader());
+  final resp = await _client.get(uri, headers: await _authHeader());
     if (resp.statusCode != 200) return null;
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     final fields = _decodeFields(data['fields'] as Map<String, dynamic>?);
@@ -1301,7 +1332,7 @@ class _RestFirestoreService implements FirestoreService {
     final fields = <String, dynamic>{};
     data.forEach((k, v) => fields[k] = _encodeValue(v));
     final body = jsonEncode({'fields': fields});
-    final resp = await http.post(uri, headers: await _authHeader(), body: body);
+  final resp = await _client.post(uri, headers: await _authHeader(), body: body);
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-create-note-${resp.statusCode}');
     }
@@ -1384,7 +1415,7 @@ class _RestFirestoreService implements FirestoreService {
         .join('&');
     final uri = Uri.parse('$_base/users/$uid/notes/$noteId?$qs');
     final body = jsonEncode({'fields': patched});
-    final resp = await http.patch(
+    final resp = await _client.patch(
       uri,
       headers: await _authHeader(),
       body: body,
@@ -1433,7 +1464,7 @@ class _RestFirestoreService implements FirestoreService {
   @override
   Future<void> purgeNote({required String uid, required String noteId}) async {
     final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
-    final resp = await http.delete(uri, headers: await _authHeader());
+  final resp = await _client.delete(uri, headers: await _authHeader());
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-delete-note-${resp.statusCode}');
     }
@@ -1455,7 +1486,7 @@ class _RestFirestoreService implements FirestoreService {
     required String uid,
   }) async {
     final uri = Uri.parse('$_base/users/$uid/collections');
-    final resp = await http.get(uri, headers: await _authHeader());
+  final resp = await _client.get(uri, headers: await _authHeader());
     if (resp.statusCode != 200) return [];
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     final docs = (data['documents'] as List?) ?? [];
@@ -1477,7 +1508,7 @@ class _RestFirestoreService implements FirestoreService {
     data.forEach((k, v) => fields[k] = _encodeValue(v));
     fields['createdAt'] = _encodeValue(DateTime.now().toUtc());
     final body = jsonEncode({'fields': fields});
-    final resp = await http.post(uri, headers: await _authHeader(), body: body);
+  final resp = await _client.post(uri, headers: await _authHeader(), body: body);
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-create-collection-${resp.statusCode}');
     }
@@ -1500,7 +1531,7 @@ class _RestFirestoreService implements FirestoreService {
     data.forEach((k, v) => fields[k] = _encodeValue(v));
     fields['updatedAt'] = _encodeValue(DateTime.now().toUtc());
     final body = jsonEncode({'fields': fields});
-    final resp = await http.patch(
+    final resp = await _client.patch(
       uri,
       headers: await _authHeader(),
       body: body,
@@ -1516,7 +1547,7 @@ class _RestFirestoreService implements FirestoreService {
     required String collectionId,
   }) async {
     final uri = Uri.parse('$_base/users/$uid/collections/$collectionId');
-    final resp = await http.delete(uri, headers: await _authHeader());
+  final resp = await _client.delete(uri, headers: await _authHeader());
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-delete-collection-${resp.statusCode}');
     }
@@ -1675,7 +1706,7 @@ class _RestFirestoreService implements FirestoreService {
         .join('&');
     final uri = Uri.parse('$_base/users/$uid/notes/$noteId?$qs');
     final body = jsonEncode({'fields': fields});
-    final resp = await http.patch(
+    final resp = await _client.patch(
       uri,
       headers: await _authHeader(),
       body: body,
@@ -1688,7 +1719,7 @@ class _RestFirestoreService implements FirestoreService {
   @override
   Future<void> deleteNote({required String uid, required String noteId}) async {
     final uri = Uri.parse('$_base/users/$uid/notes/$noteId');
-    final resp = await http.delete(uri, headers: await _authHeader());
+  final resp = await _client.delete(uri, headers: await _authHeader());
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-delete-note-${resp.statusCode}');
     }
@@ -1758,7 +1789,7 @@ class _RestFirestoreService implements FirestoreService {
   Future<List<Map<String, dynamic>>> listFolders({required String uid}) async {
     final headers = await _authHeader();
     final url = '$_base/users/$uid/folders?orderBy=order';
-    final resp = await http.get(Uri.parse(url), headers: headers);
+  final resp = await _client.get(Uri.parse(url), headers: headers);
     if (resp.statusCode != 200) return [];
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     final docs =
@@ -1783,7 +1814,7 @@ class _RestFirestoreService implements FirestoreService {
   }) async {
     final headers = await _authHeader();
     final url = '$_base/users/$uid/folders/$folderId';
-    final resp = await http.get(Uri.parse(url), headers: headers);
+  final resp = await _client.get(Uri.parse(url), headers: headers);
     if (resp.statusCode != 200) return null;
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     final id = (data['name'] as String).split('/').last;
@@ -1805,7 +1836,7 @@ class _RestFirestoreService implements FirestoreService {
     fields['createdAt'] = _encodeValue(now);
     fields['updatedAt'] = _encodeValue(now);
     final payload = {'fields': fields};
-    final resp = await http.post(
+    final resp = await _client.post(
       Uri.parse(url),
       headers: headers,
       body: jsonEncode(payload),
@@ -1838,7 +1869,7 @@ class _RestFirestoreService implements FirestoreService {
     final urlWithMask = '$url?$qs';
 
     final payload = {'fields': fields};
-    final resp = await http.patch(
+    final resp = await _client.patch(
       Uri.parse(urlWithMask),
       headers: headers,
       body: jsonEncode(payload),
@@ -1853,7 +1884,7 @@ class _RestFirestoreService implements FirestoreService {
   }) async {
     final headers = await _authHeader();
     final url = '$_base/users/$uid/folders/$folderId';
-    final resp = await http.delete(Uri.parse(url), headers: headers);
+  final resp = await _client.delete(Uri.parse(url), headers: headers);
     if (resp.statusCode != 200) throw Exception('Failed to delete folder');
   }
 
@@ -1902,7 +1933,7 @@ class _RestFirestoreService implements FirestoreService {
   Future<List<Map<String, dynamic>>> listEdgeDocs({required String uid}) async {
     final headers = await _authHeader();
     final url = '$_base/users/$uid/edges?orderBy=createdAt';
-    final resp = await http.get(Uri.parse(url), headers: headers);
+  final resp = await _client.get(Uri.parse(url), headers: headers);
     if (resp.statusCode != 200) return [];
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     final docs =
@@ -1927,7 +1958,7 @@ class _RestFirestoreService implements FirestoreService {
     fields['createdAt'] = _encodeValue(now);
     fields['updatedAt'] = _encodeValue(now);
     final payload = {'fields': fields};
-    final resp = await http.post(
+    final resp = await _client.post(
       Uri.parse(url),
       headers: headers,
       body: jsonEncode(payload),
@@ -1960,7 +1991,7 @@ class _RestFirestoreService implements FirestoreService {
     final urlWithMask = '$url?$qs';
 
     final payload = {'fields': fields};
-    final resp = await http.patch(
+    final resp = await _client.patch(
       Uri.parse(urlWithMask),
       headers: headers,
       body: jsonEncode(payload),
@@ -1975,7 +2006,7 @@ class _RestFirestoreService implements FirestoreService {
   }) async {
     final headers = await _authHeader();
     final url = '$_base/users/$uid/edges/$edgeId';
-    final resp = await http.delete(Uri.parse(url), headers: headers);
+  final resp = await _client.delete(Uri.parse(url), headers: headers);
     if (resp.statusCode != 200) throw Exception('Failed to delete edge doc');
   }
 }

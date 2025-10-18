@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nootes/services/firestore_service.dart';
 import 'package:nootes/firebase_options.dart';
+import 'package:nootes/test/test_utils/emulator_probe.dart';
 
 void main() {
   final emulator = Platform.environment['FIRESTORE_EMULATOR_HOST'];
@@ -17,6 +18,13 @@ void main() {
       if (emulator == null) return;
       TestWidgetsFlutterBinding.ensureInitialized();
       try {
+        final reachable = await isEmulatorReachable(emulator);
+        if (!reachable) {
+          firebaseAvailable = false;
+          debugPrint('Emulator advertised but unreachable: $emulator');
+          return;
+        }
+
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
         );
@@ -26,9 +34,6 @@ void main() {
         final port = int.tryParse(parts.length > 1 ? parts[1] : '8080') ?? 8080;
         FirebaseFirestore.instance.useFirestoreEmulator(host, port);
       } catch (e) {
-        // Some test environments (pure VM) cannot initialize firebase platform
-        // channels. Tests that operate via the REST-backed service will still
-        // run; mark firebase as unavailable so direct SDK tests can skip.
         firebaseAvailable = false;
         debugPrint('Firebase platform unavailable in test environment: $e');
       }
@@ -74,3 +79,4 @@ void main() {
     });
   });
 }
+

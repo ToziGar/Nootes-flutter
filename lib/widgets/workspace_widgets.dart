@@ -343,6 +343,9 @@ class WorkspaceHeader extends StatelessWidget {
     this.onToggleFocus,
     required this.onSave,
     this.onSettings,
+    this.onExport,
+    this.onExportAll,
+    this.onCopyMarkdown,
     this.saveScale,
   });
 
@@ -351,6 +354,9 @@ class WorkspaceHeader extends StatelessWidget {
   final VoidCallback? onToggleFocus;
   final VoidCallback onSave;
   final VoidCallback? onSettings;
+  final VoidCallback? onExport; // export current note (markdown / platform-specific)
+  final VoidCallback? onExportAll; // export all notes (json / platform-specific)
+  final VoidCallback? onCopyMarkdown; // copy current note as markdown to clipboard
   final Animation<double>? saveScale;
 
   @override
@@ -406,6 +412,41 @@ class WorkspaceHeader extends StatelessWidget {
               tooltip: 'Configuración',
               onPressed: onSettings,
               icon: const Icon(Icons.settings_rounded),
+            ),
+          // Copy current note as Markdown (falls back to clipboard on native)
+          if (onCopyMarkdown != null)
+            IconButton(
+              tooltip: 'Copiar Markdown',
+              onPressed: onCopyMarkdown,
+              icon: const Icon(Icons.copy_all_rounded),
+            ),
+          // Export menu (note / all)
+          if (onExport != null || onExportAll != null)
+            PopupMenuButton<String>(
+              tooltip: 'Exportar',
+              onSelected: (value) {
+                switch (value) {
+                  case 'export_note':
+                    onExport?.call();
+                    break;
+                  case 'export_all':
+                    onExportAll?.call();
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                if (onExport != null)
+                  const PopupMenuItem(
+                    value: 'export_note',
+                    child: Text('Exportar nota (.md)'),
+                  ),
+                if (onExportAll != null)
+                  const PopupMenuItem(
+                    value: 'export_all',
+                    child: Text('Exportar todo (.json)'),
+                  ),
+              ],
+              icon: const Icon(Icons.download_rounded),
             ),
         ],
       ),

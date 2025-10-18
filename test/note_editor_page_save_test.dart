@@ -40,6 +40,7 @@ class FakeFirestoreService implements FirestoreService {
   }
 
   // The rest of the API can be left unimplemented for brevity.
+  @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -107,5 +108,6 @@ void main() {
 }
 
 class _FakeSharingService implements SharingService {
+  @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
