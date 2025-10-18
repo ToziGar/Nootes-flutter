@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../theme/app_colors.dart';
+import '../utils/debug.dart';
 
 /// Enum para tipos de toast
 enum ToastType { success, error, warning, info, loading }
@@ -179,7 +180,7 @@ class ToastService {
           }
         });
       }
-      debugPrint('⚠️ ToastService: Overlay not ready yet, will retry shortly.');
+      logDebug('⚠️ ToastService: Overlay not ready yet, will retry shortly.');
       return;
     }
 
@@ -190,7 +191,7 @@ class ToastService {
     overlay.insert(_overlayEntry!);
 
     // Auto-hide después de la duración especificada
-    if (config.type != ToastType.loading) {
+      if (config.type != ToastType.loading) {
       _timer = Timer(config.duration, _hide);
     }
   }

@@ -1,5 +1,6 @@
 // Logging service for structured logging throughout the application
 import 'package:flutter/foundation.dart';
+import '../utils/debug.dart';
 
 /// Log levels for filtering and categorizing logs
 enum LogLevel {
@@ -102,9 +103,9 @@ class LoggingService {
         '${level.emoji} $timestamp $tagStr$message$dataStr$errorStr';
 
     if (kDebugMode) {
-      print(logMessage);
+      logDebug(logMessage);
       if (stackTrace != null && level.value >= LogLevel.error.value) {
-        print('Stack trace:\n$stackTrace');
+        logDebug('Stack trace:\n$stackTrace');
       }
     }
 

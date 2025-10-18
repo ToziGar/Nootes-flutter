@@ -441,7 +441,7 @@ class NotificationService {
 
       await batch.commit();
     } catch (e) {
-      debugPrint('Error marking all notifications as read: $e');
+      logDebug('Error marking all notifications as read: $e');
     }
   }
 

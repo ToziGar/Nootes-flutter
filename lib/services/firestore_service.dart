@@ -1364,8 +1364,8 @@ class _RestFirestoreService implements FirestoreService {
       try {
         final msg = StringBuffer();
         msg.writeln('DEBUG firestore.createNote failed: url=${uri.toString()}');
-        msg.writeln('DEBUG request.headers=${headers}');
-        msg.writeln('DEBUG request.body=${body}');
+  msg.writeln('DEBUG request.headers=$headers');
+  msg.writeln('DEBUG request.body=$body');
         msg.writeln('DEBUG response.status=${resp.statusCode}');
         msg.writeln('DEBUG response.body=${resp.body}');
         logDebug(msg.toString());

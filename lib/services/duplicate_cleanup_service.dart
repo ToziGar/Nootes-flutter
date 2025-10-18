@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 import '../utils/debug.dart';
@@ -256,7 +255,7 @@ class DuplicateCleanupService {
         dryRun: dryRun,
       );
     } catch (e) {
-      debugPrint('❌ Error en limpieza de duplicados de notas: $e');
+      logDebug('❌ Error en limpieza de duplicados de notas: $e');
       return DuplicateCleanupResult(
         success: false,
         error: e.toString(),
@@ -270,7 +269,7 @@ class DuplicateCleanupService {
   Future<ComprehensiveCleanupResult> performComprehensiveCleanup({
     bool dryRun = false,
   }) async {
-    debugPrint('🧹 🚀 Iniciando limpieza completa del sistema...');
+  logDebug('🧹 🚀 Iniciando limpieza completa del sistema...');
 
     final folderResult = await cleanFolderDuplicates(dryRun: dryRun);
     await Future.delayed(const Duration(seconds: 1));
@@ -320,7 +319,8 @@ class DuplicateCleanupService {
     if (result.error != null) {
       logDebug('❌ Error: ${result.error}');
     }
-    logDebug('=========================' + '\n');
+    logDebug('========================='
+        '\n');
   }
 }
 

@@ -1,0 +1,10 @@
+// Archived backup of share_dialog_old.dart
+// Moved from lib/widgets to .archive/widgets to keep repo clean
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../services/sharing_service.dart';
+import '../services/toast_service.dart';
+import '../theme/app_theme.dart';
+
+/* Original file content omitted for brevity in archive. */
