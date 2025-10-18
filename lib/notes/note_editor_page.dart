@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../utils/debug.dart';
 import 'package:flutter/services.dart';
 import '../widgets/glass.dart';
 import '../widgets/tag_input.dart';
@@ -168,7 +169,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         data = attachFieldTimestamps(data);
       } catch (e) {
         // If helper missing or fails, continue without per-field timestamps.
-        debugPrint('Failed to attach field timestamps: $e');
+        logDebug('Failed to attach field timestamps: $e');
       }
 
       await FirestoreService.instance.updateNote(

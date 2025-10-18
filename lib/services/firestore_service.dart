@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart'
-  show kIsWeb, defaultTargetPlatform, TargetPlatform, kDebugMode, debugPrint;
+  show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'auth_service.dart';
 import '../firebase_options.dart';
 import 'merge_utils.dart';
 import 'field_timestamp_helper.dart';
+import 'package:nootes/utils/debug.dart';
 
 abstract class FirestoreService {
   static FirestoreService? _instance;
@@ -1356,14 +1357,20 @@ class _RestFirestoreService implements FirestoreService {
   final resp = await _client.post(uri, headers: headers, body: body);
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       // Debug: emit request/response details to help diagnose emulator errors
-      if (kDebugMode) {
-        try {
-          debugPrint('DEBUG firestore.createNote failed: url=${uri.toString()}');
-          debugPrint('DEBUG request.headers=${headers}');
-          debugPrint('DEBUG request.body=${body}');
-          debugPrint('DEBUG response.status=${resp.statusCode}');
-          debugPrint('DEBUG response.body=${resp.body}');
-        } catch (_) {}
+      // Emit a single guarded debug message to avoid noisy logs in release
+      // builds. Use helper so logging policy is centralized.
+      // Compose a single multi-line debug message and log it via the
+      // centralized `logDebug` helper (guarded by `kDebugMode`).
+      try {
+        final msg = StringBuffer();
+        msg.writeln('DEBUG firestore.createNote failed: url=${uri.toString()}');
+        msg.writeln('DEBUG request.headers=${headers}');
+        msg.writeln('DEBUG request.body=${body}');
+        msg.writeln('DEBUG response.status=${resp.statusCode}');
+        msg.writeln('DEBUG response.body=${resp.body}');
+        logDebug(msg.toString());
+      } catch (_) {
+        // best-effort only
       }
       throw Exception('firestore-create-note-${resp.statusCode}');
     }

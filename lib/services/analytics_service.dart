@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:nootes/utils/debug.dart';
 
 /// Minimal analytics service placeholder.
 /// Replace with integration (Firebase Analytics, Amplitude, etc.) later.
@@ -9,10 +9,8 @@ class AnalyticsService {
 
   /// Log a generic event. In debug mode this prints to console.
   void logEvent(String name, [Map<String, dynamic>? params]) {
-    if (kDebugMode) {
-      // ignore: avoid_print
-      print('ANALYTICS: $name ${params ?? {}}');
-    }
+    // Use centralized debug logger
+    logDebug('ANALYTICS: $name ${params ?? {}}');
   }
 
   // --- Placeholder async methods used by UI (return defaults) ---

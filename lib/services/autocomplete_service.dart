@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
+import '../utils/debug.dart';
 
 /// Servicio de autocompletado inteligente para el editor
 class AutoCompleteService {
@@ -218,7 +219,7 @@ class AutoCompleteService {
       _userWords = userWordsSet.toList();
       _wordFrequency = frequency;
     } catch (e) {
-      debugPrint('Error loading user words: $e');
+      logDebug('Error loading user words: $e');
     }
   }
 

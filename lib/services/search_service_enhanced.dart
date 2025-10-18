@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../utils/debug.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/exceptions/sharing_exceptions.dart';
@@ -66,7 +67,7 @@ class SearchServiceEnhanced {
 
       return searchResult;
     } catch (e) {
-      debugPrint('Error en búsqueda: $e');
+  logDebug('Error en búsqueda: $e');
       throw NetworkException();
     }
   }
@@ -115,7 +116,7 @@ class SearchServiceEnhanced {
 
       return suggestions.take(limit).toList();
     } catch (e) {
-      debugPrint('Error obteniendo sugerencias: $e');
+  logDebug('Error obteniendo sugerencias: $e');
       return [];
     }
   }
@@ -172,7 +173,7 @@ class SearchServiceEnhanced {
 
       return _calculateSearchStats(searchHistory);
     } catch (e) {
-      debugPrint('Error obteniendo estadísticas de búsqueda: $e');
+  logDebug('Error obteniendo estadísticas de búsqueda: $e');
       return SearchStats(
         totalSearches: 0,
         recentSearches: [],
@@ -199,7 +200,7 @@ class SearchServiceEnhanced {
             'date': DateTime.now().toString().substring(0, 10),
           });
     } catch (e) {
-      debugPrint('Error guardando búsqueda en historial: $e');
+  logDebug('Error guardando búsqueda en historial: $e');
     }
   }
 
@@ -224,7 +225,7 @@ class SearchServiceEnhanced {
       _recentSearches.clear();
       _searchCache.clear();
     } catch (e) {
-      debugPrint('Error limpiando historial: $e');
+  logDebug('Error limpiando historial: $e');
     }
   }
 
@@ -242,7 +243,7 @@ class SearchServiceEnhanced {
           .where((term) => term.isNotEmpty)
           .toList();
     } catch (e) {
-      debugPrint('Error obteniendo búsquedas populares: $e');
+  logDebug('Error obteniendo búsquedas populares: $e');
       return [];
     }
   }

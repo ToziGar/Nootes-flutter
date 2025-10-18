@@ -4,6 +4,7 @@ import '../services/toast_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/color_utils.dart';
 import '../utils/error_message_mapper.dart';
+import '../utils/debug.dart';
 
 /// Widget para programar recordatorios para una nota
 class ReminderDialog extends StatefulWidget {
@@ -290,7 +291,7 @@ class _ReminderDialogState extends State<ReminderDialog> {
         ToastService.success('✓ Recordatorio programado');
       }
     } catch (e) {
-      debugPrint('❌ Error al programar recordatorio: $e');
+      logDebug('❌ Error al programar recordatorio: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         ToastService.error(ErrorMessageMapper.map(e));

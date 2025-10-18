@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill/quill_delta.dart';
 import '../services/auth_service.dart';
+import '../utils/debug.dart';
 import '../services/editor_config_service.dart';
 import '../editor/markdown_editor_with_links.dart';
 
@@ -257,7 +258,7 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor>
         _lastSaveTime = DateTime.now();
       });
     } catch (e) {
-      debugPrint('Error en auto-guardado: $e');
+  logDebug('Error en auto-guardado: $e');
     } finally {
       setState(() => _isSaving = false);
     }
@@ -474,7 +475,7 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor>
       // Usar el servicio de almacenamiento mejorado
       // Implementar selector de archivos y subida
     } catch (e) {
-      debugPrint('Error insertando media: $e');
+  logDebug('Error insertando media: $e');
     }
   }
 

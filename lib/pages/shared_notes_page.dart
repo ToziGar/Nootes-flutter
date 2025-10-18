@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/sharing_service.dart';
 import '../services/toast_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/debug.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../widgets/share_dialog.dart';
@@ -221,7 +222,7 @@ class _SharedNotesPageState extends State<SharedNotesPage>
     if (mounted) setState(() => _isLoading = true);
 
     try {
-      debugPrint('📊 SharedNotesPage: Iniciando carga de datos...');
+  logDebug('📊 SharedNotesPage: Iniciando carga de datos...');
       final sharingService = SharingService();
 
       final results = await Future.wait([
@@ -246,9 +247,7 @@ class _SharedNotesPageState extends State<SharedNotesPage>
       sharedByMe = _applyAdvancedFilters(sharedByMe, true);
       sharedWithMe = _applyAdvancedFilters(sharedWithMe, false);
 
-      debugPrint(
-        '📊 SharedNotesPage: Cargadas ${sharedByMe.length} enviadas, ${sharedWithMe.length} recibidas',
-      );
+      logDebug('📊 SharedNotesPage: Cargadas ${sharedByMe.length} enviadas, ${sharedWithMe.length} recibidas');
 
       if (mounted) {
         setState(() {
@@ -258,7 +257,7 @@ class _SharedNotesPageState extends State<SharedNotesPage>
         });
       }
     } catch (e) {
-      debugPrint('❌ SharedNotesPage: Error cargando datos - $e');
+  logDebug('❌ SharedNotesPage: Error cargando datos - $e');
       if (mounted) {
         ToastService.error('Error cargando datos: $e');
       }
@@ -1447,7 +1446,7 @@ class _SharedNotesPageState extends State<SharedNotesPage>
       // Recargar datos
       await _loadData();
     } catch (e) {
-      debugPrint('❌ Error aceptando compartición: $e');
+      logDebug('❌ Error aceptando compartición: $e');
       ToastService.error('Error al aceptar: $e');
     } finally {
       setState(() => _isLoading = false);
@@ -1470,7 +1469,7 @@ class _SharedNotesPageState extends State<SharedNotesPage>
       // Recargar datos
       await _loadData();
     } catch (e) {
-      debugPrint('❌ Error rechazando compartición: $e');
+      logDebug('❌ Error rechazando compartición: $e');
       ToastService.error('Error al rechazar: $e');
     } finally {
       setState(() => _isLoading = false);
@@ -1518,7 +1517,7 @@ class _SharedNotesPageState extends State<SharedNotesPage>
 
       ToastService.success('Notificación marcada como leída');
     } catch (e) {
-      debugPrint('Error marcando notificación: $e');
+      logDebug('Error marcando notificación: $e');
       ToastService.error('Error al marcar notificación');
     }
   }
@@ -1558,7 +1557,7 @@ class _SharedNotesPageState extends State<SharedNotesPage>
 
       ToastService.success('Todas las notificaciones marcadas como leídas');
     } catch (e) {
-      debugPrint('Error marcando todas las notificaciones: $e');
+      logDebug('Error marcando todas las notificaciones: $e');
       ToastService.error('Error al marcar todas las notificaciones');
     }
   }
@@ -2464,7 +2463,7 @@ class _SharedNotesPageState extends State<SharedNotesPage>
           successful++;
         } catch (e) {
           failed++;
-          debugPrint('Error en acción masiva para $itemId: $e');
+          logDebug('Error en acción masiva para $itemId: $e');
         }
       }
 

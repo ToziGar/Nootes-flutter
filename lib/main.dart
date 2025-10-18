@@ -27,6 +27,7 @@ import 'services/toast_service.dart';
 import 'services/presence_service.dart';
 import 'public_note_page.dart';
 import 'theme/app_theme.dart';
+import 'utils/debug.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -190,11 +191,11 @@ class AuthGate extends StatelessWidget {
         }
         if (snapshot.hasData) {
           // Inicializar PresenceService cuando el usuario está autenticado
-          _initializePresenceService();
+            _initializePresenceService();
           return const HomePage();
         } else {
           // Limpiar PresenceService cuando el usuario sale
-          _cleanupPresenceService();
+            _cleanupPresenceService();
         }
         return const LoginPage();
       },
@@ -205,7 +206,7 @@ class AuthGate extends StatelessWidget {
     try {
       await PresenceService().initialize();
     } catch (e) {
-      debugPrint('❌ Error inicializando PresenceService: $e');
+        logDebug('❌ Error inicializando PresenceService: $e');
     }
   }
 
@@ -213,7 +214,7 @@ class AuthGate extends StatelessWidget {
     try {
       await PresenceService().goOffline();
     } catch (e) {
-      debugPrint('❌ Error limpiando PresenceService: $e');
+        logDebug('❌ Error limpiando PresenceService: $e');
     }
   }
 }

@@ -25,6 +25,7 @@ import './template_picker_dialog.dart';
 import './productivity_dashboard.dart';
 import './folder_dialog.dart';
 import '../theme/app_theme.dart';
+import '../utils/debug.dart';
 import '../pages/app_shell.dart';
 import '../profile/settings_page.dart';
 import '../widgets/backlinks_panel.dart';
@@ -277,7 +278,7 @@ class _WorkspacePageState extends State<WorkspacePage>
       final foldersData = await FirestoreService.instance.listFolders(
         uid: getUid(),
       );
-      debugPrint('📁 Carpetas cargadas: ${foldersData.length}');
+  logDebug('📁 Carpetas cargadas: ${foldersData.length}');
       if (!mounted) return;
 
       // Eliminar duplicados por ID lógico de carpeta
@@ -296,18 +297,16 @@ class _WorkspacePageState extends State<WorkspacePage>
           final folder = Folder.fromJson(Map<String, dynamic>.from(data));
           uniqueFolders.add(folder);
         } else {
-          debugPrint(
-            '⚠️ Carpeta duplicada ignorada: ${data['name']} ($logicalId)',
-          );
+          logDebug('⚠️ Carpeta duplicada ignorada: ${data['name']} ($logicalId)');
         }
       }
 
       if (mounted) {
         setState(() {
           _folders = uniqueFolders;
-          debugPrint('✅ Carpetas únicas: ${_folders.length}');
+          logDebug('✅ Carpetas únicas: ${_folders.length}');
           for (var folder in _folders) {
-            debugPrint('  - ${folder.name} (${folder.noteIds.length} notas)');
+            logDebug('  - ${folder.name} (${folder.noteIds.length} notas)');
           }
         });
       }
@@ -319,7 +318,7 @@ class _WorkspacePageState extends State<WorkspacePage>
       // Temporalmente desactivado para evitar borrar carpetas principales por colisiones
       // await _cleanDuplicateFoldersInFirestore();
     } catch (e) {
-      debugPrint('❌ Error loading folders: $e');
+  logDebug('❌ Error loading folders: $e');
       if (!mounted) return;
       if (mounted) setState(() => _folders = []);
     }
@@ -342,9 +341,7 @@ class _WorkspacePageState extends State<WorkspacePage>
             .toList();
 
         if (orphanedNotes.isNotEmpty) {
-          debugPrint(
-            '🧹 Limpiando ${orphanedNotes.length} referencias huérfanas en carpeta "${folder.name}"',
-          );
+          logDebug('🧹 Limpiando ${orphanedNotes.length} referencias huérfanas en carpeta "${folder.name}"');
 
           // Crear lista limpia sin las notas huérfanas
           final cleanedNoteIds = folder.noteIds
@@ -362,7 +359,7 @@ class _WorkspacePageState extends State<WorkspacePage>
           folder.noteIds.clear();
           folder.noteIds.addAll(cleanedNoteIds);
 
-          debugPrint(
+          logDebug(
             '✅ Carpeta "${folder.name}" limpiada: ${cleanedNoteIds.length} notas válidas',
           );
         }
@@ -373,19 +370,19 @@ class _WorkspacePageState extends State<WorkspacePage>
         setState(() {
           // UI update after cleaning orphaned notes
           for (var folder in _folders) {
-            debugPrint('  - ${folder.name} (${folder.noteIds.length} notas)');
+            logDebug('  - ${folder.name} (${folder.noteIds.length} notas)');
           }
         });
       }
     } catch (e) {
-      debugPrint('⚠️ Error al limpiar referencias huérfanas: $e');
+  logDebug('⚠️ Error al limpiar referencias huérfanas: $e');
     }
   }
 
   /// Verifica la integridad de las carpetas después de operaciones críticas
   Future<void> _verifyFolderIntegrity(String deletedFolderId) async {
     try {
-      debugPrint('🔍 Verificando integridad de carpetas...');
+  logDebug('🔍 Verificando integridad de carpetas...');
 
       // Obtener carpetas desde Firestore para comparar (comparar docId)
       final remoteFolders = await FirestoreService.instance.listFolders(
@@ -410,19 +407,19 @@ class _WorkspacePageState extends State<WorkspacePage>
       final phantomFolders = localDocIds.difference(remoteDocIds);
 
       if (phantomFolders.isNotEmpty) {
-        debugPrint(
+        logDebug(
           '👻 Carpetas fantasma detectadas en estado local: $phantomFolders',
         );
         // Limpiar carpetas fantasma del estado local
         setState(() {
           _folders.removeWhere((f) => phantomFolders.contains(f.id));
         });
-        debugPrint('✅ Carpetas fantasma eliminadas del estado local');
+  logDebug('✅ Carpetas fantasma eliminadas del estado local');
       }
 
-      debugPrint('✅ Verificación de integridad completada');
+  logDebug('✅ Verificación de integridad completada');
     } catch (e) {
-      debugPrint('⚠️ Error en verificación de integridad: $e');
+      logDebug('⚠️ Error en verificación de integridad: $e');
       // En caso de error, forzar recarga completa
       await _loadFolders();
     }
@@ -2267,12 +2264,12 @@ class _WorkspacePageState extends State<WorkspacePage>
     );
 
     if (confirmed == true) {
-      try {
-        debugPrint('🗑️ Eliminando carpeta (docId): ${folder.docId}');
+  try {
+  logDebug('🗑️ Eliminando carpeta (docId): ${folder.docId}');
 
         // 1. Si tiene notas, moverlas fuera de la carpeta primero
         if (hasNotes) {
-          debugPrint(
+          logDebug(
             '📦 Moviendo ${folder.noteIds.length} notas fuera de la carpeta...',
           );
           for (final noteId in folder.noteIds) {
@@ -2282,9 +2279,9 @@ class _WorkspacePageState extends State<WorkspacePage>
                 folderId: folder.docId, // Usar docId consistentemente
                 noteId: noteId,
               );
-              debugPrint('✅ Nota $noteId movida fuera de la carpeta');
+              logDebug('✅ Nota $noteId movida fuera de la carpeta');
             } catch (e) {
-              debugPrint('⚠️ Error moviendo nota $noteId: $e');
+              logDebug('⚠️ Error moviendo nota $noteId: $e');
             }
           }
           await Future.delayed(const Duration(milliseconds: 300));

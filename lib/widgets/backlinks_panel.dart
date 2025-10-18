@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/color_utils.dart';
 import '../theme/app_theme.dart';
 import '../services/firestore_service.dart';
+import '../utils/debug.dart';
 
 /// Panel que muestra las notas que enlazan a la nota actual (backlinks)
 class BacklinksPanel extends StatefulWidget {
@@ -67,7 +68,7 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
         _loading = false;
       });
     } catch (e) {
-      debugPrint('❌ Error cargando backlinks: $e');
+      logDebug('❌ Error cargando backlinks: $e');
       if (!mounted) return;
       setState(() => _loading = false);
     }

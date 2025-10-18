@@ -9,6 +9,7 @@ import '../services/comment_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/visual_improvements.dart';
+import '../utils/debug.dart';
 
 /// Página para ver y editar notas compartidas según permisos
 class SharedNoteViewerPage extends StatefulWidget {
@@ -126,7 +127,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
         });
       }
     } catch (e) {
-      debugPrint('❌ Error cargando nota: $e');
+  logDebug('❌ Error cargando nota: $e');
       if (!mounted) return;
       // Mensaje amigable si es permisos
       final msg =
@@ -165,7 +166,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
         _collaboratorIds = collaboratorIds;
       });
     } catch (e) {
-      debugPrint('❌ Error cargando colaboradores: $e');
+  logDebug('❌ Error cargando colaboradores: $e');
     }
   }
 
@@ -190,7 +191,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
         metadata: {'changes': 1},
       );
     } catch (e) {
-      debugPrint('❌ Error guardando nota: $e');
+  logDebug('❌ Error guardando nota: $e');
     }
   }
 

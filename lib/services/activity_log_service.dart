@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../utils/debug.dart';
 
 /// Tipos de actividad en notas compartidas
 enum ActivityType {
@@ -49,9 +50,9 @@ class ActivityLogService {
             'metadata': metadata ?? {},
           });
 
-      debugPrint('✅ Actividad registrada: ${type.name}');
+  logDebug('✅ Actividad registrada: ${type.name}');
     } catch (e) {
-      debugPrint('❌ Error registrando actividad: $e');
+  logDebug('❌ Error registrando actividad: $e');
     }
   }
 
@@ -94,7 +95,7 @@ class ActivityLogService {
         return ActivityLog.fromMap(doc.id, doc.data());
       }).toList();
     } catch (e) {
-      debugPrint('❌ Error obteniendo historial: $e');
+  logDebug('❌ Error obteniendo historial: $e');
       return [];
     }
   }
@@ -119,11 +120,9 @@ class ActivityLogService {
       }
 
       await batch.commit();
-      debugPrint(
-        '✅ Limpiado historial antiguo: ${snapshot.docs.length} entradas',
-      );
+      logDebug('✅ Limpiado historial antiguo: ${snapshot.docs.length} entradas');
     } catch (e) {
-      debugPrint('❌ Error limpiando historial: $e');
+  logDebug('❌ Error limpiando historial: $e');
     }
   }
 }

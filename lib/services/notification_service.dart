@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../services/sharing_service.dart';
 import '../services/toast_service.dart';
+import '../utils/debug.dart';
 
 enum NotificationType {
   reminder,
@@ -162,8 +163,8 @@ class NotificationService {
   /// Muestra una notificación
   void _showNotification(NotificationItem notification) {
     // En una app web, podríamos usar la API de notificaciones del navegador
-    // Por ahora, mostraremos un SnackBar
-    debugPrint('🔔 Notificación: ${notification.message}');
+  // Por ahora, mostraremos un SnackBar
+  logDebug('🔔 Notificación: ${notification.message}');
 
     // TODO: Implementar notificaciones nativas del navegador
     // if (kIsWeb) {
