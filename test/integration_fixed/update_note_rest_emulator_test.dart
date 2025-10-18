@@ -9,11 +9,14 @@ import 'package:nootes/services/firestore_service.dart';
 import 'package:nootes/services/auth_service.dart';
 
 class _FakeAuth implements AuthService {
+  final String _uid;
+  _FakeAuth({String uid = 'test-user'}) : _uid = uid;
+
   @override
   bool get usesRest => true;
 
   @override
-  AuthUser? get currentUser => AuthUser(uid: 'test-user', email: 'test@example.com');
+  AuthUser? get currentUser => AuthUser(uid: _uid, email: 'test@example.com');
 
   @override
   Stream<AuthUser?> authStateChanges() => Stream<AuthUser?>.value(currentUser);
@@ -26,11 +29,11 @@ class _FakeAuth implements AuthService {
 
   @override
   Future<AuthUser> signInWithEmailAndPassword(String email, String password) async =>
-      AuthUser(uid: 'test-user', email: email);
+      AuthUser(uid: _uid, email: email);
 
   @override
   Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async =>
-      AuthUser(uid: 'test-user', email: email);
+      AuthUser(uid: _uid, email: email);
 
   @override
   Future<void> sendPasswordResetEmail(String email) async {}
@@ -47,8 +50,8 @@ void main() {
       final uid = 'rest_integration_user';
       final noteId = 'rest-note-1';
 
-      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-      AuthService.testInstance = _FakeAuth();
+  debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+  AuthService.testInstance = _FakeAuth(uid: uid);
 
       FirestoreService service;
 

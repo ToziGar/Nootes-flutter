@@ -4,10 +4,55 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:nootes/services/firestore_service.dart';
+import 'package:nootes/services/auth_service.dart';
 import 'package:nootes/services/field_timestamp_helper.dart';
+
+// Minimal fake AuthService implementation used only by these tests.
+class _FakeAuthService implements AuthService {
+  @override
+  AuthUser? get currentUser => const AuthUser(uid: 'test-user', email: 'test@example.com');
+
+  @override
+  bool get usesRest => true;
+
+  @override
+  Stream<AuthUser?> authStateChanges() => Stream.value(currentUser);
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async =>
+      AuthUser(uid: 'u', email: email);
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {}
+
+  @override
+  Future<AuthUser> signInWithEmailAndPassword(String email, String password) async =>
+      AuthUser(uid: 'u', email: email);
+
+  @override
+  Future<void> signOut() async {}
+
+  @override
+  Future<String?> getIdToken() async => 'fake-token';
+}
 
 void main() {
   group('REST mocked http payload', () {
+    // Install a lightweight fake AuthService so tests don't attempt to
+    // initialize the Firebase native plugin when exercising REST code.
+    setUp(() {
+      AuthService.testInstance = _FakeAuthService();
+    });
+
+    tearDown(() {
+      // Clear the test instance and reset any restTestInstance client
+      AuthService.testInstance = null;
+      FirestoreService.restTestInstance(client: null);
+    });
+
     test('createNote sends per-field companion timestamps', () async {
       // Intercept POST and capture body
       late Map<String, dynamic> capturedBody;

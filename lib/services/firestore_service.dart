@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart'
-    show kIsWeb, defaultTargetPlatform, TargetPlatform;
+  show kIsWeb, defaultTargetPlatform, TargetPlatform, kDebugMode, debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'auth_service.dart';
@@ -995,10 +995,30 @@ class _RestFirestoreService implements FirestoreService {
     // When running against the local Firestore emulator the emulator does
     // not require (and may reject) real Authorization headers. Allow tests
     // and local runs to set FIRESTORE_EMULATOR_HOST so we avoid fetching a
-    // real ID token and omit the Authorization header in that case.
+    // real ID token and omit the Authorization header in that case. However
+    // for local integration tests we may want the emulator to see an
+    // authenticated request so security rules that require request.auth.uid
+    // continue to work. If a test `AuthService` has been injected, include
+    // a light-weight Authorization header containing the test user's uid
+    // (the emulator accepts simple bearer values for testing).
     final emulator = Platform.environment['FIRESTORE_EMULATOR_HOST'];
     if (emulator != null && emulator.isNotEmpty) {
-      return {'Content-Type': 'application/json'};
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      try {
+        // If tests installed a fake AuthService via AuthService.testInstance
+        // then AuthService.instance will return that and we can embed the
+        // uid in a minimal three-part JWT so the emulator accepts it and
+        // populates request.auth.uid. The emulator expects a token with
+        // three dot-separated parts; the signature can be empty for tests.
+        final uid = AuthService.instance.currentUser?.uid;
+        if (uid != null && uid.isNotEmpty) {
+          headers['Authorization'] = 'Bearer ${_emulatorFakeJwt(uid)}';
+        }
+      } catch (_) {
+        // If resolving AuthService triggers platform code, ignore and
+        // continue without Authorization header.
+      }
+      return headers;
     }
 
     final token = await AuthService.instanceToken();
@@ -1332,8 +1352,19 @@ class _RestFirestoreService implements FirestoreService {
     final fields = <String, dynamic>{};
     data.forEach((k, v) => fields[k] = _encodeValue(v));
     final body = jsonEncode({'fields': fields});
-  final resp = await _client.post(uri, headers: await _authHeader(), body: body);
+    final headers = await _authHeader();
+  final resp = await _client.post(uri, headers: headers, body: body);
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      // Debug: emit request/response details to help diagnose emulator errors
+      if (kDebugMode) {
+        try {
+          debugPrint('DEBUG firestore.createNote failed: url=${uri.toString()}');
+          debugPrint('DEBUG request.headers=${headers}');
+          debugPrint('DEBUG request.body=${body}');
+          debugPrint('DEBUG response.status=${resp.statusCode}');
+          debugPrint('DEBUG response.body=${resp.body}');
+        } catch (_) {}
+      }
       throw Exception('firestore-create-note-${resp.statusCode}');
     }
     final json = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -1696,24 +1727,12 @@ class _RestFirestoreService implements FirestoreService {
     required String noteId,
     required Map<String, dynamic> data,
   }) async {
-    // Non-destructive update with explicit updateMask
+    // Use the shared _patchNoteFields helper which attaches per-field
+    // companion timestamps for scalar values and constructs the proper
+    // updateMask. This keeps REST behavior consistent with the SDK path.
     final fields = <String, dynamic>{};
     data.forEach((k, v) => fields[k] = _encodeValue(v));
-    // Ensure updatedAt is present
-    fields.putIfAbsent('updatedAt', () => _encodeValue(DateTime.now().toUtc()));
-    final qs = fields.keys
-        .map((k) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(k)}')
-        .join('&');
-    final uri = Uri.parse('$_base/users/$uid/notes/$noteId?$qs');
-    final body = jsonEncode({'fields': fields});
-    final resp = await _client.patch(
-      uri,
-      headers: await _authHeader(),
-      body: body,
-    );
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('firestore-update-note-${resp.statusCode}');
-    }
+    await _patchNoteFields(uid, noteId, fields);
   }
 
   @override
@@ -2010,3 +2029,20 @@ class _RestFirestoreService implements FirestoreService {
     if (resp.statusCode != 200) throw Exception('Failed to delete edge doc');
   }
 }
+
+  /// Build a minimal, non-signed JWT payload for the emulator which only
+  /// needs to be well-formed (three parts separated by dots). The payload
+  /// includes user identifying fields the emulator looks for (user_id/sub).
+  String _emulatorFakeJwt(String uid) {
+    final header = {'alg': 'none', 'typ': 'JWT'};
+    final payload = {
+      'user_id': uid,
+      'sub': uid,
+      'iat': (DateTime.now().millisecondsSinceEpoch ~/ 1000)
+    };
+    String b64(Map m) => base64Url.encode(utf8.encode(jsonEncode(m))).replaceAll('=', '');
+    final h = b64(header);
+    final p = b64(payload);
+    // signature left empty (still produces three parts: header.payload.)
+    return '$h.$p.';
+  }

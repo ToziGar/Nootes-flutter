@@ -15,11 +15,14 @@ import 'package:nootes/services/firestore_service.dart';
 /// HTTP client so CI/local runs don't require a running emulator.
 
 class _FakeAuth implements AuthService {
+  final String _uid;
+  _FakeAuth({String uid = 'test-user'}) : _uid = uid;
+
   @override
   bool get usesRest => true;
 
   @override
-  AuthUser? get currentUser => AuthUser(uid: 'test-user', email: 'test@example.com');
+  AuthUser? get currentUser => AuthUser(uid: _uid, email: 'test@example.com');
 
   @override
   Stream<AuthUser?> authStateChanges() => Stream<AuthUser?>.value(currentUser);
@@ -32,11 +35,11 @@ class _FakeAuth implements AuthService {
 
   @override
   Future<AuthUser> signInWithEmailAndPassword(String email, String password) async =>
-      AuthUser(uid: 'test-user', email: email);
+      AuthUser(uid: _uid, email: email);
 
   @override
   Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async =>
-      AuthUser(uid: 'test-user', email: email);
+      AuthUser(uid: _uid, email: email);
 
   @override
   Future<void> sendPasswordResetEmail(String email) async {}
@@ -55,8 +58,8 @@ void main() {
 
       // Force platform override so FirestoreService._resolve() returns the
       // REST implementation when running under the test runner.
-      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-      AuthService.testInstance = _FakeAuth();
+  debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+  AuthService.testInstance = _FakeAuth(uid: uid);
 
       FirestoreService service;
 
