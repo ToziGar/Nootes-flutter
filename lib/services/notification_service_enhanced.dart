@@ -186,7 +186,9 @@ class NotificationServiceEnhanced {
       // Actualizar cache local
       _updateCacheReadStatus(uid, notificationIds, true);
 
-      logDebug('✅ ${notificationIds.length} notificaciones marcadas como leídas');
+      logDebug(
+        '✅ ${notificationIds.length} notificaciones marcadas como leídas',
+      );
     } catch (e) {
       logDebug('❌ Error marcando notificaciones como leídas: $e');
       throw NetworkException();
@@ -220,9 +222,9 @@ class NotificationServiceEnhanced {
       // Invalidar cache
       _invalidateCache(uid);
 
-  logDebug('✅ ${notificationIds.length} notificaciones eliminadas');
+      logDebug('✅ ${notificationIds.length} notificaciones eliminadas');
     } catch (e) {
-  logDebug('❌ Error eliminando notificaciones: $e');
+      logDebug('❌ Error eliminando notificaciones: $e');
       throw NetworkException();
     }
   }
@@ -436,7 +438,7 @@ class NotificationServiceEnhanced {
     DateTime scheduledFor,
   ) async {
     // Implementar programación de notificaciones push
-  logDebug('📅 Notificación programada para: $scheduledFor');
+    logDebug('📅 Notificación programada para: $scheduledFor');
   }
 
   /// Limpia recursos del servicio

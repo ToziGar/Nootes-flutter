@@ -5,7 +5,9 @@
 ///   accidentally dropping tags/ids when syncing from multiple clients.
 /// - For other fields, the incoming value overwrites the existing one.
 Map<String, dynamic> mergeNoteMaps(
-    Map<String, dynamic> current, Map<String, dynamic> incoming) {
+  Map<String, dynamic> current,
+  Map<String, dynamic> incoming,
+) {
   final merged = Map<String, dynamic>.from(current);
 
   // Helper to parse a timestamp-like value into DateTime.
@@ -26,8 +28,12 @@ Map<String, dynamic> mergeNoteMaps(
   // Precompute map-level timestamps if present so we can apply a last-writer-wins
   // (LWW) policy for non-list scalar fields. Prefer `lastClientUpdateAt`,
   // then `updatedAt`.
-  final incomingTs = parseTs(incoming['lastClientUpdateAt'] ?? incoming['updatedAt']);
-  final currentTs = parseTs(current['lastClientUpdateAt'] ?? current['updatedAt']);
+  final incomingTs = parseTs(
+    incoming['lastClientUpdateAt'] ?? incoming['updatedAt'],
+  );
+  final currentTs = parseTs(
+    current['lastClientUpdateAt'] ?? current['updatedAt'],
+  );
 
   for (final entry in incoming.entries) {
     final key = entry.key;
@@ -64,8 +70,12 @@ Map<String, dynamic> mergeNoteMaps(
 
     // For other types, attempt per-field LWW if companion timestamp fields exist.
     // Check for per-field companion timestamps: e.g., '<field>_lastClientUpdateAt' or '<field>_updatedAt'.
-  final incomingFieldTs = parseTs(incoming['${key}_lastClientUpdateAt'] ?? incoming['${key}_updatedAt']);
-  final currentFieldTs = parseTs(current['${key}_lastClientUpdateAt'] ?? current['${key}_updatedAt']);
+    final incomingFieldTs = parseTs(
+      incoming['${key}_lastClientUpdateAt'] ?? incoming['${key}_updatedAt'],
+    );
+    final currentFieldTs = parseTs(
+      current['${key}_lastClientUpdateAt'] ?? current['${key}_updatedAt'],
+    );
 
     if (incomingFieldTs != null && currentFieldTs != null) {
       if (incomingFieldTs.isAfter(currentFieldTs)) {

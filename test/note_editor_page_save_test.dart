@@ -4,23 +4,34 @@ import 'package:nootes/notes/note_editor_page.dart';
 import 'package:nootes/services/firestore_service.dart';
 import 'package:nootes/services/auth_service.dart';
 import 'package:nootes/services/sharing_service_improved.dart';
+import 'package:nootes/services/versioning_service.dart';
+import 'package:nootes/services/logging_service.dart';
 
 class FakeFirestoreService implements FirestoreService {
   bool updateCalled = false;
 
   // Implement only the used methods for the test; others can throw.
   @override
-  Future<void> updateNote({required String uid, required String noteId, required Map<String, dynamic> data}) async {
+  Future<void> updateNote({
+    required String uid,
+    required String noteId,
+    required Map<String, dynamic> data,
+  }) async {
     updateCalled = true;
   }
 
   @override
-  Future<Map<String, dynamic>?> getNote({required String uid, required String noteId}) async {
+  Future<Map<String, dynamic>?> getNote({
+    required String uid,
+    required String noteId,
+  }) async {
     return {'id': noteId, 'title': 'Test', 'content': ''};
   }
 
   @override
-  Future<List<Map<String, dynamic>>> listCollections({required String uid}) async {
+  Future<List<Map<String, dynamic>>> listCollections({
+    required String uid,
+  }) async {
     return <Map<String, dynamic>>[];
   }
 
@@ -30,12 +41,18 @@ class FakeFirestoreService implements FirestoreService {
   }
 
   @override
-  Future<List<String>> listOutgoingLinks({required String uid, required String noteId}) async {
+  Future<List<String>> listOutgoingLinks({
+    required String uid,
+    required String noteId,
+  }) async {
     return <String>[];
   }
 
   @override
-  Future<List<String>> listIncomingLinks({required String uid, required String noteId}) async {
+  Future<List<String>> listIncomingLinks({
+    required String uid,
+    required String noteId,
+  }) async {
     return <String>[];
   }
 
@@ -64,22 +81,32 @@ class FakeAuthService implements AuthService {
   Future<void> signOut() async {}
 
   @override
-  Future<AuthUser> signInWithEmailAndPassword(String email, String password) async => AuthUser(uid: 'test-uid');
+  Future<AuthUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async => AuthUser(uid: 'test-uid');
 
   @override
-  Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async => AuthUser(uid: 'test-uid');
+  Future<AuthUser> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async => AuthUser(uid: 'test-uid');
 
   @override
   Future<void> sendPasswordResetEmail(String email) async {}
 }
 
 void main() {
-  testWidgets('NoteEditorPage save calls FirestoreService.updateNote', (tester) async {
+  testWidgets('NoteEditorPage save calls FirestoreService.updateNote', (
+    tester,
+  ) async {
     final fakeFs = FakeFirestoreService();
     FirestoreService.testInstance = fakeFs;
     AuthService.testInstance = FakeAuthService();
-      // Provide a fake SharingService to avoid Firebase access during tests.
-      SharingService.testInstance = _FakeSharingService();
+    // Provide a fake SharingService to avoid Firebase access during tests.
+    SharingService.testInstance = _FakeSharingService();
+    // Provide a fake VersioningService to avoid Firebase access during tests.
+    VersioningService.testInstance = FakeVersioningService();
 
     await tester.pumpWidget(
       MediaQuery(
@@ -108,6 +135,42 @@ void main() {
 }
 
 class _FakeSharingService implements SharingService {
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeVersioningService implements VersioningService {
+  @override
+  Future<String> saveVersion({
+    required String noteId,
+    required Map<String, dynamic> snapshot,
+    Map<String, dynamic>? metadata,
+  }) async {
+    return 'version1';
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listVersions({
+    required String noteId,
+    int limit = 50,
+    DateTime? startAfter,
+  }) async {
+    return [];
+  }
+
+  @override
+  Future<Map<String, dynamic>?> restoreVersion({
+    required String noteId,
+    required String versionId,
+  }) async {
+    return null;
+  }
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeLoggingService implements LoggingService {
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

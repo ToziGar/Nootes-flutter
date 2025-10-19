@@ -28,6 +28,7 @@ import 'services/presence_service.dart';
 import 'public_note_page.dart';
 import 'theme/app_theme.dart';
 import 'utils/debug.dart';
+import 'services/logging_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +44,8 @@ Future<void> main() async {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+      // Initialize logging backends (Crashlytics etc.)
+      await LoggingService.initialize();
 
       // 🚀 MODO OFFLINE: Habilitar persistencia de Firestore
       // Permite que la app funcione sin conexión a internet
@@ -184,6 +187,11 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        // Attach user id to logs for better correlation
+        final user = snapshot.data;
+        if (user != null) {
+          LoggingService.setUserId(user.uid);
+        }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
@@ -191,11 +199,11 @@ class AuthGate extends StatelessWidget {
         }
         if (snapshot.hasData) {
           // Inicializar PresenceService cuando el usuario está autenticado
-            _initializePresenceService();
+          _initializePresenceService();
           return const HomePage();
         } else {
           // Limpiar PresenceService cuando el usuario sale
-            _cleanupPresenceService();
+          _cleanupPresenceService();
         }
         return const LoginPage();
       },
@@ -206,7 +214,7 @@ class AuthGate extends StatelessWidget {
     try {
       await PresenceService().initialize();
     } catch (e) {
-        logDebug('❌ Error inicializando PresenceService: $e');
+      logDebug('❌ Error inicializando PresenceService: $e');
     }
   }
 
@@ -214,7 +222,7 @@ class AuthGate extends StatelessWidget {
     try {
       await PresenceService().goOffline();
     } catch (e) {
-        logDebug('❌ Error limpiando PresenceService: $e');
+      logDebug('❌ Error limpiando PresenceService: $e');
     }
   }
 }

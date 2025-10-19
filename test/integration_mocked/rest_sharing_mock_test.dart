@@ -24,18 +24,31 @@ void main() {
       final client = MockClient((request) async {
         captured.add(request);
         // Return a typical Firestore create response
-        return http.Response(jsonEncode({'name': 'projects/project/databases/(default)/documents/shared_items/owner_uid_recipient_uid_note1'}), 200,
-            headers: {'content-type': 'application/json'});
+        return http.Response(
+          jsonEncode({
+            'name':
+                'projects/project/databases/(default)/documents/shared_items/owner_uid_recipient_uid_note1',
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
       });
 
-  final svc = FirestoreService.restTestInstance(client: client);
+      final svc = FirestoreService.restTestInstance(client: client);
 
-  final shareId = await svc.createEdgeDoc(uid: 'owner_uid', data: {'ownerId': 'owner_uid', 'recipientId': 'recipient_uid', 'noteId': 'note1'});
+      final shareId = await svc.createEdgeDoc(
+        uid: 'owner_uid',
+        data: {
+          'ownerId': 'owner_uid',
+          'recipientId': 'recipient_uid',
+          'noteId': 'note1',
+        },
+      );
 
-  expect(shareId, isNotEmpty);
+      expect(shareId, isNotEmpty);
 
-  // Delete using the generic edge delete API
-  await svc.deleteEdgeDoc(uid: 'owner_uid', edgeId: shareId);
+      // Delete using the generic edge delete API
+      await svc.deleteEdgeDoc(uid: 'owner_uid', edgeId: shareId);
 
       // Validate that at least one request contained fields with ownerId, recipientId, noteId
       final createReq = captured.firstWhere((r) => r.method == 'POST');
@@ -66,13 +79,19 @@ class FakeAuth implements AuthService {
   Future<void> init() async {}
 
   @override
-  Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async => AuthUser(uid: uid, email: email);
+  Future<AuthUser> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async => AuthUser(uid: uid, email: email);
 
   @override
   Future<void> sendPasswordResetEmail(String email) async {}
 
   @override
-  Future<AuthUser> signInWithEmailAndPassword(String email, String password) async => AuthUser(uid: uid, email: email);
+  Future<AuthUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async => AuthUser(uid: uid, email: email);
 
   @override
   Future<void> signOut() async {}

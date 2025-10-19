@@ -32,7 +32,7 @@ class PresenceService {
     });
 
     _isInitialized = true;
-      logDebug('✅ PresenceService: Inicializado para usuario ${user.uid}');
+    logDebug('✅ PresenceService: Inicializado para usuario ${user.uid}');
   }
 
   /// Actualiza el heartbeat del usuario
@@ -47,7 +47,7 @@ class PresenceService {
         'isOnline': true,
       }, SetOptions(merge: true));
     } catch (e) {
-        logDebug('❌ PresenceService: Error actualizando heartbeat - $e');
+      logDebug('❌ PresenceService: Error actualizando heartbeat - $e');
     }
   }
 
@@ -126,7 +126,7 @@ class PresenceService {
         lastSeen: lastSeen,
       );
     } catch (e) {
-        logDebug('❌ PresenceService: Error obteniendo presencia - $e');
+      logDebug('❌ PresenceService: Error obteniendo presencia - $e');
       return UserPresence(
         userId: userId,
         isOnline: false,
@@ -180,7 +180,7 @@ class PresenceService {
         }
       }
     } catch (e) {
-        logDebug('❌ PresenceService: Error obteniendo presencias múltiples - $e');
+      logDebug('❌ PresenceService: Error obteniendo presencias múltiples - $e');
     }
 
     return presenceMap;
@@ -192,7 +192,7 @@ class PresenceService {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
     _isInitialized = false;
-  logDebug('✅ PresenceService: Usuario marcado como offline');
+    logDebug('✅ PresenceService: Usuario marcado como offline');
   }
 
   /// Marca al usuario como online (llamar al iniciar sesión o volver a la app)

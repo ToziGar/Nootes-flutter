@@ -40,17 +40,20 @@ jobs:
           sudo npm install -g firebase-tools
       - name: Install dependencies
         run: flutter pub get
-      - name: Start Firestore emulator
+      - name: Compute emulator project id
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: echo "FIREBASE_PROJECT_ID=demo-nootes-$GITHUB_RUN_ID" >> $GITHUB_ENV
+      - name: Run emulator-backed tests (emulators:exec)
         env:
           FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
-          # Start emulator in background; ensure FIREBASE_PROJECT_ID secret is set in repository
-          if [ -z "$FIREBASE_PROJECT_ID" ]; then echo "FIREBASE_PROJECT_ID not set. Aborting emulator job."; exit 1; fi
-          firebase emulators:start --only firestore --project $FIREBASE_PROJECT_ID &
-          # Wait a few seconds for it to boot
-          sleep 8
-      - name: Set emulator host env
-        run: echo "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080" >> $GITHUB_ENV
-      - name: Run full test suite
-        run: flutter test -r expanded
+          # Run tests inside the emulator process so env vars and lifecycle are correct
+          firebase emulators:exec --only firestore --project "$FIREBASE_PROJECT_ID" -- \
+            bash -lc "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 flutter test test/_integration_clean -r expanded"
+      - name: Upload emulator logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestore-emulator-logs
+          path: firestore-debug.log

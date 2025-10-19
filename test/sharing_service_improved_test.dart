@@ -36,43 +36,53 @@ void main() {
         expect(result.metadata?['noteTitle'], equals('Test Note'));
       });
 
-      test('SharedItem.fromMap throws ValidationException for invalid type', () {
-        // Arrange
-        final data = {
-          'itemId': 'note_123',
-          'type': 'invalid_type',
-          'ownerId': 'owner_123',
-          'ownerEmail': 'owner@example.com',
-          'recipientId': 'recipient_123',
-          'recipientEmail': 'recipient@example.com',
-          'permission': 'read',
-          'status': 'pending',
-          'createdAt': Timestamp.now(),
-        };
+      test(
+        'SharedItem.fromMap throws ValidationException for invalid type',
+        () {
+          // Arrange
+          final data = {
+            'itemId': 'note_123',
+            'type': 'invalid_type',
+            'ownerId': 'owner_123',
+            'ownerEmail': 'owner@example.com',
+            'recipientId': 'recipient_123',
+            'recipientEmail': 'recipient@example.com',
+            'permission': 'read',
+            'status': 'pending',
+            'createdAt': Timestamp.now(),
+          };
 
-        // Act & Assert
-        expect(() => SharedItem.fromMap('share_123', data),
-               throwsA(isA<ValidationException>()));
-      });
+          // Act & Assert
+          expect(
+            () => SharedItem.fromMap('share_123', data),
+            throwsA(isA<ValidationException>()),
+          );
+        },
+      );
 
-      test('SharedItem.fromMap throws ValidationException for empty itemId', () {
-        // Arrange
-        final data = {
-          'itemId': '',
-          'type': 'note',
-          'ownerId': 'owner_123',
-          'ownerEmail': 'owner@example.com',
-          'recipientId': 'recipient_123',
-          'recipientEmail': 'recipient@example.com',
-          'permission': 'read',
-          'status': 'pending',
-          'createdAt': Timestamp.now(),
-        };
+      test(
+        'SharedItem.fromMap throws ValidationException for empty itemId',
+        () {
+          // Arrange
+          final data = {
+            'itemId': '',
+            'type': 'note',
+            'ownerId': 'owner_123',
+            'ownerEmail': 'owner@example.com',
+            'recipientId': 'recipient_123',
+            'recipientEmail': 'recipient@example.com',
+            'permission': 'read',
+            'status': 'pending',
+            'createdAt': Timestamp.now(),
+          };
 
-        // Act & Assert
-        expect(() => SharedItem.fromMap('share_123', data),
-               throwsA(isA<ValidationException>()));
-      });
+          // Act & Assert
+          expect(
+            () => SharedItem.fromMap('share_123', data),
+            throwsA(isA<ValidationException>()),
+          );
+        },
+      );
 
       test('SharedItem.isExpired returns true when expiresAt is in past', () {
         // Arrange
@@ -120,29 +130,32 @@ void main() {
         expect(result, isFalse);
       });
 
-      test('SharedItem.isActive returns true for accepted non-expired sharing', () {
-        // Arrange
-        final futureDate = DateTime.now().add(const Duration(days: 1));
-        final item = SharedItem(
-          id: 'test',
-          itemId: 'note_123',
-          type: SharedItemType.note,
-          ownerId: 'owner',
-          ownerEmail: 'owner@example.com',
-          recipientId: 'recipient',
-          recipientEmail: 'recipient@example.com',
-          permission: PermissionLevel.read,
-          status: SharingStatus.accepted,
-          createdAt: DateTime.now(),
-          expiresAt: futureDate,
-        );
+      test(
+        'SharedItem.isActive returns true for accepted non-expired sharing',
+        () {
+          // Arrange
+          final futureDate = DateTime.now().add(const Duration(days: 1));
+          final item = SharedItem(
+            id: 'test',
+            itemId: 'note_123',
+            type: SharedItemType.note,
+            ownerId: 'owner',
+            ownerEmail: 'owner@example.com',
+            recipientId: 'recipient',
+            recipientEmail: 'recipient@example.com',
+            permission: PermissionLevel.read,
+            status: SharingStatus.accepted,
+            createdAt: DateTime.now(),
+            expiresAt: futureDate,
+          );
 
-        // Act
-        final result = item.isActive;
+          // Act
+          final result = item.isActive;
 
-        // Assert
-        expect(result, isTrue);
-      });
+          // Assert
+          expect(result, isTrue);
+        },
+      );
 
       test('SharedItem.isActive returns false for expired sharing', () {
         // Arrange
@@ -236,27 +249,30 @@ void main() {
         expect(result, equals(5));
       });
 
-      test('SharedItem.daysUntilExpiration returns null when no expiration', () {
-        // Arrange
-        final item = SharedItem(
-          id: 'test',
-          itemId: 'note_123',
-          type: SharedItemType.note,
-          ownerId: 'owner',
-          ownerEmail: 'owner@example.com',
-          recipientId: 'recipient',
-          recipientEmail: 'recipient@example.com',
-          permission: PermissionLevel.read,
-          status: SharingStatus.accepted,
-          createdAt: DateTime.now(),
-        );
+      test(
+        'SharedItem.daysUntilExpiration returns null when no expiration',
+        () {
+          // Arrange
+          final item = SharedItem(
+            id: 'test',
+            itemId: 'note_123',
+            type: SharedItemType.note,
+            ownerId: 'owner',
+            ownerEmail: 'owner@example.com',
+            recipientId: 'recipient',
+            recipientEmail: 'recipient@example.com',
+            permission: PermissionLevel.read,
+            status: SharingStatus.accepted,
+            createdAt: DateTime.now(),
+          );
 
-        // Act
-        final result = item.daysUntilExpiration;
+          // Act
+          final result = item.daysUntilExpiration;
 
-        // Assert
-        expect(result, isNull);
-      });
+          // Assert
+          expect(result, isNull);
+        },
+      );
 
       test('SharedItem.itemTitle returns correct title from metadata', () {
         // Arrange
@@ -458,7 +474,10 @@ void main() {
     group('Exception Tests', () {
       test('ValidationException contains correct message and code', () {
         // Arrange & Act
-        const exception = ValidationException('testField', 'Custom error message');
+        const exception = ValidationException(
+          'testField',
+          'Custom error message',
+        );
 
         // Assert
         expect(exception.message, equals('Custom error message'));

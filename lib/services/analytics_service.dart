@@ -67,7 +67,8 @@ class UserStats {
   }
 
   /// Average number of words per note (rounded down). Returns 0 when no notes.
-  int get averageWordsPerNote => totalNotes > 0 ? (totalWords ~/ totalNotes) : 0;
+  int get averageWordsPerNote =>
+      totalNotes > 0 ? (totalWords ~/ totalNotes) : 0;
 
   /// Days since the first note was created. Returns 0 when unknown.
   int get daysSinceFirstNote {

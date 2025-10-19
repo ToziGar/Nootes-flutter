@@ -54,11 +54,11 @@ class CommentService {
               'authorId': user.uid,
             });
       } catch (e) {
-  logDebug('❌ Error creando notificación: $e');
+        logDebug('❌ Error creando notificación: $e');
       }
     }
 
-  logDebug('✅ Comentario creado: ${docRef.id}');
+    logDebug('✅ Comentario creado: ${docRef.id}');
     return docRef.id;
   }
 
@@ -88,7 +88,7 @@ class CommentService {
       'isEdited': true,
     });
 
-  logDebug('✅ Comentario actualizado: $commentId');
+    logDebug('✅ Comentario actualizado: $commentId');
   }
 
   /// Elimina un comentario (soft delete)
@@ -101,7 +101,7 @@ class CommentService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-  logDebug('✅ Comentario eliminado: $commentId');
+    logDebug('✅ Comentario eliminado: $commentId');
   }
 
   /// Obtiene el número de comentarios de una nota

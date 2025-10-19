@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show debugPrint, debugDefaultTargetPlatformOverride, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show debugPrint, debugDefaultTargetPlatformOverride, TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
@@ -28,12 +29,16 @@ class _FakeAuth implements AuthService {
   Future<void> signOut() async {}
 
   @override
-  Future<AuthUser> signInWithEmailAndPassword(String email, String password) async =>
-      AuthUser(uid: _uid, email: email);
+  Future<AuthUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async => AuthUser(uid: _uid, email: email);
 
   @override
-  Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async =>
-      AuthUser(uid: _uid, email: email);
+  Future<AuthUser> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async => AuthUser(uid: _uid, email: email);
 
   @override
   Future<void> sendPasswordResetEmail(String email) async {}
@@ -50,8 +55,8 @@ void main() {
       final uid = 'rest_integration_user';
       final noteId = 'rest-note-1';
 
-  debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-  AuthService.testInstance = _FakeAuth(uid: uid);
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      AuthService.testInstance = _FakeAuth(uid: uid);
 
       FirestoreService service;
 
@@ -62,11 +67,17 @@ void main() {
           final parts = emulator.split(':');
           final host = parts[0];
           final port = int.parse(parts[1]);
-          final sock = await Socket.connect(host, port, timeout: const Duration(milliseconds: 300));
+          final sock = await Socket.connect(
+            host,
+            port,
+            timeout: const Duration(milliseconds: 300),
+          );
           sock.destroy();
           useRealEmulator = true;
         } catch (e) {
-          debugPrint('Emulator advertised but unreachable: $e — falling back to mocked HTTP');
+          debugPrint(
+            'Emulator advertised but unreachable: $e — falling back to mocked HTTP',
+          );
           useRealEmulator = false;
         }
       }
@@ -74,7 +85,8 @@ void main() {
       if (!useRealEmulator) {
         final mock = MockClient((req) async {
           if (req.method == 'POST' && req.url.path.contains('/notes')) {
-            final name = '/projects/fake-project/databases/(default)/documents/users/$uid/notes/$noteId';
+            final name =
+                '/projects/fake-project/databases/(default)/documents/users/$uid/notes/$noteId';
             return http.Response(jsonEncode({'name': name}), 200);
           }
           if (req.method == 'PATCH' && req.url.path.contains('/notes/')) {
@@ -86,9 +98,9 @@ void main() {
               'fields': {
                 'title': {'stringValue': 'Updated REST'},
                 'title_lastClientUpdateAt': {
-                  'stringValue': DateTime.now().toIso8601String()
-                }
-              }
+                  'stringValue': DateTime.now().toIso8601String(),
+                },
+              },
             };
             return http.Response(jsonEncode(resp), 200);
           }
@@ -104,16 +116,23 @@ void main() {
         await service.purgeNote(uid: uid, noteId: noteId);
       } catch (_) {}
 
-      await service.createNote(uid: uid, data: {
-        'title': 'Initial REST',
-        'tags': ['x', 'y'],
-        'count': 1,
-      });
+      await service.createNote(
+        uid: uid,
+        data: {
+          'title': 'Initial REST',
+          'tags': ['x', 'y'],
+          'count': 1,
+        },
+      );
 
-      await service.updateNote(uid: uid, noteId: noteId, data: {
-        'title': 'Updated REST',
-        'tags': ['y', 'z'],
-      });
+      await service.updateNote(
+        uid: uid,
+        noteId: noteId,
+        data: {
+          'title': 'Updated REST',
+          'tags': ['y', 'z'],
+        },
+      );
 
       final fetched = await service.getNote(uid: uid, noteId: noteId);
       expect(fetched, isNotNull);
@@ -133,4 +152,3 @@ void main() {
     });
   });
 }
-

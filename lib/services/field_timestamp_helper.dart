@@ -9,7 +9,10 @@
 //   already present in the payload.
 // - Preserve existing companion timestamps; do not overwrite them.
 
-Map<String, dynamic> attachFieldTimestamps(Map<String, dynamic> data, {DateTime? now}) {
+Map<String, dynamic> attachFieldTimestamps(
+  Map<String, dynamic> data, {
+  DateTime? now,
+}) {
   final nowIso = (now ?? DateTime.now()).toUtc().toIso8601String();
 
   // Start with a shallow copy so we don't mutate the input map.

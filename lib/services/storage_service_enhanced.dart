@@ -234,7 +234,7 @@ class StorageServiceEnhanced {
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
-  logDebug('Error descargando archivo: $e');
+      logDebug('Error descargando archivo: $e');
       throw storage_ex.FileDownloadException('Error al descargar archivo');
     }
   }
@@ -271,7 +271,7 @@ class StorageServiceEnhanced {
       }
       throw _mapFirebaseException(e);
     } catch (e) {
-  logDebug('Error obteniendo metadatos: $e');
+      logDebug('Error obteniendo metadatos: $e');
       return null;
     }
   }
@@ -300,7 +300,7 @@ class StorageServiceEnhanced {
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
-  logDebug('Error listando archivos: $e');
+      logDebug('Error listando archivos: $e');
       return [];
     }
   }
@@ -318,7 +318,7 @@ class StorageServiceEnhanced {
         throw _mapFirebaseException(e);
       }
     } catch (e) {
-  logDebug('Error eliminando archivo: $e');
+      logDebug('Error eliminando archivo: $e');
       throw storage_ex.FileDeletionException('Error al eliminar archivo');
     }
   }
@@ -419,7 +419,7 @@ class StorageServiceEnhanced {
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
-  logDebug('Error copiando archivo: $e');
+      logDebug('Error copiando archivo: $e');
       throw storage_ex.FileCopyException('Error al copiar archivo');
     }
   }
@@ -443,7 +443,7 @@ class StorageServiceEnhanced {
 
       return newPath;
     } catch (e) {
-  logDebug('Error moviendo archivo: $e');
+      logDebug('Error moviendo archivo: $e');
       throw storage_ex.FileMoveException('Error al mover archivo');
     }
   }
@@ -503,7 +503,7 @@ class StorageServiceEnhanced {
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
-  logDebug('Error obteniendo estadísticas: $e');
+      logDebug('Error obteniendo estadísticas: $e');
       throw storage_ex.StorageStatsException(
         'Error al obtener estadísticas de almacenamiento',
       );

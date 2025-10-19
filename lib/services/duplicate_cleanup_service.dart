@@ -29,11 +29,11 @@ class DuplicateCleanupService {
     }
 
     try {
-  logDebug('🧹 Iniciando limpieza avanzada de duplicados...');
+      logDebug('🧹 Iniciando limpieza avanzada de duplicados...');
 
       // 1. Obtener todas las carpetas
       final allFolders = await FirestoreService.instance.listFolders(uid: uid);
-  logDebug('📁 Total carpetas encontradas: ${allFolders.length}');
+      logDebug('📁 Total carpetas encontradas: ${allFolders.length}');
 
       // 2. Agrupar por folderId lógico
       final folderGroups = <String, List<Map<String, dynamic>>>{};
@@ -50,7 +50,7 @@ class DuplicateCleanupService {
           .where((entry) => entry.value.length > 1)
           .toList();
 
-  logDebug('⚠️ Grupos con duplicados: ${duplicateGroups.length}');
+      logDebug('⚠️ Grupos con duplicados: ${duplicateGroups.length}');
 
       int totalDuplicatesFound = 0;
       int totalDuplicatesRemoved = 0;
@@ -64,7 +64,9 @@ class DuplicateCleanupService {
         totalDuplicatesFound +=
             duplicates.length - 1; // -1 porque uno se conserva
 
-        logDebug('🔍 Procesando grupo $folderId con ${duplicates.length} duplicados');
+        logDebug(
+          '🔍 Procesando grupo $folderId con ${duplicates.length} duplicados',
+        );
 
         // Ordenar por fecha de actualización (más reciente primero)
         duplicates.sort((a, b) {
@@ -122,7 +124,7 @@ class DuplicateCleanupService {
 
       // 5. Verificación final
       if (!dryRun && totalDuplicatesRemoved > 0) {
-  logDebug('✅ Esperando sincronización...');
+        logDebug('✅ Esperando sincronización...');
         await Future.delayed(const Duration(seconds: 2));
 
         // Verificar que se eliminaron correctamente
@@ -143,7 +145,9 @@ class DuplicateCleanupService {
             .where((entry) => entry.value.length > 1)
             .length;
 
-        logDebug('🔍 Verificación: $stillDuplicated grupos aún tienen duplicados');
+        logDebug(
+          '🔍 Verificación: $stillDuplicated grupos aún tienen duplicados',
+        );
       }
 
       final result = DuplicateCleanupResult(
@@ -186,7 +190,7 @@ class DuplicateCleanupService {
       logDebug('🧹 Iniciando limpieza de duplicados de notas...');
 
       final allNotes = await FirestoreService.instance.listNotes(uid: uid);
-  logDebug('📝 Total notas encontradas: ${allNotes.length}');
+      logDebug('📝 Total notas encontradas: ${allNotes.length}');
 
       // Agrupar por contenido similar (hash del título + primeras 100 chars)
       final noteGroups = <String, List<Map<String, dynamic>>>{};
@@ -201,7 +205,7 @@ class DuplicateCleanupService {
           .where((entry) => entry.value.length > 1)
           .toList();
 
-  logDebug('⚠️ Grupos de notas duplicadas: ${duplicateGroups.length}');
+      logDebug('⚠️ Grupos de notas duplicadas: ${duplicateGroups.length}');
 
       int totalDuplicatesFound = 0;
       int totalDuplicatesRemoved = 0;
@@ -269,7 +273,7 @@ class DuplicateCleanupService {
   Future<ComprehensiveCleanupResult> performComprehensiveCleanup({
     bool dryRun = false,
   }) async {
-  logDebug('🧹 🚀 Iniciando limpieza completa del sistema...');
+    logDebug('🧹 🚀 Iniciando limpieza completa del sistema...');
 
     final folderResult = await cleanFolderDuplicates(dryRun: dryRun);
     await Future.delayed(const Duration(seconds: 1));
@@ -319,8 +323,10 @@ class DuplicateCleanupService {
     if (result.error != null) {
       logDebug('❌ Error: ${result.error}');
     }
-    logDebug('========================='
-        '\n');
+    logDebug(
+      '========================='
+      '\n',
+    );
   }
 }
 

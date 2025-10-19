@@ -222,7 +222,7 @@ class _SharedNotesPageState extends State<SharedNotesPage>
     if (mounted) setState(() => _isLoading = true);
 
     try {
-  logDebug('📊 SharedNotesPage: Iniciando carga de datos...');
+      logDebug('📊 SharedNotesPage: Iniciando carga de datos...');
       final sharingService = SharingService();
 
       final results = await Future.wait([
@@ -247,7 +247,9 @@ class _SharedNotesPageState extends State<SharedNotesPage>
       sharedByMe = _applyAdvancedFilters(sharedByMe, true);
       sharedWithMe = _applyAdvancedFilters(sharedWithMe, false);
 
-      logDebug('📊 SharedNotesPage: Cargadas ${sharedByMe.length} enviadas, ${sharedWithMe.length} recibidas');
+      logDebug(
+        '📊 SharedNotesPage: Cargadas ${sharedByMe.length} enviadas, ${sharedWithMe.length} recibidas',
+      );
 
       if (mounted) {
         setState(() {
@@ -257,7 +259,7 @@ class _SharedNotesPageState extends State<SharedNotesPage>
         });
       }
     } catch (e) {
-  logDebug('❌ SharedNotesPage: Error cargando datos - $e');
+      logDebug('❌ SharedNotesPage: Error cargando datos - $e');
       if (mounted) {
         ToastService.error('Error cargando datos: $e');
       }
@@ -3106,8 +3108,7 @@ class _SharedNotesPageState extends State<SharedNotesPage>
                           itemCount: showNotes
                               ? filteredNotes.length
                               : filteredFolders.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: 8),
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             if (showNotes) {
                               final n = filteredNotes[index];

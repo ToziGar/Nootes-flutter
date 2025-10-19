@@ -258,7 +258,7 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor>
         _lastSaveTime = DateTime.now();
       });
     } catch (e) {
-  logDebug('Error en auto-guardado: $e');
+      logDebug('Error en auto-guardado: $e');
     } finally {
       setState(() => _isSaving = false);
     }
@@ -475,7 +475,7 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor>
       // Usar el servicio de almacenamiento mejorado
       // Implementar selector de archivos y subida
     } catch (e) {
-  logDebug('Error insertando media: $e');
+      logDebug('Error insertando media: $e');
     }
   }
 
@@ -850,7 +850,9 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor>
       forceSplit: false,
       showSplitToggle: true,
       previewTitle: '',
-      autoSaveInterval: Duration(seconds: _settings.enableAutoSave ? _settings.autoSaveDelay : 0),
+      autoSaveInterval: Duration(
+        seconds: _settings.enableAutoSave ? _settings.autoSaveDelay : 0,
+      ),
       onAutoSave: (s) async {
         // Use the editor's internal autosave flow so UI state (spinner, lastSaveTime)
         // is correctly updated and the parent onSave is invoked from a single place.

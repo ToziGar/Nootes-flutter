@@ -8,13 +8,18 @@ class SyncDebugPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ref = FirebaseFirestore.instance.collection('users').doc(uid).collection('notes');
+    final ref = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('notes');
     return Scaffold(
       appBar: AppBar(title: const Text('Sync Debug')),
       body: StreamBuilder<QuerySnapshot>(
         stream: ref.snapshots(includeMetadataChanges: true),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
           final docs = snapshot.data!.docs;
           return ListView.builder(
             itemCount: docs.length,
@@ -25,7 +30,9 @@ class SyncDebugPage extends StatelessWidget {
               final pending = d.metadata.hasPendingWrites;
               return ListTile(
                 title: Text(data['title'] ?? '(no title)'),
-                subtitle: Text('pending: $pending • lastClient: ${lastClient ?? 'n/a'}'),
+                subtitle: Text(
+                  'pending: $pending • lastClient: ${lastClient ?? 'n/a'}',
+                ),
                 trailing: Text(d.id),
               );
             },

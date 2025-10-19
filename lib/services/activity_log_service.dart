@@ -50,9 +50,9 @@ class ActivityLogService {
             'metadata': metadata ?? {},
           });
 
-  logDebug('✅ Actividad registrada: ${type.name}');
+      logDebug('✅ Actividad registrada: ${type.name}');
     } catch (e) {
-  logDebug('❌ Error registrando actividad: $e');
+      logDebug('❌ Error registrando actividad: $e');
     }
   }
 
@@ -95,7 +95,7 @@ class ActivityLogService {
         return ActivityLog.fromMap(doc.id, doc.data());
       }).toList();
     } catch (e) {
-  logDebug('❌ Error obteniendo historial: $e');
+      logDebug('❌ Error obteniendo historial: $e');
       return [];
     }
   }
@@ -120,9 +120,11 @@ class ActivityLogService {
       }
 
       await batch.commit();
-      logDebug('✅ Limpiado historial antiguo: ${snapshot.docs.length} entradas');
+      logDebug(
+        '✅ Limpiado historial antiguo: ${snapshot.docs.length} entradas',
+      );
     } catch (e) {
-  logDebug('❌ Error limpiando historial: $e');
+      logDebug('❌ Error limpiando historial: $e');
     }
   }
 }

@@ -1,5 +1,7 @@
 // Logging service for structured logging throughout the application
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart' as fcore;
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import '../utils/debug.dart';
 
 /// Log levels for filtering and categorizing logs
@@ -22,6 +24,46 @@ class LoggingService {
   LoggingService._internal();
 
   static LogLevel _minLevel = kDebugMode ? LogLevel.debug : LogLevel.info;
+
+  /// Initialize logging backends (Crashlytics, handlers, etc.)
+  static Future<void> initialize({
+    bool enableCrashlyticsInDebug = false,
+  }) async {
+    // Configure Crashlytics collection depending on environment
+    if (_isFirebaseReady) {
+      try {
+        await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
+          enableCrashlyticsInDebug || !kDebugMode,
+        );
+      } catch (_) {/* ignore */}
+    }
+
+    // Forward Flutter framework errors to our logger and Crashlytics
+    FlutterError.onError = (FlutterErrorDetails details) {
+      try {
+        if (kDebugMode) FlutterError.dumpErrorToConsole(details);
+        critical(
+          details.exceptionAsString(),
+          tag: 'FlutterError',
+          error: details.exception,
+          stackTrace: details.stack,
+        );
+      } catch (_) {}
+    };
+
+    // Forward Dart platform errors
+    PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+      try {
+        critical(
+          'Uncaught platform error',
+          tag: 'Platform',
+          error: error,
+          stackTrace: stack,
+        );
+      } catch (_) {}
+      return true; // handled
+    };
+  }
 
   /// Set minimum log level
   static void setMinLevel(LogLevel level) {
@@ -109,8 +151,7 @@ class LoggingService {
       }
     }
 
-    // Here you could also send logs to external services like Firebase Crashlytics,
-    // Sentry, or other logging providers
+    // Optionally send logs to external services like Crashlytics
     _sendToExternalService(level, message, tag, data, error, stackTrace);
   }
 
@@ -123,11 +164,60 @@ class LoggingService {
     Object? error,
     StackTrace? stackTrace,
   ) {
-    // TODO: Implement external logging service integration
-    // Examples:
-    // - Firebase Crashlytics for crashes
-    // - Custom analytics service for user actions
-    // - Remote logging service for production debugging
+    // Only record logs/crashes when Firebase is initialized
+    if (!_isFirebaseReady) return; // in tests or non-Firebase contexts, no-op
+
+    final crashlytics = FirebaseCrashlytics.instance;
+
+    // Attach lightweight context
+    try {
+      if (tag != null) {
+        crashlytics.setCustomKey('tag', tag);
+      }
+      if (data != null && data.isNotEmpty) {
+        var count = 0;
+        data.forEach((k, v) {
+          if (count >= 10) return; // guard excessive keys
+          final safeKey = 'data_${k.toString().replaceAll(" ", "_")}';
+          crashlytics.setCustomKey(safeKey, v?.toString() ?? 'null');
+          count++;
+        });
+      }
+    } catch (_) {/* ignore */}
+
+    // Route by severity
+    if (level.value >= LogLevel.error.value) {
+      if (error != null) {
+        try {
+          crashlytics.recordError(
+            error,
+            stackTrace,
+            reason: message,
+            information: [if (tag != null) 'tag=$tag'],
+          );
+        } catch (_) {/* ignore */}
+      } else {
+        try {
+          crashlytics.recordError(
+            Exception(message),
+            stackTrace,
+            reason: 'Logged ${level.name}${tag != null ? ' [$tag]' : ''}',
+          );
+        } catch (_) {/* ignore */}
+      }
+    } else {
+      try {
+        crashlytics.log('[${level.name}]${tag != null ? '[$tag]' : ''} $message');
+      } catch (_) {/* ignore */}
+    }
+  }
+
+  /// Optionally attach a user id to logs
+  static Future<void> setUserId(String? uid) async {
+    if (uid == null || uid.isEmpty || !_isFirebaseReady) return;
+    try {
+      await FirebaseCrashlytics.instance.setUserIdentifier(uid);
+    } catch (_) {/* ignore */}
   }
 
   /// Log user action for analytics
@@ -166,4 +256,6 @@ class LoggingService {
       },
     );
   }
+
+  static bool get _isFirebaseReady => fcore.Firebase.apps.isNotEmpty;
 }

@@ -415,8 +415,12 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
       selectable: true,
       sizedImageBuilder: (config) {
         final url = config.uri.toString();
-        final w = (config.width is num) ? (config.width as num).toDouble() : null;
-        final h = (config.height is num) ? (config.height as num).toDouble() : null;
+        final w = (config.width is num)
+            ? (config.width as num).toDouble()
+            : null;
+        final h = (config.height is num)
+            ? (config.height as num).toDouble()
+            : null;
         return GestureDetector(
           onTap: () async {
             if (!widget.readOnly) {
@@ -424,10 +428,12 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
               // Start prefetch but don't await it (avoid using BuildContext across async gap).
               AnalyticsService().logEvent('image_opened', {'url': url});
               ImagePrefetchService().prefetch(context, url);
-              await Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => _FullScreenImageViewer(url: url),
-                fullscreenDialog: true,
-              ));
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => _FullScreenImageViewer(url: url),
+                  fullscreenDialog: true,
+                ),
+              );
             }
           },
           child: SafeNetworkImage(
@@ -732,10 +738,7 @@ class _FullScreenImageViewer extends StatelessWidget {
           panEnabled: true,
           minScale: 0.5,
           maxScale: 4.0,
-          child: SafeNetworkImage(
-            url,
-            fit: BoxFit.contain,
-          ),
+          child: SafeNetworkImage(url, fit: BoxFit.contain),
         ),
       ),
     );

@@ -57,8 +57,8 @@ class _WorkspacePageState extends State<WorkspacePage>
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
+        children: [
+          SizedBox(
             width: 100,
             child: Text(
               '$label:',
@@ -73,17 +73,21 @@ class _WorkspacePageState extends State<WorkspacePage>
           // Developer-only quick access to Sync Debug
           if (kDebugMode)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppColors.space12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppColors.space12,
+              ),
               child: ListTile(
                 leading: const Icon(Icons.bug_report_outlined),
                 title: const Text('Sync Debug (dev)'),
                 onTap: () {
                   final uid = AuthService.instance.currentUser?.uid;
                   if (uid != null) {
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => SyncDebugPage(uid: uid),
-                      fullscreenDialog: true,
-                    ));
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => SyncDebugPage(uid: uid),
+                        fullscreenDialog: true,
+                      ),
+                    );
                   } else {
                     ToastService.error('No user signed in');
                   }
@@ -278,7 +282,7 @@ class _WorkspacePageState extends State<WorkspacePage>
       final foldersData = await FirestoreService.instance.listFolders(
         uid: getUid(),
       );
-  logDebug('📁 Carpetas cargadas: ${foldersData.length}');
+      logDebug('📁 Carpetas cargadas: ${foldersData.length}');
       if (!mounted) return;
 
       // Eliminar duplicados por ID lógico de carpeta
@@ -297,7 +301,9 @@ class _WorkspacePageState extends State<WorkspacePage>
           final folder = Folder.fromJson(Map<String, dynamic>.from(data));
           uniqueFolders.add(folder);
         } else {
-          logDebug('⚠️ Carpeta duplicada ignorada: ${data['name']} ($logicalId)');
+          logDebug(
+            '⚠️ Carpeta duplicada ignorada: ${data['name']} ($logicalId)',
+          );
         }
       }
 
@@ -318,7 +324,7 @@ class _WorkspacePageState extends State<WorkspacePage>
       // Temporalmente desactivado para evitar borrar carpetas principales por colisiones
       // await _cleanDuplicateFoldersInFirestore();
     } catch (e) {
-  logDebug('❌ Error loading folders: $e');
+      logDebug('❌ Error loading folders: $e');
       if (!mounted) return;
       if (mounted) setState(() => _folders = []);
     }
@@ -341,7 +347,9 @@ class _WorkspacePageState extends State<WorkspacePage>
             .toList();
 
         if (orphanedNotes.isNotEmpty) {
-          logDebug('🧹 Limpiando ${orphanedNotes.length} referencias huérfanas en carpeta "${folder.name}"');
+          logDebug(
+            '🧹 Limpiando ${orphanedNotes.length} referencias huérfanas en carpeta "${folder.name}"',
+          );
 
           // Crear lista limpia sin las notas huérfanas
           final cleanedNoteIds = folder.noteIds
@@ -375,14 +383,14 @@ class _WorkspacePageState extends State<WorkspacePage>
         });
       }
     } catch (e) {
-  logDebug('⚠️ Error al limpiar referencias huérfanas: $e');
+      logDebug('⚠️ Error al limpiar referencias huérfanas: $e');
     }
   }
 
   /// Verifica la integridad de las carpetas después de operaciones críticas
   Future<void> _verifyFolderIntegrity(String deletedFolderId) async {
     try {
-  logDebug('🔍 Verificando integridad de carpetas...');
+      logDebug('🔍 Verificando integridad de carpetas...');
 
       // Obtener carpetas desde Firestore para comparar (comparar docId)
       final remoteFolders = await FirestoreService.instance.listFolders(
@@ -414,10 +422,10 @@ class _WorkspacePageState extends State<WorkspacePage>
         setState(() {
           _folders.removeWhere((f) => phantomFolders.contains(f.id));
         });
-  logDebug('✅ Carpetas fantasma eliminadas del estado local');
+        logDebug('✅ Carpetas fantasma eliminadas del estado local');
       }
 
-  logDebug('✅ Verificación de integridad completada');
+      logDebug('✅ Verificación de integridad completada');
     } catch (e) {
       logDebug('⚠️ Error en verificación de integridad: $e');
       // En caso de error, forzar recarga completa
@@ -431,7 +439,7 @@ class _WorkspacePageState extends State<WorkspacePage>
     _title.dispose();
     _content.dispose();
     _debounce?.cancel();
-  _editorCtrl.dispose();
+    _editorCtrl.dispose();
     super.dispose();
   }
 
@@ -478,7 +486,7 @@ class _WorkspacePageState extends State<WorkspacePage>
 
       if (!mounted) return;
 
-  logDebug('📝 Notas cargadas: ${allNotes.length}');
+      logDebug('📝 Notas cargadas: ${allNotes.length}');
 
       // Aplicar filtros
       var filteredNotes = List<Map<String, dynamic>>.from(allNotes);
@@ -606,6 +614,7 @@ class _WorkspacePageState extends State<WorkspacePage>
         break;
     }
   }
+
   DateTime _getDateTime(dynamic value) {
     if (value is DateTime) return value;
     if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
@@ -1173,7 +1182,7 @@ class _WorkspacePageState extends State<WorkspacePage>
       await _loadNotes();
       ToastService.success('Nota añadida a la carpeta');
     } catch (e) {
-  logDebug('⚠️ Error añadiendo nota a carpeta: $e');
+      logDebug('⚠️ Error añadiendo nota a carpeta: $e');
       ToastService.error('Error al añadir nota a carpeta');
     }
   }
@@ -1735,7 +1744,7 @@ class _WorkspacePageState extends State<WorkspacePage>
         );
       }
     } catch (e) {
-  logDebug('❌ Error exportando carpeta: $e');
+      logDebug('❌ Error exportando carpeta: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1755,7 +1764,7 @@ class _WorkspacePageState extends State<WorkspacePage>
   // --- New helper methods for extended context menu actions ---
 
   Future<void> _togglePinNote(String noteId, bool pin) async {
-      try {
+    try {
       Map<String, dynamic> pinnedData = {'pinned': pin};
       try {
         pinnedData = attachFieldTimestamps(pinnedData);
@@ -1779,12 +1788,12 @@ class _WorkspacePageState extends State<WorkspacePage>
       }
       ToastService.success(pin ? 'Nota fijada' : 'Nota desfijada');
     } catch (e) {
-  logDebug('⚠️ Error toggling pin: $e');
+      logDebug('⚠️ Error toggling pin: $e');
     }
   }
 
   Future<void> _toggleFavoriteNote(String noteId, bool fav) async {
-      try {
+    try {
       Map<String, dynamic> favData = {'favorite': fav};
       try {
         favData = attachFieldTimestamps(favData);
@@ -1810,12 +1819,12 @@ class _WorkspacePageState extends State<WorkspacePage>
         fav ? 'Añadido a favoritos' : 'Eliminado de favoritos',
       );
     } catch (e) {
-  logDebug('⚠️ Error toggling favorite: $e');
+      logDebug('⚠️ Error toggling favorite: $e');
     }
   }
 
   Future<void> _toggleArchiveNote(String noteId, bool archive) async {
-      try {
+    try {
       Map<String, dynamic> archiveData = {'archived': archive};
       try {
         archiveData = attachFieldTimestamps(archiveData);
@@ -1839,7 +1848,7 @@ class _WorkspacePageState extends State<WorkspacePage>
       }
       ToastService.success(archive ? 'Nota archivada' : 'Nota desarchivada');
     } catch (e) {
-  logDebug('⚠️ Error toggling archive: $e');
+      logDebug('⚠️ Error toggling archive: $e');
     }
   }
 
@@ -1899,7 +1908,7 @@ class _WorkspacePageState extends State<WorkspacePage>
         }
         ToastService.success('Etiquetas actualizadas');
       } catch (e) {
-  logDebug('⚠️ Error actualizando etiquetas: $e');
+        logDebug('⚠️ Error actualizando etiquetas: $e');
       }
     }
   }
@@ -1911,7 +1920,7 @@ class _WorkspacePageState extends State<WorkspacePage>
       await Clipboard.setData(ClipboardData(text: url));
       if (mounted) ToastService.success('Enlace copiado');
     } catch (e) {
-  logDebug('⚠️ Error copiando enlace: $e');
+      logDebug('⚠️ Error copiando enlace: $e');
     }
   }
 
@@ -1957,7 +1966,7 @@ class _WorkspacePageState extends State<WorkspacePage>
         );
       }
     } catch (e) {
-  logDebug('❌ Error generando enlace público: $e');
+      logDebug('❌ Error generando enlace público: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2035,7 +2044,7 @@ class _WorkspacePageState extends State<WorkspacePage>
           });
         }
       } catch (e) {
-  logDebug('⚠️ Error cambiando color de carpeta: $e');
+        logDebug('⚠️ Error cambiando color de carpeta: $e');
       }
     }
   }
@@ -2100,7 +2109,7 @@ class _WorkspacePageState extends State<WorkspacePage>
         );
       }
     } catch (e) {
-  logDebug('❌ Error exportando nota: $e');
+      logDebug('❌ Error exportando nota: $e');
     }
   }
 
@@ -2121,7 +2130,7 @@ class _WorkspacePageState extends State<WorkspacePage>
         );
       }
     } catch (e) {
-  logDebug('❌ Error compartiendo nota: $e');
+      logDebug('❌ Error compartiendo nota: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2149,7 +2158,7 @@ class _WorkspacePageState extends State<WorkspacePage>
         );
       }
     } catch (e) {
-  logDebug('❌ Error compartiendo carpeta: $e');
+      logDebug('❌ Error compartiendo carpeta: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2261,8 +2270,8 @@ class _WorkspacePageState extends State<WorkspacePage>
     );
 
     if (confirmed == true) {
-  try {
-  logDebug('🗑️ Eliminando carpeta (docId): ${folder.docId}');
+      try {
+        logDebug('🗑️ Eliminando carpeta (docId): ${folder.docId}');
 
         // 1. Si tiene notas, moverlas fuera de la carpeta primero
         if (hasNotes) {
@@ -2292,7 +2301,7 @@ class _WorkspacePageState extends State<WorkspacePage>
           uid: getUid(),
           folderId: folder.docId,
         );
-  logDebug('✅ Carpeta eliminada de Firestore - ${folder.docId}');
+        logDebug('✅ Carpeta eliminada de Firestore - ${folder.docId}');
 
         // 3. Verificar que realmente se eliminó
         await Future.delayed(const Duration(milliseconds: 500));
@@ -2306,7 +2315,7 @@ class _WorkspacePageState extends State<WorkspacePage>
             'La carpeta no se eliminó correctamente de Firestore',
           );
         }
-  logDebug('✅ Verificación: Carpeta realmente eliminada de Firestore');
+        logDebug('✅ Verificación: Carpeta realmente eliminada de Firestore');
 
         // 4. Actualizar estado local inmediatamente
         setState(() {
@@ -2316,7 +2325,7 @@ class _WorkspacePageState extends State<WorkspacePage>
             _selectedFolderId = null;
           }
         });
-  logDebug('✅ Carpeta eliminada del estado local');
+        logDebug('✅ Carpeta eliminada del estado local');
 
         // 5. Verificar integridad y hacer limpieza final
         await _verifyFolderIntegrity(folder.docId);
@@ -2325,7 +2334,7 @@ class _WorkspacePageState extends State<WorkspacePage>
         await _loadFolders();
         await _loadNotes();
 
-  logDebug('✅ Eliminación y verificación completa');
+        logDebug('✅ Eliminación y verificación completa');
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -2426,27 +2435,36 @@ class _WorkspacePageState extends State<WorkspacePage>
                   focusMode: false,
                   onToggleFocus: null,
                   onSave: _save,
-                    onSettings: _openSettings,
-                    onCopyMarkdown: () async {
-                      // Copy current note as Markdown to clipboard
-                      if (_selectedId == null) {
-                        ToastService.error('No hay nota seleccionada');
-                        return;
-                      }
+                  onSettings: _openSettings,
+                  onCopyMarkdown: () async {
+                    // Copy current note as Markdown to clipboard
+                    if (_selectedId == null) {
+                      ToastService.error('No hay nota seleccionada');
+                      return;
+                    }
+                    try {
+                      final note = _allNotes.firstWhere(
+                        (n) => n['id'] == _selectedId,
+                      );
+                      await ExportImportService.exportSingleNoteToMarkdown(
+                        note,
+                      );
+                      // On native platforms ExportImportService throws UnimplementedError; fallback to clipboard
+                      ToastService.info(
+                        'Nota exportada (ver descargas o portapapeles)',
+                      );
+                    } catch (e) {
+                      // Fallback: copy markdown to clipboard
                       try {
-                        final note = _allNotes.firstWhere((n) => n['id'] == _selectedId);
-                        await ExportImportService.exportSingleNoteToMarkdown(note);
-                        // On native platforms ExportImportService throws UnimplementedError; fallback to clipboard
-                        ToastService.info('Nota exportada (ver descargas o portapapeles)');
-                      } catch (e) {
-                        // Fallback: copy markdown to clipboard
-                        try {
-                          final note = _allNotes.firstWhere((n) => n['id'] == _selectedId);
-                          final title = note['title']?.toString() ?? 'Sin título';
-                          final content = note['content']?.toString() ?? '';
-                          final tags = (note['tags'] as List?)?.join(', ') ?? '';
-                          final createdAt = note['createdAt']?.toString() ?? '';
-                          final markdown = '''# $title
+                        final note = _allNotes.firstWhere(
+                          (n) => n['id'] == _selectedId,
+                        );
+                        final title = note['title']?.toString() ?? 'Sin título';
+                        final content = note['content']?.toString() ?? '';
+                        final tags = (note['tags'] as List?)?.join(', ') ?? '';
+                        final createdAt = note['createdAt']?.toString() ?? '';
+                        final markdown =
+                            '''# $title
 
   **Fecha:** $createdAt
   ${tags.isNotEmpty ? '**Etiquetas:** $tags\n' : ''}
@@ -2454,35 +2472,43 @@ class _WorkspacePageState extends State<WorkspacePage>
 
   $content
   ''';
-                          await Clipboard.setData(ClipboardData(text: markdown));
-                          ToastService.success('Markdown copiado al portapapeles');
-                        } catch (e) {
-                          logDebug('❌ Error exportando carpeta: $e');
-                        }
-                      }
-                    },
-                    onExport: () async {
-                      // Export single note (platform-specific)
-                      if (_selectedId == null) {
-                        ToastService.error('No hay nota seleccionada');
-                        return;
-                      }
-                      try {
-                        final note = _allNotes.firstWhere((n) => n['id'] == _selectedId);
-                        await ExportImportService.exportSingleNoteToMarkdown(note);
-                        ToastService.success('Exportado nota como Markdown');
+                        await Clipboard.setData(ClipboardData(text: markdown));
+                        ToastService.success(
+                          'Markdown copiado al portapapeles',
+                        );
                       } catch (e) {
-                        ToastService.error('Error exportando nota: $e');
+                        logDebug('❌ Error exportando carpeta: $e');
                       }
-                    },
-                    onExportAll: () async {
-                      try {
-                        await ExportImportService.exportToJson(_allNotes);
-                        ToastService.success('Exportación de todas las notas iniciada');
-                      } catch (e) {
-                        ToastService.error('Error exportando notas: $e');
-                      }
-                    },
+                    }
+                  },
+                  onExport: () async {
+                    // Export single note (platform-specific)
+                    if (_selectedId == null) {
+                      ToastService.error('No hay nota seleccionada');
+                      return;
+                    }
+                    try {
+                      final note = _allNotes.firstWhere(
+                        (n) => n['id'] == _selectedId,
+                      );
+                      await ExportImportService.exportSingleNoteToMarkdown(
+                        note,
+                      );
+                      ToastService.success('Exportado nota como Markdown');
+                    } catch (e) {
+                      ToastService.error('Error exportando nota: $e');
+                    }
+                  },
+                  onExportAll: () async {
+                    try {
+                      await ExportImportService.exportToJson(_allNotes);
+                      ToastService.success(
+                        'Exportación de todas las notas iniciada',
+                      );
+                    } catch (e) {
+                      ToastService.error('Error exportando notas: $e');
+                    }
+                  },
                   saveScale: _saveScale,
                 ),
               ),
@@ -3617,7 +3643,10 @@ class _WorkspacePageState extends State<WorkspacePage>
     );
 
     if (result == true && selectedIcon != null) {
-      Map<String, dynamic> iconData = {'icon': selectedIcon, 'iconColor': selectedColor.toARGB32()};
+      Map<String, dynamic> iconData = {
+        'icon': selectedIcon,
+        'iconColor': selectedColor.toARGB32(),
+      };
       try {
         iconData = attachFieldTimestamps(iconData);
       } catch (_) {}

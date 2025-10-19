@@ -34,12 +34,16 @@ class _FakeAuth implements AuthService {
   Future<void> signOut() async {}
 
   @override
-  Future<AuthUser> signInWithEmailAndPassword(String email, String password) async =>
-      AuthUser(uid: _uid, email: email);
+  Future<AuthUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async => AuthUser(uid: _uid, email: email);
 
   @override
-  Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async =>
-      AuthUser(uid: _uid, email: email);
+  Future<AuthUser> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async => AuthUser(uid: _uid, email: email);
 
   @override
   Future<void> sendPasswordResetEmail(String email) async {}
@@ -58,8 +62,8 @@ void main() {
 
       // Force platform override so FirestoreService._resolve() returns the
       // REST implementation when running under the test runner.
-  debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-  AuthService.testInstance = _FakeAuth(uid: uid);
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      AuthService.testInstance = _FakeAuth(uid: uid);
 
       FirestoreService service;
 
@@ -71,23 +75,32 @@ void main() {
           final host = parts[0];
           final port = int.parse(parts[1]);
           // Try a short TCP connect to verify emulator availability
-          final sock = await Socket.connect(host, port, timeout: const Duration(milliseconds: 300));
+          final sock = await Socket.connect(
+            host,
+            port,
+            timeout: const Duration(milliseconds: 300),
+          );
           sock.destroy();
           useRealEmulator = true;
         } catch (e) {
-          debugPrint('Emulator advertised but unreachable: $e — falling back to mocked HTTP');
+          debugPrint(
+            'Emulator advertised but unreachable: $e — falling back to mocked HTTP',
+          );
           useRealEmulator = false;
         }
       }
 
       if (!useRealEmulator) {
-        debugPrint('No emulator detected, running test with mocked HTTP client');
+        debugPrint(
+          'No emulator detected, running test with mocked HTTP client',
+        );
 
         // Create a MockClient that simulates POST, PATCH and GET responses
         final mock = MockClient((req) async {
           // CREATE (POST) -> return name with path including noteId
           if (req.method == 'POST' && req.url.path.contains('/notes')) {
-            final name = '/projects/fake-project/databases/(default)/documents/users/$uid/notes/$noteId';
+            final name =
+                '/projects/fake-project/databases/(default)/documents/users/$uid/notes/$noteId';
             return http.Response(jsonEncode({'name': name}), 200);
           }
 
@@ -103,9 +116,9 @@ void main() {
               'fields': {
                 'title': {'stringValue': 'Updated REST'},
                 'title_lastClientUpdateAt': {
-                  'stringValue': DateTime.now().toIso8601String()
-                }
-              }
+                  'stringValue': DateTime.now().toIso8601String(),
+                },
+              },
             };
             return http.Response(jsonEncode(resp), 200);
           }
@@ -115,7 +128,9 @@ void main() {
 
         service = FirestoreService.restTestInstance(client: mock);
       } else {
-        debugPrint('Emulator detected and reachable: $emulator — running against real emulator');
+        debugPrint(
+          'Emulator detected and reachable: $emulator — running against real emulator',
+        );
         service = FirestoreService.instance;
       }
 
@@ -125,17 +140,24 @@ void main() {
       } catch (_) {}
 
       // create initial note
-      await service.createNote(uid: uid, data: {
-        'title': 'Initial REST',
-        'tags': ['x', 'y'],
-        'count': 1,
-      });
+      await service.createNote(
+        uid: uid,
+        data: {
+          'title': 'Initial REST',
+          'tags': ['x', 'y'],
+          'count': 1,
+        },
+      );
 
       // update (REST path should attach per-field timestamps)
-      await service.updateNote(uid: uid, noteId: noteId, data: {
-        'title': 'Updated REST',
-        'tags': ['y', 'z'],
-      });
+      await service.updateNote(
+        uid: uid,
+        noteId: noteId,
+        data: {
+          'title': 'Updated REST',
+          'tags': ['y', 'z'],
+        },
+      );
 
       final fetched = await service.getNote(uid: uid, noteId: noteId);
       expect(fetched, isNotNull);
@@ -157,4 +179,3 @@ void main() {
     });
   });
 }
-

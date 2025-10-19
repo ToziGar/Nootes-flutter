@@ -41,11 +41,15 @@ void main() {
 
     test('updateNote uses mergeNoteMaps and merges fields', () async {
       if (emulator == null) {
-        debugPrint('Skipping emulator integration test: set FIRESTORE_EMULATOR_HOST to run');
+        debugPrint(
+          'Skipping emulator integration test: set FIRESTORE_EMULATOR_HOST to run',
+        );
         return;
       }
       if (!firebaseAvailable) {
-        debugPrint('Skipping SDK-based emulator test because Firebase platform channels are unavailable in this environment.');
+        debugPrint(
+          'Skipping SDK-based emulator test because Firebase platform channels are unavailable in this environment.',
+        );
         return;
       }
 
@@ -59,17 +63,24 @@ void main() {
       } catch (_) {}
 
       // Create initial note
-      await service.createNote(uid: uid, data: {
-        'title': 'Initial',
-        'tags': ['a', 'b'],
-        'count': 1,
-      });
+      await service.createNote(
+        uid: uid,
+        data: {
+          'title': 'Initial',
+          'tags': ['a', 'b'],
+          'count': 1,
+        },
+      );
 
       // Call updateNote which uses mergeNoteMaps internally
-      await service.updateNote(uid: uid, noteId: noteId, data: {
-        'title': 'Updated via service',
-        'tags': ['b', 'c']
-      });
+      await service.updateNote(
+        uid: uid,
+        noteId: noteId,
+        data: {
+          'title': 'Updated via service',
+          'tags': ['b', 'c'],
+        },
+      );
 
       final fetched = await service.getNote(uid: uid, noteId: noteId);
       expect(fetched, isNotNull);
@@ -79,4 +90,3 @@ void main() {
     });
   });
 }
-

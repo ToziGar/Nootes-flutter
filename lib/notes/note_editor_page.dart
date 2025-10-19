@@ -5,13 +5,18 @@ import '../utils/debug.dart';
 import 'package:flutter/services.dart';
 import '../widgets/glass.dart';
 import '../widgets/tag_input.dart';
+import '../widgets/smart_tag_suggestions.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/logging_service.dart';
+import '../services/versioning_service.dart';
 import '../widgets/enhanced_note_editor.dart' as enh_ed;
 import '../widgets/editor_settings_dialog.dart';
 import '../services/editor_config_service.dart';
 import '../services/sharing_service.dart';
 import '../services/field_timestamp_helper.dart';
+import '../pages/note_version_history_page.dart';
+import '../services/settings_service.dart';
 
 class NoteEditorPage extends StatefulWidget {
   const NoteEditorPage({super.key, required this.noteId, this.onChanged});
@@ -36,6 +41,10 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   // Editor avanzado
   EditorConfig _editorConfig = EditorConfig.defaultConfig();
   final EditorConfigService _editorConfigService = EditorConfigService();
+  final VersioningService _versioningService = VersioningService();
+  DateTime? _lastVersionSave;
+  bool _enableSmartTags = true;
+  bool _enableAutoVersioning = true;
 
   List<String> _tags = [];
   List<Map<String, dynamic>> _collections = [];
@@ -58,12 +67,24 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     _loadEditorConfig();
     _title.addListener(_scheduleAutoSave);
     _content.addListener(_scheduleAutoSave);
+
+    // Log de apertura de editor
+    LoggingService.logUserAction(
+      'note_editor_opened',
+      parameters: {'noteId': widget.noteId},
+    );
   }
 
   Future<void> _loadEditorConfig() async {
     final config = await _editorConfigService.getEditorConfig();
+    // Load feature toggles
+    final settings = SettingsService();
+    final enableSmartTags = await settings.getEnableSmartTags();
+    final enableAutoVersioning = await settings.getEnableAutoVersioning();
     setState(() {
       _editorConfig = config;
+      _enableSmartTags = enableSmartTags;
+      _enableAutoVersioning = enableAutoVersioning;
     });
   }
 
@@ -72,6 +93,13 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     _auto?.cancel();
     _title.dispose();
     _content.dispose();
+
+    // Log de cierre de editor
+    LoggingService.logUserAction(
+      'note_editor_closed',
+      parameters: {'noteId': widget.noteId},
+    );
+
     super.dispose();
   }
 
@@ -160,15 +188,20 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       return;
     }
     setState(() => _saving = true);
+
+    final stopwatch = Stopwatch()..start();
+
     try {
-  Map<String, dynamic> data = {'title': _title.text, 'content': _content.text};
+      Map<String, dynamic> data = {
+        'title': _title.text,
+        'content': _content.text,
+      };
       if (_richJson.isNotEmpty) data['rich'] = _richJson;
+
       // Attach per-field timestamps so mergeNoteMaps can do per-field LWW.
       try {
-        // Lazy import usage: helper is lightweight and synchronous.
         data = attachFieldTimestamps(data);
       } catch (e) {
-        // If helper missing or fails, continue without per-field timestamps.
         logDebug('Failed to attach field timestamps: $e');
       }
 
@@ -177,12 +210,82 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         noteId: widget.noteId,
         data: data,
       );
+
+      stopwatch.stop();
+
+      // Log performance
+      LoggingService.logPerformance(
+        'note_save',
+        stopwatch.elapsed,
+        metadata: {
+          'noteId': widget.noteId,
+          'autosave': autosave,
+          'contentLength': _content.text.length,
+        },
+      );
+
+      // Auto-crear versión cada 5 minutos o en guardado manual importante
+      final now = DateTime.now();
+    final shouldSaveVersion = _enableAutoVersioning && (
+      !autosave ||
+      (_lastVersionSave == null ||
+       now.difference(_lastVersionSave!).inMinutes >= 5));
+
+      if (shouldSaveVersion) {
+        try {
+          await _versioningService.saveVersion(
+            noteId: widget.noteId,
+            snapshot: {
+              'title': _title.text,
+              'content': _content.text,
+              'tags': _tags,
+              if (_richJson.isNotEmpty) 'rich': _richJson,
+            },
+            metadata: {
+              'reason': autosave ? 'Auto-guardado periódico' : 'Guardado manual',
+              'timestamp': now.toIso8601String(),
+            },
+          );
+          _lastVersionSave = now;
+
+          LoggingService.debug(
+            'Versión guardada',
+            tag: 'NoteEditor',
+            data: {'noteId': widget.noteId},
+          );
+        } catch (e, stackTrace) {
+          LoggingService.error(
+            'Error al guardar versión (no crítico)',
+            tag: 'NoteEditor',
+            error: e,
+            stackTrace: stackTrace,
+          );
+        }
+      }
+
       _dirty = false;
       if (widget.onChanged != null) await widget.onChanged!();
       if (mounted && !autosave) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Guardado')));
+      }
+    } catch (e, stackTrace) {
+      LoggingService.error(
+        'Error al guardar nota',
+        tag: 'NoteEditor',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'noteId': widget.noteId},
+      );
+
+      if (mounted && !autosave) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -323,15 +426,15 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                   Container(
                     height: 400,
                     decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Theme.of(context).dividerColor,
-                      ),
+                      border: Border.all(color: Theme.of(context).dividerColor),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: enh_ed.EnhancedNoteEditor(
                       noteId: widget.noteId,
                       initialTitle: _title.text,
-                      initialContent: _richJson.isNotEmpty ? _richJson : _content.text,
+                      initialContent: _richJson.isNotEmpty
+                          ? _richJson
+                          : _content.text,
                       mode: enh_ed.EditorMode.wysiwyg,
                       onTitleChanged: (t) {
                         if (_title.text != t) {
@@ -345,7 +448,9 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                         var treatedAsRich = false;
                         try {
                           final trimmed = s.trim();
-                          if (trimmed.isNotEmpty && (trimmed.startsWith('[') || trimmed.startsWith('{'))) {
+                          if (trimmed.isNotEmpty &&
+                              (trimmed.startsWith('[') ||
+                                  trimmed.startsWith('{'))) {
                             final decoded = jsonDecode(trimmed);
                             if (decoded is List || decoded is Map) {
                               treatedAsRich = true;
@@ -373,6 +478,17 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 6),
+
+                  // Smart Tag Suggestions (toggleable)
+                  if (_enableSmartTags)
+                    SmartTagSuggestions(
+                      title: _title.text,
+                      content: _content.text,
+                      currentTags: _tags,
+                      onTagSelected: (tag) => _addTag(tag),
+                      maxSuggestions: 6,
+                    ),
+
                   TagInput(
                     initialTags: _tags,
                     onAdd: (t) => _addTag(t),
@@ -388,10 +504,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                       padding: EdgeInsets.only(top: 4, bottom: 4),
                       child: Text(
                         'Guardando automáticamente…',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white70,
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.white70),
                       ),
                     ),
                   const SizedBox(height: 6),
@@ -449,7 +562,9 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                                           }
 
                                           return AlertDialog(
-                                            title: const Text('Crear enlace a...'),
+                                            title: const Text(
+                                              'Crear enlace a...',
+                                            ),
                                             content: SizedBox(
                                               width: 480,
                                               height: 380,
@@ -460,12 +575,12 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                                                   TextField(
                                                     decoration:
                                                         const InputDecoration(
-                                                      prefixIcon: Icon(
-                                                        Icons.search,
-                                                      ),
-                                                      hintText:
-                                                          'Buscar nota por título o id',
-                                                    ),
+                                                          prefixIcon: Icon(
+                                                            Icons.search,
+                                                          ),
+                                                          hintText:
+                                                              'Buscar nota por título o id',
+                                                        ),
                                                     onChanged: doFilter,
                                                   ),
                                                   const SizedBox(height: 8),
@@ -477,20 +592,34 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                                                             ),
                                                           )
                                                         : ListView.separated(
-                                                            itemCount: results.length,
+                                                            itemCount:
+                                                                results.length,
                                                             separatorBuilder:
                                                                 (_, _) =>
-                                                                    const Divider(height: 1),
-                                                            itemBuilder:
-                                                                (context, i) {
-                                                              final n = results[i];
-                                                              final id = n['id'].toString();
+                                                                    const Divider(
+                                                                      height: 1,
+                                                                    ),
+                                                            itemBuilder: (context, i) {
+                                                              final n =
+                                                                  results[i];
+                                                              final id = n['id']
+                                                                  .toString();
                                                               final title =
-                                                                  (n['title']?.toString() ?? 'Sin título');
+                                                                  (n['title']
+                                                                      ?.toString() ??
+                                                                  'Sin título');
                                                               return ListTile(
-                                                                title: Text(title),
-                                                                subtitle: Text(_shortId(id)),
-                                                                onTap: () => Navigator.pop(context, id),
+                                                                title: Text(
+                                                                  title,
+                                                                ),
+                                                                subtitle: Text(
+                                                                  _shortId(id),
+                                                                ),
+                                                                onTap: () =>
+                                                                    Navigator.pop(
+                                                                      context,
+                                                                      id,
+                                                                    ),
                                                               );
                                                             },
                                                           ),
@@ -500,7 +629,8 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                                             ),
                                             actions: [
                                               TextButton(
-                                                onPressed: () => Navigator.pop(context),
+                                                onPressed: () =>
+                                                    Navigator.pop(context),
                                                 child: const Text('Cancelar'),
                                               ),
                                             ],
@@ -590,6 +720,26 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         title: const Text('Editar nota'),
         actions: [
           IconButton(
+            tooltip: 'Historial de versiones',
+            onPressed: () async {
+              final result = await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => NoteVersionHistoryPage(
+                    noteId: widget.noteId,
+                    noteTitle: _title.text.isNotEmpty 
+                        ? _title.text 
+                        : 'Sin título',
+                  ),
+                ),
+              );
+              // Si se restauró una versión, recargar la nota
+              if (result == true) {
+                await _load();
+              }
+            },
+            icon: const Icon(Icons.history),
+          ),
+          IconButton(
             tooltip: 'Configuración del editor',
             onPressed: _showEditorSettings,
             icon: const Icon(Icons.settings),
@@ -613,7 +763,8 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
           if (event is KeyDownEvent) {
             final isCtrl = HardwareKeyboard.instance.isControlPressed;
             final isMeta = HardwareKeyboard.instance.isMetaPressed;
-            if ((isCtrl || isMeta) && event.logicalKey == LogicalKeyboardKey.keyS) {
+            if ((isCtrl || isMeta) &&
+                event.logicalKey == LogicalKeyboardKey.keyS) {
               if (!_saving) _save();
             }
           }

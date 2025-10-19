@@ -21,11 +21,19 @@ void main() {
       final captured = <http.Request>[];
       final client = MockClient((request) async {
         captured.add(request);
-        return http.Response('{}', 200, headers: {'content-type': 'application/json'});
+        return http.Response(
+          '{}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
       });
       final svc = FirestoreService.restTestInstance(client: client);
 
-      await svc.removeTagFromNote(uid: 'user_1', noteId: 'note-123', tag: 'old-tag');
+      await svc.removeTagFromNote(
+        uid: 'user_1',
+        noteId: 'note-123',
+        tag: 'old-tag',
+      );
 
       // We expect a PATCH with a 'fields' object containing tags (arrayValue)
       final patchReq = captured.firstWhere((r) => r.method == 'PATCH');
@@ -55,13 +63,19 @@ class FakeAuth implements AuthService {
   Future<void> init() async {}
 
   @override
-  Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async => AuthUser(uid: uid, email: email);
+  Future<AuthUser> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async => AuthUser(uid: uid, email: email);
 
   @override
   Future<void> sendPasswordResetEmail(String email) async {}
 
   @override
-  Future<AuthUser> signInWithEmailAndPassword(String email, String password) async => AuthUser(uid: uid, email: email);
+  Future<AuthUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async => AuthUser(uid: uid, email: email);
 
   @override
   Future<void> signOut() async {}

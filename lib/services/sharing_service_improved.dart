@@ -616,8 +616,8 @@ class SharingService {
         );
       }
 
-  // Re-read to ensure terminal state is visible to rules, then delete.
-  await _tryDeleteSharingIfTerminal(shareId);
+      // Re-read to ensure terminal state is visible to rules, then delete.
+      await _tryDeleteSharingIfTerminal(shareId);
 
       // Limpiar caché
       _SharingCache.clear();
@@ -670,7 +670,8 @@ class SharingService {
           );
 
           // Solo eliminar si el estado ya es terminal
-          final isTerminal = status == SharingStatus.revoked ||
+          final isTerminal =
+              status == SharingStatus.revoked ||
               status == SharingStatus.left ||
               status == SharingStatus.rejected;
           if (!isTerminal) {

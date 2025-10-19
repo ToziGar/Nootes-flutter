@@ -13,7 +13,10 @@ void main() {
 
   test('does not attach for lists or maps', () {
     final now = DateTime.utc(2025, 10, 16, 12, 0, 0);
-    final data = {'tags': ['a', 'b'], 'meta': {'k': 'v'}};
+    final data = {
+      'tags': ['a', 'b'],
+      'meta': {'k': 'v'},
+    };
     final result = attachFieldTimestamps(data, now: now);
     expect(result.containsKey('tags_lastClientUpdateAt'), false);
     expect(result.containsKey('meta_lastClientUpdateAt'), false);
@@ -21,7 +24,10 @@ void main() {
 
   test('preserves existing companion timestamps', () {
     final now = DateTime.utc(2025, 10, 16, 12, 0, 0);
-    final data = {'title': 'Hi', 'title_lastClientUpdateAt': '2025-10-01T00:00:00Z'};
+    final data = {
+      'title': 'Hi',
+      'title_lastClientUpdateAt': '2025-10-01T00:00:00Z',
+    };
     final result = attachFieldTimestamps(data, now: now);
     expect(result['title_lastClientUpdateAt'], '2025-10-01T00:00:00Z');
   });

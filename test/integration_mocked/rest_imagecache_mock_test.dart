@@ -22,15 +22,23 @@ void main() {
       final client = MockClient((request) async {
         captured.add(request);
         // emulate create response name
-        return http.Response(jsonEncode({'name': 'projects/p/databases/(default)/documents/image_cache/img1'}), 200,
-            headers: {'content-type': 'application/json'});
+        return http.Response(
+          jsonEncode({
+            'name': 'projects/p/databases/(default)/documents/image_cache/img1',
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
       });
 
-  final svc = FirestoreService.restTestInstance(client: client);
+      final svc = FirestoreService.restTestInstance(client: client);
 
       // If the API exists on FirestoreService, call it; otherwise call a generic createEdgeDoc
       // Create via generic edge doc API (image cache is stored as edge docs in some flows)
-      final id = await svc.createEdgeDoc(uid: 'img_owner', data: {'ownerId': 'img_owner', 'url': 'https://example.com/img.png'});
+      final id = await svc.createEdgeDoc(
+        uid: 'img_owner',
+        data: {'ownerId': 'img_owner', 'url': 'https://example.com/img.png'},
+      );
       expect(id, isNotEmpty);
 
       final createReq = captured.firstWhere((r) => r.method == 'POST');
@@ -58,13 +66,19 @@ class FakeAuth implements AuthService {
   Future<void> init() async {}
 
   @override
-  Future<AuthUser> createUserWithEmailAndPassword(String email, String password) async => AuthUser(uid: uid, email: email);
+  Future<AuthUser> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async => AuthUser(uid: uid, email: email);
 
   @override
   Future<void> sendPasswordResetEmail(String email) async {}
 
   @override
-  Future<AuthUser> signInWithEmailAndPassword(String email, String password) async => AuthUser(uid: uid, email: email);
+  Future<AuthUser> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async => AuthUser(uid: uid, email: email);
 
   @override
   Future<void> signOut() async {}

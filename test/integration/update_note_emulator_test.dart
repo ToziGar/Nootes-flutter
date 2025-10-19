@@ -46,18 +46,26 @@ void main() {
 
     test('transactional merge via mergeNoteMaps', () async {
       if (emulator == null) {
-        debugPrint('Skipping emulator integration test: set FIRESTORE_EMULATOR_HOST to run');
+        debugPrint(
+          'Skipping emulator integration test: set FIRESTORE_EMULATOR_HOST to run',
+        );
         return;
       }
       if (!firebaseAvailable) {
-        debugPrint('Skipping SDK-based emulator test because Firebase platform channels are unavailable in this environment.');
+        debugPrint(
+          'Skipping SDK-based emulator test because Firebase platform channels are unavailable in this environment.',
+        );
         return;
       }
 
       final db = FirebaseFirestore.instance;
       final uid = 'integration_test_user';
       final noteId = 'test-note-1';
-      final ref = db.collection('users').doc(uid).collection('notes').doc(noteId);
+      final ref = db
+          .collection('users')
+          .doc(uid)
+          .collection('notes')
+          .doc(noteId);
 
       // Clean up any previous doc
       await ref.delete().catchError((_) {});
@@ -70,11 +78,16 @@ void main() {
       });
 
       // Simulate a client update that should merge tags and overwrite title
-      final incoming = {'tags': ['b', 'c'], 'title': 'Updated'};
+      final incoming = {
+        'tags': ['b', 'c'],
+        'title': 'Updated',
+      };
 
       await db.runTransaction((tx) async {
         final snap = await tx.get(ref);
-        final current = snap.exists ? Map<String, dynamic>.from(snap.data()!) : <String, dynamic>{};
+        final current = snap.exists
+            ? Map<String, dynamic>.from(snap.data()!)
+            : <String, dynamic>{};
         final merged = mergeNoteMaps(current, incoming);
         merged['updatedAt'] = FieldValue.serverTimestamp();
         tx.set(ref, merged, SetOptions(merge: true));
@@ -83,8 +96,10 @@ void main() {
       final finalSnap = await ref.get();
       final data = finalSnap.data()!;
       expect(data['title'], 'Updated');
-      expect(Set.from(data['tags'] as List).containsAll({'a', 'b', 'c'}), isTrue);
+      expect(
+        Set.from(data['tags'] as List).containsAll({'a', 'b', 'c'}),
+        isTrue,
+      );
     });
   });
 }
-

@@ -1,7 +1,8 @@
 import 'package:flutter/widgets.dart';
 
 class ImagePrefetchService {
-  static final ImagePrefetchService _instance = ImagePrefetchService._internal();
+  static final ImagePrefetchService _instance =
+      ImagePrefetchService._internal();
   factory ImagePrefetchService() => _instance;
   ImagePrefetchService._internal();
 

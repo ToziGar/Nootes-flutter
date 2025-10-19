@@ -191,7 +191,7 @@ class ToastService {
     overlay.insert(_overlayEntry!);
 
     // Auto-hide después de la duración especificada
-      if (config.type != ToastType.loading) {
+    if (config.type != ToastType.loading) {
       _timer = Timer(config.duration, _hide);
     }
   }

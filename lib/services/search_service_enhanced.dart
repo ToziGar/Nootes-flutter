@@ -67,7 +67,7 @@ class SearchServiceEnhanced {
 
       return searchResult;
     } catch (e) {
-  logDebug('Error en búsqueda: $e');
+      logDebug('Error en búsqueda: $e');
       throw NetworkException();
     }
   }
@@ -116,7 +116,7 @@ class SearchServiceEnhanced {
 
       return suggestions.take(limit).toList();
     } catch (e) {
-  logDebug('Error obteniendo sugerencias: $e');
+      logDebug('Error obteniendo sugerencias: $e');
       return [];
     }
   }
@@ -173,7 +173,7 @@ class SearchServiceEnhanced {
 
       return _calculateSearchStats(searchHistory);
     } catch (e) {
-  logDebug('Error obteniendo estadísticas de búsqueda: $e');
+      logDebug('Error obteniendo estadísticas de búsqueda: $e');
       return SearchStats(
         totalSearches: 0,
         recentSearches: [],
@@ -200,7 +200,7 @@ class SearchServiceEnhanced {
             'date': DateTime.now().toString().substring(0, 10),
           });
     } catch (e) {
-  logDebug('Error guardando búsqueda en historial: $e');
+      logDebug('Error guardando búsqueda en historial: $e');
     }
   }
 
@@ -225,7 +225,7 @@ class SearchServiceEnhanced {
       _recentSearches.clear();
       _searchCache.clear();
     } catch (e) {
-  logDebug('Error limpiando historial: $e');
+      logDebug('Error limpiando historial: $e');
     }
   }
 
@@ -243,7 +243,7 @@ class SearchServiceEnhanced {
           .where((term) => term.isNotEmpty)
           .toList();
     } catch (e) {
-  logDebug('Error obteniendo búsquedas populares: $e');
+      logDebug('Error obteniendo búsquedas populares: $e');
       return [];
     }
   }

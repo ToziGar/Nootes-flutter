@@ -163,8 +163,8 @@ class NotificationService {
   /// Muestra una notificación
   void _showNotification(NotificationItem notification) {
     // En una app web, podríamos usar la API de notificaciones del navegador
-  // Por ahora, mostraremos un SnackBar
-  logDebug('🔔 Notificación: ${notification.message}');
+    // Por ahora, mostraremos un SnackBar
+    logDebug('🔔 Notificación: ${notification.message}');
 
     // TODO: Implementar notificaciones nativas del navegador
     // if (kIsWeb) {

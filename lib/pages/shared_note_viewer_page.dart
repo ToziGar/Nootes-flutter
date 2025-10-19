@@ -127,7 +127,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
         });
       }
     } catch (e) {
-  logDebug('❌ Error cargando nota: $e');
+      logDebug('❌ Error cargando nota: $e');
       if (!mounted) return;
       // Mensaje amigable si es permisos
       final msg =
@@ -166,7 +166,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
         _collaboratorIds = collaboratorIds;
       });
     } catch (e) {
-  logDebug('❌ Error cargando colaboradores: $e');
+      logDebug('❌ Error cargando colaboradores: $e');
     }
   }
 
@@ -191,7 +191,7 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
         metadata: {'changes': 1},
       );
     } catch (e) {
-  logDebug('❌ Error guardando nota: $e');
+      logDebug('❌ Error guardando nota: $e');
     }
   }
 
