@@ -755,6 +755,28 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                 : const Icon(Icons.save_rounded),
             tooltip: 'Guardar',
           ),
+              // Export note (.md) and export all (.json) logic
+              PopupMenuButton<String>(
+                tooltip: 'Exportar',
+                onSelected: (value) async {
+                  if (value == 'export_note') {
+                    await _exportCurrentNoteAsMarkdown();
+                  } else if (value == 'export_all') {
+                    await _exportAllNotesAsJson();
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'export_note',
+                    child: Text('Exportar nota (.md)'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'export_all',
+                    child: Text('Exportar todo (.json)'),
+                  ),
+                ],
+                icon: const Icon(Icons.download_rounded),
+              ),
         ],
       ),
       body: KeyboardListener(
@@ -772,5 +794,33 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         child: GlassBackground(child: mainContent),
       ),
     );
+  }
+
+  // Export current note as Markdown
+  Future<void> _exportCurrentNoteAsMarkdown() async {
+    final title = _title.text.trim().isEmpty ? 'Sin título' : _title.text.trim();
+    final content = _content.text.trim();
+    final tags = _tags.isNotEmpty ? '\n\nEtiquetas: ${_tags.join(", ")}' : '';
+    final markdown = '# $title\n\n$content$tags';
+    // Use clipboard for now; can extend to file save/share
+    await Clipboard.setData(ClipboardData(text: markdown));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nota exportada como Markdown (copiado al portapapeles)')),
+      );
+    }
+  }
+
+  // Export all notes as JSON
+  Future<void> _exportAllNotesAsJson() async {
+    final svc = FirestoreService.instance;
+    final notes = await svc.listNotes(uid: _uid);
+    final jsonStr = const JsonEncoder.withIndent('  ').convert(notes);
+    await Clipboard.setData(ClipboardData(text: jsonStr));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Todas las notas exportadas como JSON (copiado al portapapeles)')),
+      );
+    }
   }
 }

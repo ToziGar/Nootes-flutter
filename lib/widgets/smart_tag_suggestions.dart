@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/smart_tag_service.dart';
+import '../services/logging_service.dart';
 
 /// Widget que muestra sugerencias de etiquetas inteligentes
 class SmartTagSuggestions extends StatefulWidget {
@@ -30,6 +31,7 @@ class _SmartTagSuggestionsState extends State<SmartTagSuggestions> {
   List<String> _suggestions = const [];
   bool _hidden = false;
   bool _isComputing = false;
+  DateTime? _computeStart;
 
   @override
   void initState() {
@@ -49,6 +51,7 @@ class _SmartTagSuggestionsState extends State<SmartTagSuggestions> {
       setState(() {
         _isComputing = true;
       });
+      _computeStart = DateTime.now();
       _debounceTimer = Timer(widget.debounce, _recomputeSuggestions);
     }
   }
@@ -83,6 +86,21 @@ class _SmartTagSuggestionsState extends State<SmartTagSuggestions> {
       _suggestions = filtered;
       _isComputing = false;
     });
+
+    if (_computeStart != null) {
+      final duration = DateTime.now().difference(_computeStart!);
+      LoggingService.logPerformance(
+        'SmartTagSuggestions.recompute',
+        duration,
+        metadata: {
+          'title_len': widget.title.length,
+          'content_len': widget.content.length,
+          'current_tags': widget.currentTags.length,
+          'suggestions': _suggestions.length,
+        },
+      );
+      _computeStart = null;
+    }
   }
 
   @override
@@ -156,6 +174,12 @@ class _SmartTagSuggestionsState extends State<SmartTagSuggestions> {
                     icon: const Icon(Icons.playlist_add),
                     label: const Text('Agregar todas'),
                     onPressed: () {
+                      LoggingService.logUserAction(
+                        'smart_tags_add_all',
+                        parameters: {
+                          'count': _suggestions.length,
+                        },
+                      );
                       for (final tag in _suggestions) {
                         widget.onTagSelected(tag);
                       }
@@ -164,7 +188,10 @@ class _SmartTagSuggestionsState extends State<SmartTagSuggestions> {
                 IconButton(
                   tooltip: 'Ocultar sugerencias',
                   icon: const Icon(Icons.close),
-                  onPressed: () => setState(() => _hidden = true),
+                  onPressed: () {
+                    LoggingService.logUserAction('smart_tags_hide');
+                    setState(() => _hidden = true);
+                  },
                 ),
               ],
             ),
@@ -176,7 +203,13 @@ class _SmartTagSuggestionsState extends State<SmartTagSuggestions> {
                 return ActionChip(
                   avatar: const Icon(Icons.add, size: 16),
                   label: Text(tag),
-                  onPressed: () => widget.onTagSelected(tag),
+                    onPressed: () {
+                      LoggingService.logUserAction(
+                        'smart_tags_add_one',
+                        parameters: {'tag': tag},
+                      );
+                      widget.onTagSelected(tag);
+                    },
                   tooltip: 'Agregar etiqueta "$tag"',
                 );
               }).toList(),

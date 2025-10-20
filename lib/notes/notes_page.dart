@@ -971,7 +971,7 @@ class _NoteCardState extends State<_NoteCard> {
                                   ),
                                   const SizedBox(width: 8),
                                   const Text(
-                                    'Duplicar',
+                                    'Duplicar nota',
                                     style: TextStyle(
                                       color: Colors.black87,
                                       fontSize: 16,

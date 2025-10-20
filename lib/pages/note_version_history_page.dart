@@ -22,6 +22,53 @@ class NoteVersionHistoryPage extends StatefulWidget {
 }
 
 class _NoteVersionHistoryPageState extends State<NoteVersionHistoryPage> {
+  int? _selectedForDiff;
+
+  String _computeDiff(String a, String b) {
+    // Simple line-by-line diff (can be improved)
+    final aLines = a.split('\n');
+    final bLines = b.split('\n');
+    final buf = StringBuffer();
+    final maxLen = aLines.length > bLines.length ? aLines.length : bLines.length;
+    for (int i = 0; i < maxLen; i++) {
+      final aLine = i < aLines.length ? aLines[i] : '';
+      final bLine = i < bLines.length ? bLines[i] : '';
+      if (aLine == bLine) {
+        buf.writeln('  $aLine');
+      } else {
+        if (aLine.isNotEmpty) buf.writeln('- $aLine');
+        if (bLine.isNotEmpty) buf.writeln('+ $bLine');
+      }
+    }
+    return buf.toString();
+  }
+
+  void _showDiffDialog(Map v1, Map v2) {
+    final content1 = v1['content']?.toString() ?? '';
+    final content2 = v2['content']?.toString() ?? '';
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final diff = _computeDiff(content1, content2);
+        return AlertDialog(
+          title: const Text('Comparación de versiones'),
+          content: SizedBox(
+            width: 400,
+            child: SingleChildScrollView(
+              child: SelectableText(diff),
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cerrar'),
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   final _versioningService = VersioningService();
   List<Map<String, dynamic>>? _versions;
   bool _loading = true;
@@ -303,6 +350,7 @@ class _NoteVersionHistoryPageState extends State<NoteVersionHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
+
     Widget body;
 
     if ((_versions == null || _versions!.isEmpty) && _loading) {
@@ -433,6 +481,26 @@ class _NoteVersionHistoryPageState extends State<NoteVersionHistoryPage> {
                   icon: const Icon(Icons.restore),
                   tooltip: 'Restaurar esta versión',
                   onPressed: () => _restoreVersion(version),
+                ),
+                IconButton(
+                  icon: Icon(_selectedForDiff == index ? Icons.compare : Icons.compare_arrows),
+                  tooltip: _selectedForDiff == null
+                      ? 'Seleccionar para comparar'
+                      : (_selectedForDiff == index
+                          ? 'Cancelar comparación'
+                          : 'Comparar con seleccionada'),
+                  onPressed: () {
+                    setState(() {
+                      if (_selectedForDiff == index) {
+                        _selectedForDiff = null;
+                      } else if (_selectedForDiff == null) {
+                        _selectedForDiff = index;
+                      } else {
+                        _showDiffDialog(_versions![_selectedForDiff!], version);
+                        _selectedForDiff = null;
+                      }
+                    });
+                  },
                 ),
               ],
             ),
