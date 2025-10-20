@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'dart:convert';
 import '../services/sharing_service.dart';
+import '../services/firestore_service.dart';
 import '../services/toast_service.dart';
 import '../services/activity_log_service.dart';
 import '../services/comment_service.dart';
@@ -176,12 +177,13 @@ class _SharedNoteViewerPageState extends State<SharedNoteViewerPage> {
     try {
       final json = jsonEncode(_controller!.document.toDelta().toJson());
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.sharingInfo.ownerId)
-          .collection('notes')
-          .doc(widget.noteId)
-          .update({'content': json, 'updatedAt': FieldValue.serverTimestamp()});
+      // Use centralized FirestoreService so all note writes go through
+      // the same code-path (and debugging instrumentation).
+      await FirestoreService.instance.updateNote(
+        uid: widget.sharingInfo.ownerId,
+        noteId: widget.noteId,
+        data: {'content': json},
+      );
 
       // Registrar actividad: nota editada
       await ActivityLogService().logActivity(

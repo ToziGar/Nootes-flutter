@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/widgets/smart_tag_suggestions.dart';
+import 'package:nootes/widgets/smart_tag_suggestions.dart';
 
 void main() {
   group('SmartTagSuggestions Widget', () {

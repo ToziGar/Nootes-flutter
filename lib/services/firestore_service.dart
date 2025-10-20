@@ -10,6 +10,13 @@ import 'merge_utils.dart';
 import 'field_timestamp_helper.dart';
 import 'package:nootes/utils/debug.dart';
 
+// Toggle content-write logging via Dart define:
+// flutter run --dart-define=ENABLE_CONTENT_WRITE_LOG=false
+const bool kEnableContentWriteLogging = bool.fromEnvironment(
+  'ENABLE_CONTENT_WRITE_LOG',
+  defaultValue: true,
+);
+
 abstract class FirestoreService {
   static FirestoreService? _instance;
   static FirestoreService get instance => _instance ??= _resolve();
@@ -163,6 +170,17 @@ abstract class FirestoreService {
     required Map<String, dynamic> data,
   });
   Future<void> deleteEdgeDoc({required String uid, required String edgeId});
+
+  // Public links (top-level collection 'public_links')
+  Future<void> createPublicLink({
+    required String token,
+    required Map<String, dynamic> data,
+  });
+  Future<void> updatePublicLink({
+    required String token,
+    required Map<String, dynamic> data,
+    bool merge,
+  });
 
   // Folders (users/{uid}/folders)
   Future<List<Map<String, dynamic>>> listFolders({required String uid});
@@ -701,6 +719,27 @@ class _FirebaseFirestoreService implements FirestoreService {
   }
 
   @override
+  Future<void> createPublicLink({
+    required String token,
+    required Map<String, dynamic> data,
+  }) async {
+    await _db.collection('public_links').doc(token).set(data);
+  }
+
+  @override
+  Future<void> updatePublicLink({
+    required String token,
+    required Map<String, dynamic> data,
+    bool merge = true,
+  }) async {
+    if (merge) {
+      await _db.collection('public_links').doc(token).set(data, fs.SetOptions(merge: true));
+    } else {
+      await _db.collection('public_links').doc(token).set(data);
+    }
+  }
+
+  @override
   Future<String> createEdgeDoc({
     required String uid,
     required Map<String, dynamic> data,
@@ -768,6 +807,19 @@ class _FirebaseFirestoreService implements FirestoreService {
     required String noteId,
     required Map<String, dynamic> data,
   }) async {
+    // Debug detector: log if caller attempts to write 'content' so we can
+    // trace overwrites during runtime. This is intentionally lightweight
+    // and uses the project's debug helper.
+    try {
+      if (data.containsKey('content')) {
+        // Log the write and include a stack trace to identify the caller.
+        final trace = StackTrace.current;
+        logDebug('FirestoreService.updateNote -> writing content for users/$uid/notes/$noteId');
+        try {
+          logDebug('StackTrace: ${trace.toString()}');
+        } catch (_) {}
+      }
+    } catch (_) {}
     final ref = _db
         .collection('users')
         .doc(uid)
@@ -1134,6 +1186,41 @@ class _RestFirestoreService implements FirestoreService {
     }
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('firestore-handle-failed-${resp.statusCode}');
+    }
+  }
+
+  @override
+  Future<void> createPublicLink({
+    required String token,
+    required Map<String, dynamic> data,
+  }) async {
+    final uri = Uri.parse('$_base/public_links?documentId=$token');
+  final fields = <String, dynamic>{};
+  data.forEach((k, v) => fields[k] = _encodeValue(v));
+  final payload = jsonEncode({'fields': fields});
+    final resp = await _client.post(uri, headers: await _authHeader(), body: payload);
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      throw Exception('firestore-create-public-link-${resp.statusCode}');
+    }
+  }
+
+  @override
+  Future<void> updatePublicLink({
+    required String token,
+    required Map<String, dynamic> data,
+    bool merge = true,
+  }) async {
+  final fields = <String, dynamic>{};
+  data.forEach((k, v) => fields[k] = _encodeValue(v));
+  final updateMask = fields.keys
+        .map((k) => 'updateMask.fieldPaths=${Uri.encodeQueryComponent(k)}')
+        .join('&');
+    final url = '$_base/public_links/$token${updateMask.isNotEmpty ? '?$updateMask' : ''}';
+    final uri = Uri.parse(url);
+    final payload = jsonEncode({'fields': fields});
+    final resp = await _client.patch(uri, headers: await _authHeader(), body: payload);
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      throw Exception('firestore-update-public-link-${resp.statusCode}');
     }
   }
 

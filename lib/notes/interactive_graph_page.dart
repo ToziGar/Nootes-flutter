@@ -203,10 +203,6 @@ class AIGraphPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-Future<void> _loadGraphWithAI() async {
-  // TODO: Implement graph loading logic
-}
-
 Offset _calculateClusterPosition(int index, int total, ContentAnalysis analysis, Size size) {
   // TODO: Implement cluster position logic
   return Offset.zero;
@@ -503,9 +499,12 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage> with Ticker
   double _scale = 1.0;
   Offset _offset = Offset.zero;
   Offset _lastFocalPoint = Offset.zero;
-  bool _is3DMode = true;
-  bool _showParticles = !kIsWeb; // Disable particles on web by default for better performance
+  final bool _is3DMode = true;
+  final bool _showParticles = !kIsWeb; // Disable particles on web by default for better performance
   bool _autoLayout = true;
+
+  // Minimal UI mode to reduce clutter (show only graph)
+  bool _minimalMode = true;
 
   // IA settings
   final NodeClusteringMode _clusteringMode = NodeClusteringMode.semantic;
@@ -557,6 +556,191 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage> with Ticker
     
     // Load graph data
     _loadGraphWithAI();
+  }
+
+  Future<void> _loadGraphWithAI() async {
+    try {
+      print('[_loadGraphWithAI] starting load');
+      // Fetch user notes (exclude trashed)
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_uid)
+          .collection('notes')
+          .where('trashed', isEqualTo: false)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        setState(() {
+          _nodes = [];
+          _edges = [];
+        });
+        return;
+      }
+
+      final List<AIGraphNode> nodes = [];
+
+      // Basic conversion: create node per note and simple content analysis
+      for (int idx = 0; idx < querySnapshot.docs.length; idx++) {
+        final doc = querySnapshot.docs[idx];
+        final data = doc.data();
+        final noteId = doc.id;
+        final title = (data['title'] as String?) ?? '';
+        final content = (data['content'] as String?) ?? '';
+        final tags = (data['tags'] as List?)?.whereType<String>().toList() ?? <String>[];
+
+        final analysis = _analyzeContent(title, content, tags);
+
+        // initial position using intelligent position helper
+        final position = _calculateIntelligentPosition(idx, querySnapshot.docs.length, analysis, MediaQuery.of(context).size);
+
+        final color = _determineNodeColor(tags, analysis);
+
+        final node = AIGraphNode(
+          id: noteId,
+          title: title,
+          content: content,
+          tags: tags,
+          position: position,
+          velocity: Offset.zero,
+          color: color,
+          connectionCount: 0,
+          aiAnalysis: analysis,
+          importance: analysis.importance,
+          depth: 0,
+          cluster: analysis.category,
+        );
+
+        nodes.add(node);
+      }
+
+      // Build edges using a simple similarity metric (tag overlap + keyword overlap)
+      final List<AIGraphEdge> edges = [];
+      for (int i = 0; i < nodes.length; i++) {
+        for (int j = i + 1; j < nodes.length; j++) {
+          final sim = _calculateSimilarity(nodes[i], nodes[j]);
+          if (sim >= _connectionThreshold) {
+            final edgeType = _determineEdgeType(sim);
+            edges.add(AIGraphEdge(
+              from: nodes[i].id,
+              to: nodes[j].id,
+              strength: sim,
+              type: edgeType,
+              label: edgeType.toString().split('.').last,
+            ));
+            nodes[i].connectionCount++;
+            nodes[j].connectionCount++;
+          }
+        }
+      }
+
+      _centrality = _calculateCentrality(nodes, edges);
+      _clusters = _calculateClusters(nodes, edges);
+
+      if (_autoLayout) {
+        _applyLayoutAlgorithm(nodes, edges);
+      }
+
+      if (mounted) {
+        setState(() {
+          _nodes = nodes;
+          _edges = edges;
+        });
+      }
+      print('[_loadGraphWithAI] loaded nodes=${nodes.length} edges=${edges.length}');
+    } catch (e, st) {
+      // Show toast but don't crash
+      try {
+        ToastService.error('Error cargando grafo: $e');
+      } catch (_) {}
+      // ignore: avoid_print
+      print('Error in _loadGraphWithAI: $e\n$st');
+    }
+  }
+
+  // Minimal content analysis: extract basic metadata and keywords
+  ContentAnalysis _analyzeContent(String title, String content, List<String> tags) {
+    final combined = '$title\n$content';
+    final words = combined.split(RegExp(r'\W+')).where((s) => s.isNotEmpty).toList();
+    final keywords = words.take(10).map((s) => s.toLowerCase()).toSet().toList();
+    final themes = tags.toSet().toList();
+    final importance = (keywords.length / (words.length + 1)).clamp(0.0, 1.0);
+    final sentiment = 0.0; // placeholder
+    final category = themes.isNotEmpty ? themes.first : 'general';
+    final wordCount = words.length;
+    final complexity = _calculateComplexity(content);
+    return ContentAnalysis(
+      themes: themes,
+      keywords: keywords,
+      sentiment: sentiment,
+      importance: importance,
+      category: category,
+      wordCount: wordCount,
+      complexity: complexity,
+    );
+  }
+
+  Color _determineNodeColor(List<String> tags, ContentAnalysis analysis) {
+    if (tags.isNotEmpty) return AppColors.primary;
+    final v = (analysis.importance * 255).toInt();
+    return Color.fromARGB(255, 100 + v ~/ 2, 150, 200);
+  }
+
+  double _calculateSimilarity(AIGraphNode a, AIGraphNode b) {
+    // Simple similarity: tag overlap + keyword overlap normalized
+    final tagOverlap = a.tags.toSet().intersection(b.tags.toSet()).length.toDouble();
+    final keywordOverlap = a.aiAnalysis.keywords.toSet().intersection(b.aiAnalysis.keywords.toSet()).length.toDouble();
+    final denom = (a.tags.length + b.tags.length + a.aiAnalysis.keywords.length + b.aiAnalysis.keywords.length + 1);
+    return ((tagOverlap * 2) + keywordOverlap) / denom;
+  }
+
+  EdgeType _determineEdgeType(double similarity) {
+    if (similarity > 0.7) return EdgeType.strong;
+    if (similarity > 0.45) return EdgeType.semantic;
+    if (similarity > 0.25) return EdgeType.thematic;
+    return EdgeType.weak;
+  }
+
+  List<NodeCluster> _calculateClusters(List<AIGraphNode> nodes, List<AIGraphEdge> edges) {
+    // Very small heuristic: group by category from analysis
+    final Map<String, List<String>> byCat = {};
+    for (var n in nodes) {
+      byCat.putIfAbsent(n.cluster, () => []).add(n.id);
+    }
+    final clusters = <NodeCluster>[];
+    int i = 0;
+    for (var entry in byCat.entries) {
+      clusters.add(NodeCluster(id: 'c\$i', name: entry.key, nodeIds: entry.value, color: Colors.primaries[i % Colors.primaries.length]));
+      i++;
+    }
+    return clusters;
+  }
+
+  void _applyLayoutAlgorithm(List<AIGraphNode> nodes, List<AIGraphEdge> edges) {
+    // Basic force-directed relaxation: small number of iterations
+    final int iterations = 200;
+    final double width = MediaQuery.of(context).size.width;
+    final double height = MediaQuery.of(context).size.height;
+    for (int it = 0; it < iterations; it++) {
+      for (var n in nodes) {
+        final fx = (width / 2 - n.position.dx) * 0.001;
+        final fy = (height / 2 - n.position.dy) * 0.001;
+        n.velocity = n.velocity + Offset(fx, fy);
+      }
+      for (var e in edges) {
+  final ai = nodes.indexWhere((x) => x.id == e.from);
+  final bi = nodes.indexWhere((x) => x.id == e.to);
+  if (ai == -1 || bi == -1) continue;
+  final AIGraphNode a = nodes[ai];
+  final AIGraphNode b = nodes[bi];
+  final delta = b.position - a.position;
+        final dist = delta.distance;
+        final desired = 100.0; // ideal link length
+        final diff = (dist - desired) / (dist + 0.0001);
+        final shift = delta * (0.01 * diff);
+        a.position = a.position + shift;
+        b.position = b.position - shift;
+      }
+    }
   }
   
   void _initializeParticles() {
@@ -935,6 +1119,40 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage> with Ticker
 
   @override
   Widget build(BuildContext context) {
+    // If there are no nodes, show a focused empty state and a load button.
+    if (_nodes.isEmpty) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.device_hub, size: 72, color: Colors.grey.shade400),
+                const SizedBox(height: 12),
+                const Text(
+                  'No se han cargado notas para el grafo.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () async {
+                    await _loadGraphWithAI();
+                  },
+                  child: const Text('Cargar grafo'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => setState(() => _minimalMode = false),
+                  child: const Text('Mostrar interfaz completa', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       body: Stack(
         children: [
@@ -1195,22 +1413,68 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage> with Ticker
               ),
             ),
           ),
-          // Clustering legend (bottom right)
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: _buildControlPanel(),
-          ),
-          // Metrics panel (top left)
-          _buildMetricsPanel(),
-          // Edge filter panel (middle right)
-          Positioned(
-            right: 16,
-            top: MediaQuery.of(context).size.height * 0.3,
-            child: _buildEdgeFilterPanel(),
-          ),
+          // Clustering legend (bottom right) - hide in minimal mode
+          if (!_minimalMode)
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: _buildControlPanel(),
+            ),
+          // Metrics panel (top left) - hide in minimal mode
+          if (!_minimalMode) _buildMetricsPanel(),
+          // Edge filter panel (middle right) - hide in minimal mode
+          if (!_minimalMode)
+            Positioned(
+              right: 16,
+              top: MediaQuery.of(context).size.height * 0.3,
+              child: _buildEdgeFilterPanel(),
+            ),
           // Node info panel (bottom) - shown when a node is selected
           if (_selectedNodeId != null) _buildNodeInfoPanel(),
+          // Minimal mode toggle (top-right)
+          Positioned(
+            top: 20,
+            right: 20,
+            child: FloatingActionButton.small(
+              heroTag: 'graphModeToggle',
+              backgroundColor: Colors.black.withOpacity(0.6),
+              onPressed: () => setState(() => _minimalMode = !_minimalMode),
+              child: Icon(_minimalMode ? Icons.visibility_off : Icons.visibility, size: 18),
+            ),
+          ),
+          // Debug banner (top-center) — shows node/edge counts and quick actions
+          Positioned(
+            top: 18,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.45),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Grafo: nodos=${_nodes.length} aristas=${_edges.length}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey),
+                      onPressed: () async { await _loadGraphWithAI(); },
+                      child: const Text('Recargar', style: TextStyle(fontSize: 12)),
+                    ),
+                    const SizedBox(width: 6),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black54),
+                      onPressed: () => setState(() => _minimalMode = !_minimalMode),
+                      child: Text(_minimalMode ? 'Modo simple' : 'Modo completo', style: const TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1304,8 +1568,8 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage> with Ticker
                       _snapToGrid = value ?? false;
                     });
                   },
-                  fillColor: MaterialStateProperty.resolveWith((states) {
-                    if (states.contains(MaterialState.selected)) {
+                  fillColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
                       return Colors.blue;
                     }
                     return Colors.white30;
@@ -1335,8 +1599,8 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage> with Ticker
                     });
                     HapticFeedback.lightImpact();
                   },
-                  fillColor: MaterialStateProperty.resolveWith((states) {
-                    if (states.contains(MaterialState.selected)) {
+                  fillColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
                       return Colors.orange;
                     }
                     return Colors.white30;
@@ -1515,68 +1779,50 @@ class _InteractiveGraphPageState extends State<InteractiveGraphPage> with Ticker
                   '🔗 Conexiones:',
                   style: TextStyle(fontWeight: FontWeight.w500),
                 ),
-                ...connections.take(3).map((edge) {
-                  final otherNodeId = edge.from == node.id
-                      ? edge.to
-                      : edge.from;
-                  final otherNode = _nodes.firstWhere(
-                    (n) => n.id == otherNodeId,
-                  );
-                  return ListTile(
-                    dense: true,
-                    leading: Icon(
-                      _getEdgeTypeIcon(edge.type),
-                      size: 16,
-                      color: _getEdgeTypeColor(edge.type),
-                    ),
-                    title: Text(
-                      otherNode.title,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    subtitle: Text(
-                      edge.label,
-                      style: const TextStyle(fontSize: 10),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${(edge.strength * 100).toInt()}%',
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.edit, size: 16),
-                          onPressed: () async {
-                            // try to find an existing edge doc
-                            final docs = await FirestoreService.instance
-                                .listEdgeDocs(uid: _uid);
-                            final match = docs.firstWhere(
-                              (d) =>
-                                  d['from'] == edge.from && d['to'] == edge.to,
-                              orElse: () => <String, dynamic>{},
-                            );
-                            final edgeId = match['id']?.toString();
-                            if (!mounted) return;
-                            final res = await showDialog(
-                              context: context,
-                              builder: (ctx) => EdgeEditorDialog(
-                                uid: _uid,
-                                edgeId: edgeId,
-                                fromNoteId: edge.from,
-                                toNoteId: edge.to,
-                              ),
-                            );
-                            if (!mounted) return;
-                            if (res is EdgeEditorResult && mounted) {
-                              await _loadGraphWithAI();
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  );
-                }),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: connections.take(6).map((edge) {
+                    final otherNodeId = edge.from == node.id ? edge.to : edge.from;
+                    final otherNode = _nodes.firstWhere((n) => n.id == otherNodeId, orElse: () => node);
+                    return InputChip(
+                      avatar: Icon(_getEdgeTypeIcon(edge.type), size: 16, color: _getEdgeTypeColor(edge.type)),
+                      label: Text('${otherNode.title} ${(edge.strength * 100).toInt()}%'),
+                      onPressed: () {
+                        // focus/center other node
+                        final idx = _nodes.indexWhere((n) => n.id == otherNodeId);
+                        if (idx != -1) {
+                          final target = _nodes[idx];
+                          setState(() {
+                            _selectedNodeId = otherNodeId;
+                            _offset = Offset(MediaQuery.of(context).size.width / 2 - target.position.dx * _scale,
+                                MediaQuery.of(context).size.height / 2 - target.position.dy * _scale);
+                          });
+                        }
+                      },
+                      onDeleted: () async {
+                        // Edit edge
+                        final docs = await FirestoreService.instance.listEdgeDocs(uid: _uid);
+                        final match = docs.firstWhere((d) => d['from'] == edge.from && d['to'] == edge.to, orElse: () => <String, dynamic>{});
+                        final edgeId = match['id']?.toString();
+                        if (!mounted) return;
+                        final res = await showDialog(
+                          context: context,
+                          builder: (ctx) => EdgeEditorDialog(
+                            uid: _uid,
+                            edgeId: edgeId,
+                            fromNoteId: edge.from,
+                            toNoteId: edge.to,
+                          ),
+                        );
+                        if (!mounted) return;
+                        if (res is EdgeEditorResult && mounted) {
+                          await _loadGraphWithAI();
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
               ],
             ],
           ),

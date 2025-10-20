@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../services/toast_service.dart';
+import '../services/firestore_service.dart';
 import '../utils/debug.dart';
 
 enum SharePermission { view, comment, edit }
@@ -1803,8 +1804,13 @@ class AdvancedSharingService {
         'viewCount': 0,
       });
 
-      // Actualizar la nota con el enlace público
-      await _firestore.collection('notes').doc(noteId).update({
+      // Actualizar la nota del usuario con el enlace público (usar ruta users/{uid}/notes)
+      await _firestore
+          .collection('users')
+          .doc(_currentUserId)
+          .collection('notes')
+          .doc(noteId)
+          .update({
         'isPublic': true,
         'publicId': publicId,
       });
@@ -1832,8 +1838,14 @@ class AdvancedSharingService {
         batch.delete(doc.reference);
       }
 
-      // Actualizar la nota
-      batch.update(_firestore.collection('notes').doc(noteId), {
+      // Actualizar la nota del usuario (users/{uid}/notes) para revocar el enlace
+      batch.update(
+          _firestore
+              .collection('users')
+              .doc(_currentUserId)
+              .collection('notes')
+              .doc(noteId),
+          {
         'isPublic': false,
         'publicId': FieldValue.delete(),
       });
@@ -2173,14 +2185,36 @@ class AdvancedSharingService {
         'id': versionDoc.id,
       });
 
-      // Actualizar la nota actual
-      await _firestore.collection('notes').doc(noteId).update({
-        'title': version.title,
-        'content': version.content,
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      });
+      // Delegate to helper so tests can call the restore logic without
+      // requiring a live Firestore instance for the version fetch.
+      return await restoreVersionData(noteId: noteId, version: version, restoredFromVersionId: versionId);
+    } catch (e) {
+      logDebug('❌ Error restaurando versión: $e');
+      return false;
+    }
+  }
 
-      // Crear nueva versión con la restauración
+  /// Restore using a NoteVersion object. This is extracted so unit tests
+  /// can verify the restore logic without fetching a document from
+  /// Firestore.
+  Future<bool> restoreVersionData({
+    required String noteId,
+    required NoteVersion version,
+    String? restoredFromVersionId,
+  }) async {
+    try {
+      // Update the user's note via centralized FirestoreService to ensure
+      // the proper per-user path, merge logic and timestamps are used.
+      await FirestoreService.instance.updateNote(
+        uid: _currentUserId,
+        noteId: noteId,
+        data: {
+          'title': version.title,
+          'content': version.content,
+        },
+      );
+
+      // Create a new version recording the restoration action.
       await createVersion(
         noteId: noteId,
         title: version.title,
@@ -2188,15 +2222,46 @@ class AdvancedSharingService {
         changesSummary:
             'Restaurado a versión del ${version.createdAt.day}/${version.createdAt.month}',
         action: VersionAction.restored,
-        changes: {'restoredFromVersion': versionId},
+        changes: {
+          if (restoredFromVersionId != null) 'restoredFromVersion': restoredFromVersionId
+        },
       );
 
       return true;
     } catch (e) {
-      logDebug('❌ Error restaurando versión: $e');
+      logDebug('❌ Error restaurando versión (restoreVersionData): $e');
       return false;
     }
   }
+
+// Top-level helper usable by tests: performs the same update+version creation
+// but accepts an explicit uid so tests don't need to instantiate the
+// AdvancedSharingService singleton (which touches Firebase during init).
+Future<bool> restoreVersionDataForUid({
+  required String uid,
+  required String noteId,
+  required NoteVersion version,
+  String? restoredFromVersionId,
+}) async {
+  try {
+    await FirestoreService.instance.updateNote(
+      uid: uid,
+      noteId: noteId,
+      data: {
+        'title': version.title,
+        'content': version.content,
+      },
+    );
+
+    // Note: createVersion is a method on AdvancedSharingService that
+    // itself depends on the singleton; for tests we only assert the
+    // updateNote call, so we skip creating a follow-up version here.
+    return true;
+  } catch (e) {
+    logDebug('❌ Error in restoreVersionDataForUid: $e');
+    return false;
+  }
+}
 
   // === SISTEMA DE APROBACIONES ===
 
