@@ -28,9 +28,13 @@ class _DemoAppState extends ConsumerState<DemoApp> {
   @override
   void initState() {
     super.initState();
-    // Ensure the SyncService provider is created under this ProviderScope so
-    // background processing begins using the DevFirestoreService override.
+    // Asegura que el proveedor SyncService se instancie. La inicialización del
+    // proveedor cargará la cola persistida de forma asíncrona y arrancará el
+    // worker en segundo plano (ver `providers.dart`). No es necesario arrancar
+    // manualmente.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // use ref to read the provider so it gets created under the correct
+      // ProviderScope (overrides come from main()).
       ref.read(syncServiceProvider);
     });
   }
@@ -40,7 +44,7 @@ class _DemoAppState extends ConsumerState<DemoApp> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(title: const Text('Demo de sincronización')),
-        body: _index == 0 ? const Center(child: SyncStatusWidget()) : const DeadLetterWidget(),
+  body: _index == 0 ? Center(child: SyncStatusWidget()) : DeadLetterWidget(),
         floatingActionButton: FloatingActionButton(
           onPressed: () async {
             final id = DateTime.now().millisecondsSinceEpoch.toString();
