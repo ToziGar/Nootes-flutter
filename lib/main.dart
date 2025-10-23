@@ -224,7 +224,7 @@ class UnsupportedAuthPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Authentication Not Supported')),
+      appBar: AppBar(title: const Text('Autenticación no soportada')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -232,14 +232,14 @@ class UnsupportedAuthPage extends StatelessWidget {
             const Icon(Icons.error_outline, size: 64, color: Colors.orange),
             const SizedBox(height: 16),
             const Text(
-              'Authentication Not Supported on Linux',
+              'Autenticación no soportada en Linux',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             const Text(
-              'Firebase Authentication is not available on Linux desktop applications. '
-              'Please use the web version or mobile app.',
+              'Firebase Authentication no está disponible en aplicaciones de escritorio Linux. '
+              'Por favor usa la versión web o la app móvil.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -251,7 +251,7 @@ class UnsupportedAuthPage extends StatelessWidget {
                   await launchUrl(Uri.parse(url));
                 }
               },
-              child: const Text('Open Web Version'),
+              child: const Text('Abrir versión web'),
             ),
           ],
         ),
@@ -268,7 +268,7 @@ class SetupHelpPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Setup Error')),
+      appBar: AppBar(title: const Text('Error de configuración')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -276,7 +276,7 @@ class SetupHelpPage extends StatelessWidget {
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
             const Text(
-              'Firebase Setup Error',
+              'Error en la configuración de Firebase',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
@@ -284,7 +284,7 @@ class SetupHelpPage extends StatelessWidget {
             Text('Error: $error', textAlign: TextAlign.center),
             const SizedBox(height: 24),
             const Text(
-              'Please check your Firebase configuration and try again.',
+              'Por favor revisa tu configuración de Firebase e inténtalo de nuevo.',
               textAlign: TextAlign.center,
             ),
           ],
