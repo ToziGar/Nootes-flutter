@@ -1,13 +1,22 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../utils/debug.dart';
+import 'package:flutter/services.dart';
 import '../widgets/glass.dart';
 import '../widgets/tag_input.dart';
+import '../widgets/smart_tag_suggestions.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
-import '../widgets/quill_editor_widget.dart';
+import '../services/logging_service.dart';
+import '../services/versioning_service.dart';
+import '../widgets/enhanced_note_editor.dart' as enh_ed;
 import '../widgets/editor_settings_dialog.dart';
 import '../services/editor_config_service.dart';
 import '../services/sharing_service.dart';
+import '../services/field_timestamp_helper.dart';
+import '../pages/note_version_history_page.dart';
+import '../services/settings_service.dart';
 
 class NoteEditorPage extends StatefulWidget {
   const NoteEditorPage({super.key, required this.noteId, this.onChanged});
@@ -32,6 +41,10 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   // Editor avanzado
   EditorConfig _editorConfig = EditorConfig.defaultConfig();
   final EditorConfigService _editorConfigService = EditorConfigService();
+  final VersioningService _versioningService = VersioningService();
+  DateTime? _lastVersionSave;
+  bool _enableSmartTags = true;
+  bool _enableAutoVersioning = true;
 
   List<String> _tags = [];
   List<Map<String, dynamic>> _collections = [];
@@ -54,12 +67,24 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     _loadEditorConfig();
     _title.addListener(_scheduleAutoSave);
     _content.addListener(_scheduleAutoSave);
+
+    // Log de apertura de editor
+    LoggingService.logUserAction(
+      'note_editor_opened',
+      parameters: {'noteId': widget.noteId},
+    );
   }
 
   Future<void> _loadEditorConfig() async {
     final config = await _editorConfigService.getEditorConfig();
+    // Load feature toggles
+    final settings = SettingsService();
+    final enableSmartTags = await settings.getEnableSmartTags();
+    final enableAutoVersioning = await settings.getEnableAutoVersioning();
     setState(() {
       _editorConfig = config;
+      _enableSmartTags = enableSmartTags;
+      _enableAutoVersioning = enableAutoVersioning;
     });
   }
 
@@ -68,6 +93,13 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     _auto?.cancel();
     _title.dispose();
     _content.dispose();
+
+    // Log de cierre de editor
+    LoggingService.logUserAction(
+      'note_editor_closed',
+      parameters: {'noteId': widget.noteId},
+    );
+
     super.dispose();
   }
 
@@ -156,20 +188,104 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       return;
     }
     setState(() => _saving = true);
+
+    final stopwatch = Stopwatch()..start();
+
     try {
-      final data = {'title': _title.text, 'content': _content.text};
+      Map<String, dynamic> data = {
+        'title': _title.text,
+        'content': _content.text,
+      };
       if (_richJson.isNotEmpty) data['rich'] = _richJson;
+
+      // Attach per-field timestamps so mergeNoteMaps can do per-field LWW.
+      try {
+        data = attachFieldTimestamps(data);
+      } catch (e) {
+        logDebug('Failed to attach field timestamps: $e');
+      }
+
       await FirestoreService.instance.updateNote(
         uid: _uid,
         noteId: widget.noteId,
         data: data,
       );
+
+      stopwatch.stop();
+
+      // Log performance
+      LoggingService.logPerformance(
+        'note_save',
+        stopwatch.elapsed,
+        metadata: {
+          'noteId': widget.noteId,
+          'autosave': autosave,
+          'contentLength': _content.text.length,
+        },
+      );
+
+      // Auto-crear versión cada 5 minutos o en guardado manual importante
+      final now = DateTime.now();
+    final shouldSaveVersion = _enableAutoVersioning && (
+      !autosave ||
+      (_lastVersionSave == null ||
+       now.difference(_lastVersionSave!).inMinutes >= 5));
+
+      if (shouldSaveVersion) {
+        try {
+          await _versioningService.saveVersion(
+            noteId: widget.noteId,
+            snapshot: {
+              'title': _title.text,
+              'content': _content.text,
+              'tags': _tags,
+              if (_richJson.isNotEmpty) 'rich': _richJson,
+            },
+            metadata: {
+              'reason': autosave ? 'Auto-guardado periódico' : 'Guardado manual',
+              'timestamp': now.toIso8601String(),
+            },
+          );
+          _lastVersionSave = now;
+
+          LoggingService.debug(
+            'Versión guardada',
+            tag: 'NoteEditor',
+            data: {'noteId': widget.noteId},
+          );
+        } catch (e, stackTrace) {
+          LoggingService.error(
+            'Error al guardar versión (no crítico)',
+            tag: 'NoteEditor',
+            error: e,
+            stackTrace: stackTrace,
+          );
+        }
+      }
+
       _dirty = false;
       if (widget.onChanged != null) await widget.onChanged!();
       if (mounted && !autosave) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Guardado')));
+      }
+    } catch (e, stackTrace) {
+      LoggingService.error(
+        'Error al guardar nota',
+        tag: 'NoteEditor',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'noteId': widget.noteId},
+      );
+
+      if (mounted && !autosave) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -261,11 +377,368 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Build the main content (kept identical to previous implementation)
+    final Widget mainContent = _loading
+        ? const Center(child: CircularProgressIndicator())
+        : Padding(
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: _title,
+                    decoration: const InputDecoration(
+                      labelText: 'Título',
+                      prefixIcon: Icon(Icons.title_rounded),
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String?>(
+                    initialValue: _collectionId,
+                    decoration: const InputDecoration(
+                      labelText: 'Colección',
+                      prefixIcon: Icon(Icons.folder_outlined),
+                    ),
+                    items: [
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Sin colección'),
+                      ),
+                      DropdownMenuItem<String?>(
+                        value: '',
+                        child: Text('Sin colección'),
+                      ),
+                      ..._collections.map(
+                        (c) => DropdownMenuItem<String?>(
+                          value: c['id'].toString(),
+                          child: Text(
+                            c['name']?.toString() ?? c['id'].toString(),
+                          ),
+                        ),
+                      ),
+                    ],
+                    onChanged: (v) => _setCollection(v),
+                  ),
+                  const SizedBox(height: 8),
+                  // Editor mejorado (soporta WYSIWYG y Markdown con autosave)
+                  Container(
+                    height: 400,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Theme.of(context).dividerColor),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: enh_ed.EnhancedNoteEditor(
+                      noteId: widget.noteId,
+                      initialTitle: _title.text,
+                      initialContent: _richJson.isNotEmpty
+                          ? _richJson
+                          : _content.text,
+                      mode: enh_ed.EditorMode.wysiwyg,
+                      onTitleChanged: (t) {
+                        if (_title.text != t) {
+                          _title.text = t;
+                        }
+                        _scheduleAutoSave();
+                      },
+                      onContentChanged: (s) {
+                        // The editor may send either Delta JSON (rich) or plain markdown/text.
+                        // Try to decode JSON; if decode succeeds and the result looks like a Delta (List/Map), treat as rich.
+                        var treatedAsRich = false;
+                        try {
+                          final trimmed = s.trim();
+                          if (trimmed.isNotEmpty &&
+                              (trimmed.startsWith('[') ||
+                                  trimmed.startsWith('{'))) {
+                            final decoded = jsonDecode(trimmed);
+                            if (decoded is List || decoded is Map) {
+                              treatedAsRich = true;
+                            }
+                          }
+                        } catch (_) {
+                          treatedAsRich = false;
+                        }
+
+                        if (treatedAsRich) {
+                          _richJson = s;
+                        } else {
+                          if (_content.text != s) _content.text = s;
+                        }
+                        _scheduleAutoSave();
+                      },
+                      onSave: () async {
+                        await _save();
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Etiquetas',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Smart Tag Suggestions (toggleable)
+                  if (_enableSmartTags)
+                    SmartTagSuggestions(
+                      title: _title.text,
+                      content: _content.text,
+                      currentTags: _tags,
+                      onTagSelected: (tag) => _addTag(tag),
+                      maxSuggestions: 6,
+                    ),
+
+                  TagInput(
+                    initialTags: _tags,
+                    onAdd: (t) => _addTag(t),
+                    onRemove: (t) => _removeTag(t),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Enlaces (grafo)',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  if (_autoSaving)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4, bottom: 4),
+                      child: Text(
+                        'Guardando automáticamente…',
+                        style: TextStyle(fontSize: 12, color: Colors.white70),
+                      ),
+                    ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String?>(
+                          decoration: const InputDecoration(
+                            labelText: 'Añadir enlace a…',
+                            prefixIcon: Icon(Icons.link_rounded),
+                          ),
+                          items: _otherNotes.map((n) {
+                            final id = n['id'].toString();
+                            return DropdownMenuItem<String?>(
+                              value: id,
+                              child: Text(_labelFor(id)),
+                            );
+                          }).toList(),
+                          onChanged: (v) async {
+                            if (v == null || v.isEmpty) return;
+                            await _addLink(v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Quick create link button — abre un diálogo de búsqueda
+                      SizedBox(
+                        height: 56,
+                        child: FilledButton.icon(
+                          onPressed: _otherNotes.isEmpty
+                              ? null
+                              : () async {
+                                  final selected = await showDialog<String?>(
+                                    context: context,
+                                    builder: (context) {
+                                      List<Map<String, dynamic>> results =
+                                          List.from(_otherNotes);
+                                      return StatefulBuilder(
+                                        builder: (context, setState) {
+                                          void doFilter(String q) {
+                                            final qq = q.trim().toLowerCase();
+                                            setState(() {
+                                              results = _otherNotes.where((n) {
+                                                final title =
+                                                    (n['title']?.toString() ??
+                                                            '')
+                                                        .toLowerCase();
+                                                final id = n['id']
+                                                    .toString()
+                                                    .toLowerCase();
+                                                return title.contains(qq) ||
+                                                    id.contains(qq);
+                                              }).toList();
+                                            });
+                                          }
+
+                                          return AlertDialog(
+                                            title: const Text(
+                                              'Crear enlace a...',
+                                            ),
+                                            content: SizedBox(
+                                              width: 480,
+                                              height: 380,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.stretch,
+                                                children: [
+                                                  TextField(
+                                                    decoration:
+                                                        const InputDecoration(
+                                                          prefixIcon: Icon(
+                                                            Icons.search,
+                                                          ),
+                                                          hintText:
+                                                              'Buscar nota por título o id',
+                                                        ),
+                                                    onChanged: doFilter,
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Expanded(
+                                                    child: results.isEmpty
+                                                        ? const Center(
+                                                            child: Text(
+                                                              'No hay notas que coincidan',
+                                                            ),
+                                                          )
+                                                        : ListView.separated(
+                                                            itemCount:
+                                                                results.length,
+                                                            separatorBuilder:
+                                                                (_, _) =>
+                                                                    const Divider(
+                                                                      height: 1,
+                                                                    ),
+                                                            itemBuilder: (context, i) {
+                                                              final n =
+                                                                  results[i];
+                                                              final id = n['id']
+                                                                  .toString();
+                                                              final title =
+                                                                  (n['title']
+                                                                      ?.toString() ??
+                                                                  'Sin título');
+                                                              return ListTile(
+                                                                title: Text(
+                                                                  title,
+                                                                ),
+                                                                subtitle: Text(
+                                                                  _shortId(id),
+                                                                ),
+                                                                onTap: () =>
+                                                                    Navigator.pop(
+                                                                      context,
+                                                                      id,
+                                                                    ),
+                                                              );
+                                                            },
+                                                          ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(context),
+                                                child: const Text('Cancelar'),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    },
+                                  );
+                                  if (selected != null && selected.isNotEmpty) {
+                                    await _addLink(selected);
+                                  }
+                                },
+                          icon: const Icon(Icons.add_link_rounded),
+                          label: const Text('Crear enlace'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Enlaces salientes',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  _outgoing.isEmpty
+                      ? const Text('Sin enlaces')
+                      : Wrap(
+                          spacing: 6,
+                          runSpacing: -6,
+                          children: _outgoing
+                              .map(
+                                (to) => InputChip(
+                                  label: Text(_labelFor(to)),
+                                  onDeleted: () => _removeLink(to),
+                                  onPressed: () async {
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => NoteEditorPage(
+                                          noteId: to,
+                                          onChanged: widget.onChanged,
+                                        ),
+                                      ),
+                                    );
+                                    await _load();
+                                  },
+                                ),
+                              )
+                              .toList(),
+                        ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Enlaces entrantes',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  _incoming.isEmpty
+                      ? const Text('Sin enlaces hacia esta nota')
+                      : Wrap(
+                          spacing: 6,
+                          runSpacing: -6,
+                          children: _incoming
+                              .map(
+                                (from) => ActionChip(
+                                  label: Text(_labelFor(from)),
+                                  onPressed: () async {
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => NoteEditorPage(
+                                          noteId: from,
+                                          onChanged: widget.onChanged,
+                                        ),
+                                      ),
+                                    );
+                                    await _load();
+                                  },
+                                ),
+                              )
+                              .toList(),
+                        ),
+                ],
+              ),
+            ),
+          );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar nota'),
         actions: [
-          // Opciones del editor (placeholder para futuras opciones)
+          IconButton(
+            tooltip: 'Historial de versiones',
+            onPressed: () async {
+              final result = await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => NoteVersionHistoryPage(
+                    noteId: widget.noteId,
+                    noteTitle: _title.text.isNotEmpty 
+                        ? _title.text 
+                        : 'Sin título',
+                  ),
+                ),
+              );
+              // Si se restauró una versión, recargar la nota
+              if (result == true) {
+                await _load();
+              }
+            },
+            icon: const Icon(Icons.history),
+          ),
           IconButton(
             tooltip: 'Configuración del editor',
             onPressed: _showEditorSettings,
@@ -282,334 +755,72 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                 : const Icon(Icons.save_rounded),
             tooltip: 'Guardar',
           ),
+              // Export note (.md) and export all (.json) logic
+              PopupMenuButton<String>(
+                tooltip: 'Exportar',
+                onSelected: (value) async {
+                  if (value == 'export_note') {
+                    await _exportCurrentNoteAsMarkdown();
+                  } else if (value == 'export_all') {
+                    await _exportAllNotesAsJson();
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'export_note',
+                    child: Text('Exportar nota (.md)'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'export_all',
+                    child: Text('Exportar todo (.json)'),
+                  ),
+                ],
+                icon: const Icon(Icons.download_rounded),
+              ),
         ],
       ),
-      body: GlassBackground(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Padding(
-                padding: const EdgeInsets.all(16),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextField(
-                        controller: _title,
-                        decoration: const InputDecoration(
-                          labelText: 'Título',
-                          prefixIcon: Icon(Icons.title_rounded),
-                        ),
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String?>(
-                        initialValue: _collectionId,
-                        decoration: const InputDecoration(
-                          labelText: 'Colección',
-                          prefixIcon: Icon(Icons.folder_outlined),
-                        ),
-                        items: [
-                          DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text('Sin colección'),
-                          ),
-                          DropdownMenuItem<String?>(
-                            value: '',
-                            child: Text('Sin colección'),
-                          ),
-                          ..._collections.map(
-                            (c) => DropdownMenuItem<String?>(
-                              value: c['id'].toString(),
-                              child: Text(
-                                c['name']?.toString() ?? c['id'].toString(),
-                              ),
-                            ),
-                          ),
-                        ],
-                        onChanged: (v) => _setCollection(v),
-                      ),
-                      const SizedBox(height: 8),
-                      // Editor de contenido unificado (Quill WYSIWYG)
-                      Container(
-                        height: 400, // Altura fija para el editor
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Theme.of(context).dividerColor,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: QuillEditorWidget(
-                          uid: _uid,
-                          initialDeltaJson:
-                              null, // Could load from note['rich'] if present
-                          onChanged: (deltaJson) async {
-                            // Keep latest rich in memory; actual save occurs via autosave/_save
-                            _content.removeListener(_scheduleAutoSave);
-                            try {
-                              _richJson = deltaJson;
-                            } finally {
-                              _content.addListener(_scheduleAutoSave);
-                            }
-                            _scheduleAutoSave();
-                          },
-                          onPlainTextChanged: (plain) {
-                            if (_content.text != plain) {
-                              _content.text = plain;
-                              _scheduleAutoSave();
-                            }
-                          },
-                          onSave: (deltaJson) async {
-                            await _save();
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Etiquetas',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 6),
-                      TagInput(
-                        initialTags: _tags,
-                        onAdd: (t) => _addTag(t),
-                        onRemove: (t) => _removeTag(t),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Enlaces (grafo)',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      if (_autoSaving)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 4, bottom: 4),
-                          child: Text(
-                            'Guardando automáticamente…',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String?>(
-                              decoration: const InputDecoration(
-                                labelText: 'Añadir enlace a…',
-                                prefixIcon: Icon(Icons.link_rounded),
-                              ),
-                              items: _otherNotes.map((n) {
-                                final id = n['id'].toString();
-                                return DropdownMenuItem<String?>(
-                                  value: id,
-                                  child: Text(_labelFor(id)),
-                                );
-                              }).toList(),
-                              onChanged: (v) async {
-                                if (v == null || v.isEmpty) return;
-                                await _addLink(v);
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          // Quick create link button — abre un diálogo de búsqueda
-                          SizedBox(
-                            height: 56,
-                            child: FilledButton.icon(
-                              onPressed: _otherNotes.isEmpty
-                                  ? null
-                                  : () async {
-                                      final selected = await showDialog<String?>(
-                                        context: context,
-                                        builder: (context) {
-                                          List<Map<String, dynamic>> results =
-                                              List.from(_otherNotes);
-                                          return StatefulBuilder(
-                                            builder: (context, setState) {
-                                              void doFilter(String q) {
-                                                final qq = q
-                                                    .trim()
-                                                    .toLowerCase();
-                                                setState(() {
-                                                  results = _otherNotes.where((
-                                                    n,
-                                                  ) {
-                                                    final title =
-                                                        (n['title']?.toString() ??
-                                                                '')
-                                                            .toLowerCase();
-                                                    final id = n['id']
-                                                        .toString()
-                                                        .toLowerCase();
-                                                    return title.contains(qq) ||
-                                                        id.contains(qq);
-                                                  }).toList();
-                                                });
-                                              }
-
-                                              return AlertDialog(
-                                                title: const Text(
-                                                  'Crear enlace a...',
-                                                ),
-                                                content: SizedBox(
-                                                  width: 480,
-                                                  height: 380,
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .stretch,
-                                                    children: [
-                                                      TextField(
-                                                        decoration:
-                                                            const InputDecoration(
-                                                              prefixIcon: Icon(
-                                                                Icons.search,
-                                                              ),
-                                                              hintText:
-                                                                  'Buscar nota por título o id',
-                                                            ),
-                                                        onChanged: doFilter,
-                                                      ),
-                                                      const SizedBox(height: 8),
-                                                      Expanded(
-                                                        child: results.isEmpty
-                                                            ? const Center(
-                                                                child: Text(
-                                                                  'No hay notas que coincidan',
-                                                                ),
-                                                              )
-                                                            : ListView.separated(
-                                                                itemCount:
-                                                                    results
-                                                                        .length,
-                                                                separatorBuilder:
-                                                                    (_, __) =>
-                                                                        const Divider(
-                                                                          height:
-                                                                              1,
-                                                                        ),
-                                                                itemBuilder: (context, i) {
-                                                                  final n =
-                                                                      results[i];
-                                                                  final id = n['id']
-                                                                      .toString();
-                                                                  final title =
-                                                                      (n['title']
-                                                                          ?.toString() ??
-                                                                      'Sin título');
-                                                                  return ListTile(
-                                                                    title: Text(
-                                                                      title,
-                                                                    ),
-                                                                    subtitle: Text(
-                                                                      _shortId(
-                                                                        id,
-                                                                      ),
-                                                                    ),
-                                                                    onTap: () =>
-                                                                        Navigator.pop(
-                                                                          context,
-                                                                          id,
-                                                                        ),
-                                                                  );
-                                                                },
-                                                              ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(context),
-                                                    child: const Text(
-                                                      'Cancelar',
-                                                    ),
-                                                  ),
-                                                ],
-                                              );
-                                            },
-                                          );
-                                        },
-                                      );
-                                      if (selected != null &&
-                                          selected.isNotEmpty) {
-                                        await _addLink(selected);
-                                      }
-                                    },
-                              icon: const Icon(Icons.add_link_rounded),
-                              label: const Text('Crear enlace'),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Enlaces salientes',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 4),
-                      _outgoing.isEmpty
-                          ? const Text('Sin enlaces')
-                          : Wrap(
-                              spacing: 6,
-                              runSpacing: -6,
-                              children: _outgoing
-                                  .map(
-                                    (to) => InputChip(
-                                      label: Text(_labelFor(to)),
-                                      onDeleted: () => _removeLink(to),
-                                      onPressed: () async {
-                                        await Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) => NoteEditorPage(
-                                              noteId: to,
-                                              onChanged: widget.onChanged,
-                                            ),
-                                          ),
-                                        );
-                                        await _load();
-                                      },
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Enlaces entrantes',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 4),
-                      _incoming.isEmpty
-                          ? const Text('Sin enlaces hacia esta nota')
-                          : Wrap(
-                              spacing: 6,
-                              runSpacing: -6,
-                              children: _incoming
-                                  .map(
-                                    (from) => ActionChip(
-                                      label: Text(_labelFor(from)),
-                                      onPressed: () async {
-                                        await Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) => NoteEditorPage(
-                                              noteId: from,
-                                              onChanged: widget.onChanged,
-                                            ),
-                                          ),
-                                        );
-                                        await _load();
-                                      },
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                    ],
-                  ),
-                ),
-              ),
+      body: KeyboardListener(
+        focusNode: FocusNode(),
+        onKeyEvent: (KeyEvent event) {
+          if (event is KeyDownEvent) {
+            final isCtrl = HardwareKeyboard.instance.isControlPressed;
+            final isMeta = HardwareKeyboard.instance.isMetaPressed;
+            if ((isCtrl || isMeta) &&
+                event.logicalKey == LogicalKeyboardKey.keyS) {
+              if (!_saving) _save();
+            }
+          }
+        },
+        child: GlassBackground(child: mainContent),
       ),
     );
+  }
+
+  // Export current note as Markdown
+  Future<void> _exportCurrentNoteAsMarkdown() async {
+    final title = _title.text.trim().isEmpty ? 'Sin título' : _title.text.trim();
+    final content = _content.text.trim();
+    final tags = _tags.isNotEmpty ? '\n\nEtiquetas: ${_tags.join(", ")}' : '';
+    final markdown = '# $title\n\n$content$tags';
+    // Use clipboard for now; can extend to file save/share
+    await Clipboard.setData(ClipboardData(text: markdown));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nota exportada como Markdown (copiado al portapapeles)')),
+      );
+    }
+  }
+
+  // Export all notes as JSON
+  Future<void> _exportAllNotesAsJson() async {
+    final svc = FirestoreService.instance;
+    final notes = await svc.listNotes(uid: _uid);
+    final jsonStr = const JsonEncoder.withIndent('  ').convert(notes);
+    await Clipboard.setData(ClipboardData(text: jsonStr));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Todas las notas exportadas como JSON (copiado al portapapeles)')),
+      );
+    }
   }
 }

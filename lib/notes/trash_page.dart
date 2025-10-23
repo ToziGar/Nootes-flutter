@@ -82,7 +82,7 @@ class _TrashPageState extends State<TrashPage> {
             return ListView.separated(
               padding: const EdgeInsets.all(12),
               itemCount: _items.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) {
                 final n = _items[i];
                 final title = (n['title']?.toString() ?? '').isEmpty

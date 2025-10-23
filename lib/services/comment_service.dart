@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../utils/debug.dart';
 
 /// Servicio para gestionar comentarios en notas compartidas
 class CommentService {
@@ -54,11 +54,11 @@ class CommentService {
               'authorId': user.uid,
             });
       } catch (e) {
-        debugPrint('❌ Error creando notificación: $e');
+        logDebug('❌ Error creando notificación: $e');
       }
     }
 
-    debugPrint('✅ Comentario creado: ${docRef.id}');
+    logDebug('✅ Comentario creado: ${docRef.id}');
     return docRef.id;
   }
 
@@ -88,7 +88,7 @@ class CommentService {
       'isEdited': true,
     });
 
-    debugPrint('✅ Comentario actualizado: $commentId');
+    logDebug('✅ Comentario actualizado: $commentId');
   }
 
   /// Elimina un comentario (soft delete)
@@ -101,7 +101,7 @@ class CommentService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    debugPrint('✅ Comentario eliminado: $commentId');
+    logDebug('✅ Comentario eliminado: $commentId');
   }
 
   /// Obtiene el número de comentarios de una nota

@@ -45,6 +45,7 @@ dependencies:
   flutter_markdown: ^0.7.7+1
   flutter_highlight: 0.7.0
   firebase_storage: ^13.0.2
+  firebase_crashlytics: ^5.0.3
   file_picker: ^10.3.3
   record: ^6.1.2
   markdown: ^7.3.0
@@ -55,7 +56,11 @@ dependencies:
 
   crypto: ^3.0.0
   flutter_math_fork: ^0.7.4
+  flutter_riverpod: ^2.3.6
 
+  # (Isar was considered but removed from pubspec in this automated change)
+
+  intl: any
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -66,6 +71,11 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+
+  # Note: codegen tools (isar_generator, build_runner) are intentionally omitted
+  # from dev_dependencies in this automated change. Run the generator locally
+  # when ready to integrate Isar (add isar_generator + build_runner and run
+  # `flutter pub run build_runner build --delete-conflicting-outputs`).
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

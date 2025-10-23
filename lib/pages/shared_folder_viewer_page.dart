@@ -205,7 +205,7 @@ class _SharedFolderViewerPageState extends State<SharedFolderViewerPage> {
                   Expanded(
                     child: ListView.separated(
                       itemCount: _members.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (_, i) {
                         final m = _members[i];
                         final isSelf =

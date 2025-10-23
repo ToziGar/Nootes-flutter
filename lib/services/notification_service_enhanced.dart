@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
+import '../utils/debug.dart';
 import '../services/auth_service.dart';
 import '../services/exceptions/sharing_exceptions.dart';
 
@@ -24,7 +24,7 @@ class NotificationServiceEnhanced {
       await _loadNotificationsFromCache();
       await _schedulePeriodicCleanup();
     } catch (e) {
-      debugPrint('Error inicializando NotificationServiceEnhanced: $e');
+      logDebug('Error inicializando NotificationServiceEnhanced: $e');
     }
   }
 
@@ -81,10 +81,10 @@ class NotificationServiceEnhanced {
         await _scheduleNotification(docRef.id, scheduledFor);
       }
 
-      debugPrint('✅ Notificación creada: ${docRef.id}');
+      logDebug('✅ Notificación creada: ${docRef.id}');
       return docRef.id;
     } catch (e) {
-      debugPrint('❌ Error creando notificación: $e');
+      logDebug('❌ Error creando notificación: $e');
       throw NetworkException();
     }
   }
@@ -137,7 +137,7 @@ class NotificationServiceEnhanced {
             try {
               return NotificationItem.fromFirestore(doc);
             } catch (e) {
-              debugPrint('Error parseando notificación ${doc.id}: $e');
+              logDebug('Error parseando notificación ${doc.id}: $e');
               return null;
             }
           })
@@ -157,7 +157,7 @@ class NotificationServiceEnhanced {
         limit,
       );
     } catch (e) {
-      debugPrint('❌ Error obteniendo notificaciones: $e');
+      logDebug('❌ Error obteniendo notificaciones: $e');
       return [];
     }
   }
@@ -186,11 +186,11 @@ class NotificationServiceEnhanced {
       // Actualizar cache local
       _updateCacheReadStatus(uid, notificationIds, true);
 
-      debugPrint(
+      logDebug(
         '✅ ${notificationIds.length} notificaciones marcadas como leídas',
       );
     } catch (e) {
-      debugPrint('❌ Error marcando notificaciones como leídas: $e');
+      logDebug('❌ Error marcando notificaciones como leídas: $e');
       throw NetworkException();
     }
   }
@@ -222,9 +222,9 @@ class NotificationServiceEnhanced {
       // Invalidar cache
       _invalidateCache(uid);
 
-      debugPrint('✅ ${notificationIds.length} notificaciones eliminadas');
+      logDebug('✅ ${notificationIds.length} notificaciones eliminadas');
     } catch (e) {
-      debugPrint('❌ Error eliminando notificaciones: $e');
+      logDebug('❌ Error eliminando notificaciones: $e');
       throw NetworkException();
     }
   }
@@ -291,7 +291,7 @@ class NotificationServiceEnhanced {
         thisMonth: thisMonth,
       );
     } catch (e) {
-      debugPrint('❌ Error obteniendo estadísticas: $e');
+      logDebug('❌ Error obteniendo estadísticas: $e');
       return NotificationStats(
         total: 0,
         unread: 0,
@@ -327,11 +327,9 @@ class NotificationServiceEnhanced {
       }
       await batch.commit();
 
-      debugPrint(
-        '✅ ${snapshot.docs.length} notificaciones antiguas eliminadas',
-      );
+      logDebug('✅ ${snapshot.docs.length} notificaciones antiguas eliminadas');
     } catch (e) {
-      debugPrint('❌ Error limpiando notificaciones: $e');
+      logDebug('❌ Error limpiando notificaciones: $e');
     }
   }
 
@@ -396,8 +394,9 @@ class NotificationServiceEnhanced {
   ) {
     var filtered = notifications.where((notification) {
       if (unreadOnly == true && notification.isRead) return false;
-      if (priorityFilter != null && notification.priority != priorityFilter)
+      if (priorityFilter != null && notification.priority != priorityFilter) {
         return false;
+      }
       if (typeFilter != null && notification.type != typeFilter) return false;
       return true;
     }).toList();
@@ -439,7 +438,7 @@ class NotificationServiceEnhanced {
     DateTime scheduledFor,
   ) async {
     // Implementar programación de notificaciones push
-    debugPrint('📅 Notificación programada para: $scheduledFor');
+    logDebug('📅 Notificación programada para: $scheduledFor');
   }
 
   /// Limpia recursos del servicio

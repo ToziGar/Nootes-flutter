@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/note_links_parser.dart';
 import '../widgets/note_autocomplete_overlay.dart';
 import '../services/firestore_service.dart';
+import '../utils/debug.dart';
 import 'markdown_editor.dart';
 
 /// Wrapper del MarkdownEditor que agrega funcionalidad de autocompletado [[nota]]
@@ -18,6 +19,8 @@ class MarkdownEditorWithLinks extends StatefulWidget {
     this.forceSplit = false,
     this.showSplitToggle = true,
     this.previewTitle,
+    this.autoSaveInterval,
+    this.onAutoSave,
   });
 
   final TextEditingController controller;
@@ -31,6 +34,8 @@ class MarkdownEditorWithLinks extends StatefulWidget {
   final bool forceSplit;
   final bool showSplitToggle;
   final String? previewTitle;
+  final Duration? autoSaveInterval;
+  final ValueChanged<String>? onAutoSave;
 
   @override
   State<MarkdownEditorWithLinks> createState() =>
@@ -69,7 +74,7 @@ class _MarkdownEditorWithLinksState extends State<MarkdownEditorWithLinks> {
         _allNotes = notes.map((n) => NoteSuggestion.fromMap(n)).toList();
       });
     } catch (e) {
-      debugPrint('❌ Error cargando notas para autocompletado: $e');
+      logDebug('❌ Error cargando notas para autocompletado: $e');
     }
   }
 
@@ -232,6 +237,8 @@ class _MarkdownEditorWithLinksState extends State<MarkdownEditorWithLinks> {
       forceSplit: widget.forceSplit,
       showSplitToggle: widget.showSplitToggle,
       previewTitle: widget.previewTitle,
+      autoSaveInterval: widget.autoSaveInterval,
+      onAutoSave: widget.onAutoSave,
       wikiIndex: wikiIndex,
       onOpenNote: widget.onNoteOpen,
     );

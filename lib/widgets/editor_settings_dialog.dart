@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/editor_config_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/color_utils.dart';
+import '../services/settings_service.dart';
 
 /// Diálogo de configuración del editor avanzado
 class EditorSettingsDialog extends StatefulWidget {
@@ -21,11 +22,25 @@ class EditorSettingsDialog extends StatefulWidget {
 class _EditorSettingsDialogState extends State<EditorSettingsDialog> {
   late EditorConfig _config;
   final EditorConfigService _configService = EditorConfigService();
+  final SettingsService _settingsService = SettingsService();
+  bool _enableSmartTags = true;
+  bool _enableAutoVersioning = true;
 
   @override
   void initState() {
     super.initState();
     _config = widget.settings;
+    _loadFeatureToggles();
+  }
+
+  Future<void> _loadFeatureToggles() async {
+    final smart = await _settingsService.getEnableSmartTags();
+    final ver = await _settingsService.getEnableAutoVersioning();
+    if (!mounted) return;
+    setState(() {
+      _enableSmartTags = smart;
+      _enableAutoVersioning = ver;
+    });
   }
 
   void _updateConfig(EditorConfig newConfig) {
@@ -36,6 +51,8 @@ class _EditorSettingsDialogState extends State<EditorSettingsDialog> {
 
   Future<void> _saveConfig() async {
     await _configService.setEditorConfig(_config);
+    await _settingsService.setEnableSmartTags(_enableSmartTags);
+    await _settingsService.setEnableAutoVersioning(_enableAutoVersioning);
     widget.onSettingsChanged(_config);
     if (mounted) {
       Navigator.of(context).pop();
@@ -87,6 +104,20 @@ class _EditorSettingsDialogState extends State<EditorSettingsDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildSectionTitle('Funciones del Editor'),
+                      _buildToggleOption(
+                        'Etiquetas inteligentes (Smart Tags)',
+                        'Mostrar sugerencias automáticas de etiquetas',
+                        Icons.auto_awesome,
+                        _enableSmartTags,
+                        (value) => setState(() => _enableSmartTags = value),
+                      ),
+                      _buildToggleOption(
+                        'Versionado automático',
+                        'Crear versiones cada 5 minutos o al guardar manualmente',
+                        Icons.history,
+                        _enableAutoVersioning,
+                        (value) => setState(() => _enableAutoVersioning = value),
+                      ),
                     _buildToggleOption(
                       'Resaltado de sintaxis',
                       'Colorear código y Markdown automáticamente',

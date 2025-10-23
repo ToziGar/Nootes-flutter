@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
+import '../utils/debug.dart';
 import '../services/auth_service.dart';
 import '../services/exceptions/storage_exceptions.dart' as storage_ex;
 import '../services/exceptions/auth_exceptions.dart';
@@ -112,7 +112,7 @@ class StorageServiceEnhanced {
         onError: (error) {
           _activeUploads.remove(taskId);
           _transferStartTimes.remove(taskId);
-          debugPrint('Error en subida: $error');
+          logDebug('Error en subida: $error');
         },
       );
 
@@ -150,7 +150,7 @@ class StorageServiceEnhanced {
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
-      debugPrint('Error subiendo archivo: $e');
+      logDebug('Error subiendo archivo: $e');
       throw storage_ex.FileUploadException('Error inesperado al subir archivo');
     }
   }
@@ -218,7 +218,7 @@ class StorageServiceEnhanced {
         onError: (error) {
           _activeDownloads.remove(taskId);
           _transferStartTimes.remove(taskId);
-          debugPrint('Error en descarga: $error');
+          logDebug('Error en descarga: $error');
         },
       );
 
@@ -234,7 +234,7 @@ class StorageServiceEnhanced {
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
-      debugPrint('Error descargando archivo: $e');
+      logDebug('Error descargando archivo: $e');
       throw storage_ex.FileDownloadException('Error al descargar archivo');
     }
   }
@@ -271,7 +271,7 @@ class StorageServiceEnhanced {
       }
       throw _mapFirebaseException(e);
     } catch (e) {
-      debugPrint('Error obteniendo metadatos: $e');
+      logDebug('Error obteniendo metadatos: $e');
       return null;
     }
   }
@@ -300,7 +300,7 @@ class StorageServiceEnhanced {
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
-      debugPrint('Error listando archivos: $e');
+      logDebug('Error listando archivos: $e');
       return [];
     }
   }
@@ -318,7 +318,7 @@ class StorageServiceEnhanced {
         throw _mapFirebaseException(e);
       }
     } catch (e) {
-      debugPrint('Error eliminando archivo: $e');
+      logDebug('Error eliminando archivo: $e');
       throw storage_ex.FileDeletionException('Error al eliminar archivo');
     }
   }
@@ -369,7 +369,7 @@ class StorageServiceEnhanced {
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
-      debugPrint('Error obteniendo URL temporal: $e');
+      logDebug('Error obteniendo URL temporal: $e');
       throw storage_ex.FileAccessException('Error al generar URL de descarga');
     }
   }
@@ -419,7 +419,7 @@ class StorageServiceEnhanced {
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
-      debugPrint('Error copiando archivo: $e');
+      logDebug('Error copiando archivo: $e');
       throw storage_ex.FileCopyException('Error al copiar archivo');
     }
   }
@@ -443,7 +443,7 @@ class StorageServiceEnhanced {
 
       return newPath;
     } catch (e) {
-      debugPrint('Error moviendo archivo: $e');
+      logDebug('Error moviendo archivo: $e');
       throw storage_ex.FileMoveException('Error al mover archivo');
     }
   }
@@ -480,7 +480,7 @@ class StorageServiceEnhanced {
             sizeByType[extension] =
                 (sizeByType[extension] ?? 0) + (metadata.size ?? 0);
           } catch (e) {
-            debugPrint('Error obteniendo metadatos de ${item.fullPath}: $e');
+            logDebug('Error obteniendo metadatos de ${item.fullPath}: $e');
           }
         }
       }
@@ -503,7 +503,7 @@ class StorageServiceEnhanced {
     } on FirebaseException catch (e) {
       throw _mapFirebaseException(e);
     } catch (e) {
-      debugPrint('Error obteniendo estadísticas: $e');
+      logDebug('Error obteniendo estadísticas: $e');
       throw storage_ex.StorageStatsException(
         'Error al obtener estadísticas de almacenamiento',
       );
@@ -813,8 +813,9 @@ class FileMetadata {
   String get sizeFormatted {
     if (size < 1024) return '${size}B';
     if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)}KB';
-    if (size < 1024 * 1024 * 1024)
+    if (size < 1024 * 1024 * 1024) {
       return '${(size / (1024 * 1024)).toStringAsFixed(1)}MB';
+    }
     return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(1)}GB';
   }
 
@@ -889,10 +890,12 @@ class StorageStats {
 
   String get totalSizeFormatted {
     if (totalSizeBytes < 1024) return '${totalSizeBytes}B';
-    if (totalSizeBytes < 1024 * 1024)
+    if (totalSizeBytes < 1024 * 1024) {
       return '${(totalSizeBytes / 1024).toStringAsFixed(1)}KB';
-    if (totalSizeBytes < 1024 * 1024 * 1024)
+    }
+    if (totalSizeBytes < 1024 * 1024 * 1024) {
       return '${(totalSizeBytes / (1024 * 1024)).toStringAsFixed(1)}MB';
+    }
     return '${(totalSizeBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)}GB';
   }
 

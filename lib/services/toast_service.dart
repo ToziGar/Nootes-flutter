@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../theme/app_colors.dart';
+import '../utils/debug.dart';
 
 /// Enum para tipos de toast
 enum ToastType { success, error, warning, info, loading }
@@ -179,7 +180,7 @@ class ToastService {
           }
         });
       }
-      debugPrint('⚠️ ToastService: Overlay not ready yet, will retry shortly.');
+      logDebug('⚠️ ToastService: Overlay not ready yet, will retry shortly.');
       return;
     }
 

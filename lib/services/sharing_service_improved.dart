@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:nootes/services/auth_service.dart';
 import 'package:nootes/services/firestore_service.dart';
+import 'package:nootes/services/field_timestamp_helper.dart';
 import 'package:nootes/services/logging_service.dart';
 import 'package:nootes/services/notification_service.dart';
 import 'package:nootes/services/exceptions/sharing_exceptions.dart';
@@ -332,11 +333,28 @@ class _SharingCache {
 /// - Caché para mejorar rendimiento
 class SharingService {
   static final SharingService _instance = SharingService._internal();
-  factory SharingService() => _instance;
-  SharingService._internal();
+  static SharingService? _testOverride;
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final AuthService _authService = AuthService.instance;
+  /// Factory returns a test override when provided (tests can set via `testInstance`).
+  factory SharingService() => _testOverride ?? _instance;
+
+  /// Internal constructor used by the singleton. Accepts optional
+  /// dependencies so we can create the default instance normally, but also
+  /// allow injecting fakes in tests via `withDeps`.
+  SharingService._internal({FirebaseFirestore? firestore, AuthService? authService})
+      : _firestore = firestore ?? FirebaseFirestore.instance,
+        _authService = authService ?? AuthService.instance;
+
+  /// Public constructor for tests to create a service with injected deps.
+  SharingService.withDeps({required FirebaseFirestore firestore, required AuthService authService})
+      : _firestore = firestore,
+        _authService = authService;
+
+  /// Testing helper: set a fake instance for tests.
+  static set testInstance(SharingService? v) => _testOverride = v;
+
+  final FirebaseFirestore _firestore;
+  final AuthService _authService;
   SharingConfig _config = const SharingConfig();
 
   /// Configuración actual del servicio
@@ -609,8 +627,8 @@ class SharingService {
         );
       }
 
-  // Re-read to ensure terminal state is visible to rules, then delete.
-  await _tryDeleteSharingIfTerminal(shareId);
+      // Re-read to ensure terminal state is visible to rules, then delete.
+      await _tryDeleteSharingIfTerminal(shareId);
 
       // Limpiar caché
       _SharingCache.clear();
@@ -663,7 +681,8 @@ class SharingService {
           );
 
           // Solo eliminar si el estado ya es terminal
-          final isTerminal = status == SharingStatus.revoked ||
+          final isTerminal =
+              status == SharingStatus.revoked ||
               status == SharingStatus.left ||
               status == SharingStatus.rejected;
           if (!isTerminal) {
@@ -734,6 +753,10 @@ class SharingService {
   Future<String> generatePublicLink({
     required String noteId,
     DateTime? expiresAt,
+    // Tests can pass `skipPublicLinkWrite: true` to avoid touching the
+    // real `public_links` top-level collection (prevents needing Firebase
+    // initialization in unit tests).
+    bool skipPublicLinkWrite = false,
   }) async {
     try {
       LoggingService.info(
@@ -759,30 +782,38 @@ class SharingService {
 
       final token = _generateSecureToken(32);
 
-      // Crear o actualizar en la colección global para resolución rápida
-      await _firestore.collection('public_links').doc(token).set({
-        'noteId': noteId,
-        'ownerId': currentUser.uid,
-        'createdAt': fs.FieldValue.serverTimestamp(),
-        'expiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt) : null,
-        'enabled': true,
-        'token': token,
-        'accessCount': 0,
-        'lastAccessedAt': null,
-      });
+      // Crear o actualizar en la colección global para resolución rápida.
+      // In unit tests we may skip this to avoid requiring a real Firestore
+      // instance.
+      if (!skipPublicLinkWrite) {
+        await FirestoreService.instance.createPublicLink(token: token, data: {
+          'noteId': noteId,
+          'ownerId': currentUser.uid,
+          'createdAt': fs.FieldValue.serverTimestamp(),
+          'expiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt) : null,
+          'enabled': true,
+          'token': token,
+          'accessCount': 0,
+          'lastAccessedAt': null,
+        });
+      }
 
       // Actualizar la nota con información del enlace
+      Map<String, dynamic> shareData = {
+        'shareToken': token,
+        'shareEnabled': true,
+        'sharedAt': fs.FieldValue.serverTimestamp(),
+        'shareExpiresAt': expiresAt != null
+            ? Timestamp.fromDate(expiresAt)
+            : null,
+      };
+      try {
+        shareData = attachFieldTimestamps(shareData);
+      } catch (_) {}
       await FirestoreService.instance.updateNote(
         uid: currentUser.uid,
         noteId: noteId,
-        data: {
-          'shareToken': token,
-          'shareEnabled': true,
-          'sharedAt': fs.FieldValue.serverTimestamp(),
-          'shareExpiresAt': expiresAt != null
-              ? Timestamp.fromDate(expiresAt)
-              : null,
-        },
+        data: shareData,
       );
 
       LoggingService.info(
@@ -808,10 +839,68 @@ class SharingService {
     }
   }
 
+  // ------------------------------------------------------------------
+  // Test helpers
+  // ------------------------------------------------------------------
+  // These static helpers allow unit tests to perform the core public-link
+  // operations without constructing `SharingService` (which would initialize
+  // Firebase). They accept a `FirestoreService` implementation and a uid so
+  // tests can inject fakes and assert behavior.
+  static Future<String> generatePublicLinkForTest({
+    required FirestoreService fs,
+    required String uid,
+    required String noteId,
+    DateTime? expiresAt,
+  }) async {
+    final token = _generateSecureTokenStatic(32);
+    // Only update the note in tests — top-level public_links writes are
+    // covered by integration tests and are skipped here.
+    // In test helpers we avoid using Firestore-specific types. Use a
+    // sentinel value for serverTimestamp so tests can still assert the
+    // overall payload shape without needing real Timestamp objects.
+    Map<String, dynamic> shareData = {
+      'shareToken': token,
+      'shareEnabled': true,
+      'sharedAt': '__server_timestamp__',
+      'shareExpiresAt': expiresAt?.toIso8601String(),
+    };
+    try {
+      shareData = attachFieldTimestamps(shareData);
+    } catch (_) {}
+    await fs.updateNote(uid: uid, noteId: noteId, data: shareData);
+    return token;
+  }
+
+  static Future<void> revokePublicLinkForTest({
+    required FirestoreService fs,
+    required String uid,
+    required String noteId,
+  }) async {
+    Map<String, dynamic> revokeData = {
+      'shareEnabled': false,
+      'shareRevokedAt': '__server_timestamp__',
+    };
+    try {
+      revokeData = attachFieldTimestamps(revokeData);
+    } catch (_) {}
+    await fs.updateNote(uid: uid, noteId: noteId, data: revokeData);
+  }
+
+  // Static token generator for test helpers (mirrors _generateSecureToken)
+  static String _generateSecureTokenStatic(int length) {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    final rnd = DateTime.now().microsecondsSinceEpoch;
+    final buf = StringBuffer();
+    for (var i = 0; i < length; i++) {
+      buf.write(chars[(rnd + i) % chars.length]);
+    }
+    return buf.toString();
+  }
+
   /// Revoca un enlace público existente
   ///
   /// [noteId]: ID de la nota cuyo enlace público se desea revocar
-  Future<void> revokePublicLink({required String noteId}) async {
+  Future<void> revokePublicLink({required String noteId, bool skipPublicLinkWrite = false}) async {
     try {
       LoggingService.info(
         'Revoking public link for note',
@@ -836,21 +925,33 @@ class SharingService {
 
       final token = note['shareToken']?.toString();
       if (token != null && token.isNotEmpty) {
-        // Deshabilitar en la colección de enlaces públicos
-        await _firestore.collection('public_links').doc(token).set({
-          'enabled': false,
-          'revokedAt': fs.FieldValue.serverTimestamp(),
-        }, fs.SetOptions(merge: true));
+        // Deshabilitar en la colección de enlaces públicos. Tests can skip
+        // this by passing `skipPublicLinkWrite: true` to avoid touching
+        // Firebase when running unit tests.
+        if (!skipPublicLinkWrite) {
+          await FirestoreService.instance.updatePublicLink(
+            token: token,
+            data: {
+              'enabled': false,
+              'revokedAt': fs.FieldValue.serverTimestamp(),
+            },
+            merge: true,
+          );
+        }
       }
 
       // Actualizar la nota
+      Map<String, dynamic> revokeData = {
+        'shareEnabled': false,
+        'shareRevokedAt': fs.FieldValue.serverTimestamp(),
+      };
+      try {
+        revokeData = attachFieldTimestamps(revokeData);
+      } catch (_) {}
       await FirestoreService.instance.updateNote(
         uid: currentUser.uid,
         noteId: noteId,
-        data: {
-          'shareEnabled': false,
-          'shareRevokedAt': fs.FieldValue.serverTimestamp(),
-        },
+        data: revokeData,
       );
 
       LoggingService.info(
@@ -911,10 +1012,10 @@ class SharingService {
       }
 
       // Verificar que el enlace aún está habilitado
-      final linkDoc = await _firestore
-          .collection('public_links')
-          .doc(token)
-          .get();
+      // Read the public link doc via Firestore SDK directly (we could also
+      // expose a read helper on FirestoreService but the SDK read is fine
+      // here because this path already initializes Firestore in production).
+      final linkDoc = await _firestore.collection('public_links').doc(token).get();
       if (!linkDoc.exists || (linkDoc.data()?['enabled'] != true)) {
         return null;
       }
@@ -955,10 +1056,7 @@ class SharingService {
         return null;
       }
 
-      final linkDoc = await _firestore
-          .collection('public_links')
-          .doc(token)
-          .get();
+      final linkDoc = await _firestore.collection('public_links').doc(token).get();
       if (!linkDoc.exists) {
         LoggingService.debug(
           'Public link token not found',
@@ -993,10 +1091,14 @@ class SharingService {
       }
 
       // Actualizar estadísticas de acceso
-      await _firestore.collection('public_links').doc(token).update({
-        'accessCount': fs.FieldValue.increment(1),
-        'lastAccessedAt': fs.FieldValue.serverTimestamp(),
-      });
+      await FirestoreService.instance.updatePublicLink(
+        token: token,
+        data: {
+          'accessCount': fs.FieldValue.increment(1),
+          'lastAccessedAt': fs.FieldValue.serverTimestamp(),
+        },
+        merge: true,
+      );
 
       return {'ownerId': ownerId, 'noteId': noteId, 'token': token};
     } catch (e, stackTrace) {

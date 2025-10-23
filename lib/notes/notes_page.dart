@@ -761,7 +761,7 @@ class _NotesPageState extends State<NotesPage> {
                               itemCount:
                                   _filteredNotes.length +
                                   (_hasMoreNotes ? 1 : 0),
-                              separatorBuilder: (_, __) =>
+                              separatorBuilder: (_, _) =>
                                   const Divider(height: 1),
                               itemBuilder: (context, i) {
                                 if (i == _filteredNotes.length) {
@@ -971,7 +971,7 @@ class _NoteCardState extends State<_NoteCard> {
                                   ),
                                   const SizedBox(width: 8),
                                   const Text(
-                                    'Duplicar',
+                                    'Duplicar nota',
                                     style: TextStyle(
                                       color: Colors.black87,
                                       fontSize: 16,

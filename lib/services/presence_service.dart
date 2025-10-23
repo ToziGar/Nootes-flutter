@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../utils/debug.dart';
 
 /// Servicio para gestionar la presencia en línea de usuarios en tiempo real
 class PresenceService {
@@ -31,7 +32,7 @@ class PresenceService {
     });
 
     _isInitialized = true;
-    debugPrint('✅ PresenceService: Inicializado para usuario ${user.uid}');
+    logDebug('✅ PresenceService: Inicializado para usuario ${user.uid}');
   }
 
   /// Actualiza el heartbeat del usuario
@@ -46,7 +47,7 @@ class PresenceService {
         'isOnline': true,
       }, SetOptions(merge: true));
     } catch (e) {
-      debugPrint('❌ PresenceService: Error actualizando heartbeat - $e');
+      logDebug('❌ PresenceService: Error actualizando heartbeat - $e');
     }
   }
 
@@ -61,9 +62,9 @@ class PresenceService {
         'lastSeen': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      debugPrint('✅ PresenceService: Estado en línea actualizado a $isOnline');
+      logDebug('✅ PresenceService: Estado en línea actualizado a $isOnline');
     } catch (e) {
-      debugPrint('❌ PresenceService: Error estableciendo estado en línea - $e');
+      logDebug('❌ PresenceService: Error estableciendo estado en línea - $e');
     }
   }
 
@@ -125,7 +126,7 @@ class PresenceService {
         lastSeen: lastSeen,
       );
     } catch (e) {
-      debugPrint('❌ PresenceService: Error obteniendo presencia - $e');
+      logDebug('❌ PresenceService: Error obteniendo presencia - $e');
       return UserPresence(
         userId: userId,
         isOnline: false,
@@ -179,9 +180,7 @@ class PresenceService {
         }
       }
     } catch (e) {
-      debugPrint(
-        '❌ PresenceService: Error obteniendo presencias múltiples - $e',
-      );
+      logDebug('❌ PresenceService: Error obteniendo presencias múltiples - $e');
     }
 
     return presenceMap;
@@ -193,7 +192,7 @@ class PresenceService {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
     _isInitialized = false;
-    debugPrint('✅ PresenceService: Usuario marcado como offline');
+    logDebug('✅ PresenceService: Usuario marcado como offline');
   }
 
   /// Marca al usuario como online (llamar al iniciar sesión o volver a la app)

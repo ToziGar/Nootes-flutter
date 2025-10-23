@@ -7,10 +7,16 @@ import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'markdown_toolbar.dart';
 import '../widgets/safe_network_image.dart';
+import '../services/analytics_service.dart';
+import '../services/image_prefetch_service.dart';
 
 // Simple Intents for editor shortcuts
 class BoldIntent extends Intent {
   const BoldIntent();
+}
+
+class SaveIntent extends Intent {
+  const SaveIntent();
 }
 
 class ItalicIntent extends Intent {
@@ -52,6 +58,8 @@ class MarkdownEditor extends StatefulWidget {
     this.showSplitToggle = true,
     this.readOnly = false,
     this.previewTitle,
+    this.autoSaveInterval,
+    this.onAutoSave,
   });
 
   final TextEditingController controller;
@@ -69,6 +77,10 @@ class MarkdownEditor extends StatefulWidget {
   final bool readOnly;
   // Optional title rendered above the preview pane (live-updating).
   final String? previewTitle;
+  // Optional debounced autosave interval. If null, autosave is disabled.
+  final Duration? autoSaveInterval;
+  // Called after the user stops typing for [autoSaveInterval]. Also triggered by SaveIntent.
+  final ValueChanged<String>? onAutoSave;
 
   @override
   State<MarkdownEditor> createState() => _MarkdownEditorState();
@@ -100,6 +112,13 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
   void _instantRender() {
     setState(() => _rendered = widget.controller.text);
     widget.onChanged?.call(widget.controller.text);
+    // Autosave: debounce if configured
+    if (widget.autoSaveInterval != null) {
+      _debounce?.cancel();
+      _debounce = Timer(widget.autoSaveInterval!, () {
+        widget.onAutoSave?.call(widget.controller.text);
+      });
+    }
   }
 
   void _wrapSelection(String left, [String right = '']) {
@@ -281,6 +300,11 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
         if (!widget.forceSplit)
           LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.slash):
               const ToggleSplitIntent(),
+        // Ctrl/Cmd + S -> save
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
+            const SaveIntent(),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyS):
+            const SaveIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -327,6 +351,15 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
                 return null;
               },
             ),
+          SaveIntent: CallbackAction<SaveIntent>(
+            onInvoke: (intent) {
+              // Trigger immediate autosave if configured, otherwise call onChanged
+              if (widget.onAutoSave != null) {
+                widget.onAutoSave!(widget.controller.text);
+              }
+              return null;
+            },
+          ),
         },
         child: Focus(
           focusNode: _focus,
@@ -381,15 +414,34 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
       shrinkWrap: true,
       selectable: true,
       sizedImageBuilder: (config) {
-        return SafeNetworkImage(
-          config.uri.toString(),
-          fit: BoxFit.contain,
-          width: (config.width is num)
-              ? (config.width as num).toDouble()
-              : null,
-          height: (config.height is num)
-              ? (config.height as num).toDouble()
-              : null,
+        final url = config.uri.toString();
+        final w = (config.width is num)
+            ? (config.width as num).toDouble()
+            : null;
+        final h = (config.height is num)
+            ? (config.height as num).toDouble()
+            : null;
+        return GestureDetector(
+          onTap: () async {
+            if (!widget.readOnly) {
+              // Log analytics and prefetch for smoother viewer.
+              // Start prefetch but don't await it (avoid using BuildContext across async gap).
+              AnalyticsService().logEvent('image_opened', {'url': url});
+              ImagePrefetchService().prefetch(context, url);
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => _FullScreenImageViewer(url: url),
+                  fullscreenDialog: true,
+                ),
+              );
+            }
+          },
+          child: SafeNetworkImage(
+            url,
+            fit: BoxFit.contain,
+            width: w,
+            height: h,
+          ),
         );
       },
       builders: {
@@ -471,9 +523,9 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
             ),
           ),
         MarkdownToolbar(
-          onWrapSelection: widget.readOnly ? (_, [__ = '']) {} : _wrapSelection,
+          onWrapSelection: widget.readOnly ? (_, [_ = '']) {} : _wrapSelection,
           onInsertAtLineStart: widget.readOnly ? (_) {} : _insertAtLineStart,
-          onInsertBlock: widget.readOnly ? (_, [__ = '']) {} : _insertBlock,
+          onInsertBlock: widget.readOnly ? (_, [_ = '']) {} : _insertBlock,
           onToggleSplit: () => setState(() => _split = !_split),
           isSplit: widget.splitEnabled && (widget.forceSplit ? true : _split),
           onPickImage: widget.readOnly ? null : widget.onPickImage,
@@ -663,6 +715,32 @@ class WikiLinkBuilder extends MarkdownElementBuilder {
         if (id.isNotEmpty && onOpen != null) onOpen!(id);
       },
       child: Text(title, style: style),
+    );
+  }
+}
+
+/// Full-screen image viewer used by markdown preview when tapping images.
+class _FullScreenImageViewer extends StatelessWidget {
+  const _FullScreenImageViewer({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Imagen'),
+        backgroundColor: Colors.black,
+      ),
+      backgroundColor: Colors.black,
+      body: Center(
+        child: InteractiveViewer(
+          panEnabled: true,
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: SafeNetworkImage(url, fit: BoxFit.contain),
+        ),
+      ),
     );
   }
 }

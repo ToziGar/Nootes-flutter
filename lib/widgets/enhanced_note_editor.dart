@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill/quill_delta.dart';
 import '../services/auth_service.dart';
+import '../utils/debug.dart';
 import '../services/editor_config_service.dart';
+import '../editor/markdown_editor_with_links.dart';
 
 // Keyboard shortcut intents (top-level)
 class BoldEditorIntent extends Intent {
@@ -33,6 +35,7 @@ class EnhancedNoteEditor extends StatefulWidget {
   final ValueChanged<String>? onContentChanged;
   final ValueChanged<String>? onTitleChanged;
   final VoidCallback? onSave;
+  final String? uid;
   final bool readOnly;
   final EditorMode mode;
   final Map<String, dynamic>? metadata;
@@ -45,6 +48,7 @@ class EnhancedNoteEditor extends StatefulWidget {
     this.onContentChanged,
     this.onTitleChanged,
     this.onSave,
+    this.uid,
     this.readOnly = false,
     this.mode = EditorMode.wysiwyg,
     this.metadata,
@@ -254,7 +258,7 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor>
         _lastSaveTime = DateTime.now();
       });
     } catch (e) {
-      debugPrint('Error en auto-guardado: $e');
+      logDebug('Error en auto-guardado: $e');
     } finally {
       setState(() => _isSaving = false);
     }
@@ -471,7 +475,7 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor>
       // Usar el servicio de almacenamiento mejorado
       // Implementar selector de archivos y subida
     } catch (e) {
-      debugPrint('Error insertando media: $e');
+      logDebug('Error insertando media: $e');
     }
   }
 
@@ -651,11 +655,17 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor>
         children: [
           _buildModeToggle(),
           const SizedBox(width: 16),
-          if (_currentMode == EditorMode.wysiwyg)
-            _buildQuillToolbar()
-          else
-            _buildMarkdownToolbar(),
-          const Spacer(),
+          // Make the central toolbar flexible and horizontally scrollable to
+          // avoid RenderFlex overflow in constrained layouts (tests / small windows).
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: (_currentMode == EditorMode.wysiwyg)
+                  ? _buildQuillToolbar()
+                  : _buildMarkdownToolbar(),
+            ),
+          ),
+          const SizedBox(width: 8),
           _buildUtilityActions(),
         ],
       ),
@@ -831,23 +841,23 @@ class _EnhancedNoteEditorState extends State<EnhancedNoteEditor>
   }
 
   Widget _buildMarkdownEditor() {
-    return TextField(
+    return MarkdownEditorWithLinks(
       controller: _markdownController,
-      focusNode: _editorFocusNode,
-      scrollController: _scrollController,
-      readOnly: widget.readOnly,
-      maxLines: null,
-      expands: true,
-      style: TextStyle(
-        fontSize: _settings.fontSize,
-        height: _settings.lineHeight,
-        fontFamily: 'monospace',
+      uid: widget.uid ?? AuthService.instance.currentUser?.uid ?? '',
+      onChanged: (s) => widget.onContentChanged?.call(s),
+      minLines: 10,
+      splitEnabled: true,
+      forceSplit: false,
+      showSplitToggle: true,
+      previewTitle: '',
+      autoSaveInterval: Duration(
+        seconds: _settings.enableAutoSave ? _settings.autoSaveDelay : 0,
       ),
-      decoration: const InputDecoration(
-        border: InputBorder.none,
-        contentPadding: EdgeInsets.all(16),
-        hintText: 'Escribe en Markdown...',
-      ),
+      onAutoSave: (s) async {
+        // Use the editor's internal autosave flow so UI state (spinner, lastSaveTime)
+        // is correctly updated and the parent onSave is invoked from a single place.
+        await _performAutoSave();
+      },
     );
   }
 

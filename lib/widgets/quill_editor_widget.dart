@@ -7,6 +7,7 @@ import 'package:flutter_math_fork/flutter_math.dart' as math;
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill/quill_delta.dart';
 import './note_autocomplete_overlay.dart';
+import '../utils/debug.dart';
 
 class QuillEditorWidget extends StatefulWidget {
   final String uid;
@@ -147,7 +148,7 @@ class _QuillEditorWidgetState extends State<QuillEditorWidget> {
         }
       }
     } catch (e) {
-      debugPrint('Error auto-guardando: $e');
+      logDebug('Error auto-guardando: $e');
     }
   }
 

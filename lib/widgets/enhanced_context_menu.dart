@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../theme/color_utils.dart';
+import '../utils/debug.dart';
 
 /// Widget mejorado que maneja el menú contextual evitando el menú nativo
 class EnhancedContextMenuRegion extends StatelessWidget {
@@ -80,7 +81,7 @@ class EnhancedContextMenuRegion extends StatelessWidget {
       }
     } catch (e) {
       // Manejo silencioso de errores del menú
-      debugPrint('Error mostrando menú contextual: $e');
+      logDebug('Error mostrando menú contextual: $e');
     }
   }
 
