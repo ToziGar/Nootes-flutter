@@ -40,6 +40,54 @@ class SyncService {
     _emitStatus();
   }
 
+  /// Load persisted queue and dead-letter into memory. Call this at startup
+  /// if you want SyncService to pick up previous state.
+  Future<void> loadFromStorage() async {
+    final q = await storage.loadQueue();
+    _queue.clear();
+    _queue.addAll(q);
+    final d = await storage.loadDeadLetter();
+    _deadLetter.clear();
+    _deadLetter.addAll(d);
+    _emitStatus();
+  }
+
+  /// Return a snapshot of the dead-letter queue.
+  Future<List<Map<String, dynamic>>> getDeadLetter() async {
+    return await storage.loadDeadLetter();
+  }
+
+  /// Retry an item from dead-letter by moving it back to the main queue with
+  /// retries reset and nextAttempt set to now.
+  Future<void> retryDeadLetter(int index) async {
+    final dead = await storage.loadDeadLetter();
+    if (index < 0 || index >= dead.length) return;
+    final item = Map<String, dynamic>.from(dead.removeAt(index));
+    // reset retries and schedule immediate attempt
+    final note = Map<String, dynamic>.from(item['note'] as Map);
+    final newItem = {
+      'note': note,
+      'retries': 0,
+      'nextAttempt': DateTime.now().toIso8601String(),
+    };
+    _queue.add(newItem);
+    _deadLetter.removeAt(index);
+    await storage.saveQueue(_queue);
+    await storage.saveDeadLetter(_deadLetter);
+    _emitStatus();
+  }
+
+  /// Remove an item from dead-letter (discard).
+  Future<void> removeDeadLetter(int index) async {
+    final dead = await storage.loadDeadLetter();
+    if (index < 0 || index >= dead.length) return;
+    dead.removeAt(index);
+    _deadLetter.clear();
+    _deadLetter.addAll(dead);
+    await storage.saveDeadLetter(_deadLetter);
+    _emitStatus();
+  }
+
   void start({Duration interval = const Duration(seconds: 2)}) {
     if (_running) return;
     _running = true;

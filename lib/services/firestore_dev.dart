@@ -4,6 +4,9 @@ import 'package:nootes/services/firestore_service.dart';
 class DevFirestoreService implements FirestoreService {
   final Map<String, Map<String, Map<String, dynamic>>> _store = {};
 
+  /// Read-only view of the in-memory store for tests and demos.
+  Map<String, Map<String, Map<String, dynamic>>> get store => _store;
+
   @override
   Future<void> updateNote({required String uid, required String noteId, required Map<String, dynamic> data}) async {
     final user = _store.putIfAbsent(uid, () => {});
