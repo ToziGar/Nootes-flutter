@@ -7,6 +7,8 @@ import 'package:nootes/services/notification_service.dart';
 import 'package:nootes/services/exceptions/sharing_exceptions.dart';
 import 'dart:math';
 
+// Test hook will be added to the SharingService class below.
+
 /// Estados de una nota/carpeta compartida
 enum SharingStatus {
   /// Pendiente de aceptación por parte del receptor
@@ -331,8 +333,10 @@ class _SharingCache {
 /// - Notificaciones automáticas
 /// - Caché para mejorar rendimiento
 class SharingService {
-  static final SharingService _instance = SharingService._internal();
-  factory SharingService() => _instance;
+  static SharingService? _instance;
+  /// Test hook: allow tests to replace the active sharing service implementation.
+  static set testInstance(SharingService? instance) => _instance = instance;
+  factory SharingService() => _instance ??= SharingService._internal();
   SharingService._internal();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

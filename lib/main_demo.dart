@@ -1,10 +1,10 @@
+// No changes needed as there are no leading or trailing triple-backtick fences.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nootes/services/providers.dart';
-import 'package:nootes/widgets/sync_status_widget.dart';
-import 'package:nootes/widgets/dead_letter_widget.dart';
-import 'package:nootes/services/firestore_dev.dart';
-import 'package:nootes/domain/note.dart';
+import 'package:nootes/widgets/index.dart';
+import 'services/firestore_dev.dart';
+import 'domain/note.dart';
 
 void main() {
   runApp(ProviderScope(

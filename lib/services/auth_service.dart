@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart'
-    show kIsWeb, defaultTargetPlatform, TargetPlatform;
+  show kIsWeb, defaultTargetPlatform, TargetPlatform, visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb; // Used on mobile/web
@@ -18,6 +18,9 @@ class AuthUser {
 
 abstract class AuthService {
   static AuthService? _instance;
+  /// Test hook: allow tests to set a fake instance.
+  @visibleForTesting
+  static set testInstance(AuthService? instance) => _instance = instance;
   static AuthService get instance => _instance ??= _resolve();
 
   // Helper to obtain a valid ID token for REST calls

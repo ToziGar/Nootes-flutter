@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart'
-    show kIsWeb, defaultTargetPlatform, TargetPlatform;
+  show kIsWeb, defaultTargetPlatform, TargetPlatform, visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'auth_service.dart';
@@ -8,6 +8,11 @@ import '../firebase_options.dart';
 
 abstract class FirestoreService {
   static FirestoreService? _instance;
+  /// Test hook: tests can set `testInstance` to inject a fake implementation.
+  /// This keeps the singleton resolution logic intact while allowing tests
+  /// to provide a custom instance.
+  @visibleForTesting
+  static set testInstance(FirestoreService? instance) => _instance = instance;
   static FirestoreService get instance => _instance ??= _resolve();
 
   static FirestoreService _resolve() {
