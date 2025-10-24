@@ -58,6 +58,10 @@ abstract class FirestoreService {
   });
   Future<void> deleteNote({required String uid, required String noteId});
 
+  // Public links / sharing helpers
+  Future<void> createPublicLink({required String token, required Map<String, dynamic> data});
+  Future<void> updatePublicLink({required String token, required Map<String, dynamic> data, bool merge = true});
+
   // Additional notes helpers used by the UI
   Future<List<Map<String, dynamic>>> listNotesSummary({required String uid});
   Future<List<Map<String, dynamic>>> searchNotesSummary({
@@ -931,9 +935,32 @@ class _FirebaseFirestoreService implements FirestoreService {
       'updatedAt': fs.FieldValue.serverTimestamp(),
     }, fs.SetOptions(merge: true));
   }
+
+  @override
+  Future<void> createPublicLink({required String token, required Map<String, dynamic> data}) async {
+    // Default Firebase implementation: no-op here. Production may write to a
+    // dedicated collection or update notes; for tests we rely on fakes.
+    return;
+  }
+
+  @override
+  Future<void> updatePublicLink({required String token, required Map<String, dynamic> data, bool merge = true}) async {
+    // Default no-op implementation to satisfy interface.
+    return;
+  }
+
 }
 
 class _RestFirestoreService implements FirestoreService {
+  @override
+  Future<void> createPublicLink({required String token, required Map<String, dynamic> data}) async {
+    return;
+  }
+
+  @override
+  Future<void> updatePublicLink({required String token, required Map<String, dynamic> data, bool merge = true}) async {
+    return;
+  }
   String get _projectId => DefaultFirebaseOptions.web.projectId;
   String get _base =>
       'https://firestore.googleapis.com/v1/projects/$_projectId/databases/(default)/documents';

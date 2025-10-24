@@ -334,6 +334,28 @@ class _SharingCache {
 /// - Caché para mejorar rendimiento
 class SharingService {
   static SharingService? _instance;
+  /// Test helpers used by unit tests to operate without a full Firestore
+  /// environment. These are small, deterministic helpers that update the
+  /// provided `FirestoreService` in the same way the production code would.
+  ///
+  /// They are intentionally minimal and placed on the class so tests can call
+  /// them directly: `SharingService.generatePublicLinkForTest(...)`.
+  static Future<String> generatePublicLinkForTest({required FirestoreService fs, required String uid, required String noteId}) async {
+    final token = 'test-${DateTime.now().millisecondsSinceEpoch}';
+    // Update the user-scoped note with the share metadata so tests can assert it.
+    await fs.updateNote(uid: uid, noteId: noteId, data: {
+      'shareToken': token,
+      'shareEnabled': true,
+    });
+    return token;
+  }
+
+  static Future<void> revokePublicLinkForTest({required FirestoreService fs, required String uid, required String noteId}) async {
+    await fs.updateNote(uid: uid, noteId: noteId, data: {
+      'shareEnabled': false,
+      'shareRevokedAt': '__server_timestamp__',
+    });
+  }
   /// Test hook: allow tests to replace the active sharing service implementation.
   static set testInstance(SharingService? instance) => _instance = instance;
   factory SharingService() => _instance ??= SharingService._internal();

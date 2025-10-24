@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:async';
 
 import 'package:nootes/domain/note.dart';
 import 'package:nootes/data/note_repository.dart';
@@ -118,7 +117,9 @@ class SyncService {
     final note = Note.fromMap(noteMap);
 
     try {
+      // persist local copy first
       await localRepo.saveNote(note);
+      // push to remote
       await firestore.updateNote(uid: 'local', noteId: note.id, data: note.toMap());
       await storage.saveQueue(_queue);
       _emitStatus();
@@ -130,6 +131,7 @@ class SyncService {
         await storage.saveDeadLetter(_deadLetter);
         _emitStatus();
       } else {
+        // exponential backoff (cap at shift by 5)
         final backoffSeconds = (1 << (nextRetries > 5 ? 5 : nextRetries));
         final nextAttempt = DateTime.now().toUtc().add(Duration(seconds: backoffSeconds));
         final newItem = {'note': note.toMap(), 'retries': nextRetries, 'nextAttempt': nextAttempt.toIso8601String()};
@@ -150,5 +152,3 @@ class SyncService {
   Future<void> processOnce({bool ignoreSchedule = false}) async => _processNext(ignoreSchedule: ignoreSchedule);
 }
 
-
-import 'package:nootes/domain/note.dart';
