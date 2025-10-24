@@ -128,7 +128,9 @@ class SyncService {
       if (nextRetries > maxRetries) {
         final dead = {'note': note.toMap(), 'retries': nextRetries, 'failedAt': DateTime.now().toUtc().toIso8601String()};
         _deadLetter.add(dead);
+        // Persist both dead-letter and the current queue state (item removed).
         await storage.saveDeadLetter(_deadLetter);
+        await storage.saveQueue(_queue);
         _emitStatus();
       } else {
         // exponential backoff (cap at shift by 5)
