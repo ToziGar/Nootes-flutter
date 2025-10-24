@@ -373,7 +373,9 @@ class NotificationServiceEnhanced {
     bool isRead,
   ) {
     final cached = _notificationCache[uid];
-    if (cached == null) return;
+    if (cached == null) {
+      return;
+    }
 
     for (final notification in cached) {
       if (notificationIds.contains(notification.id)) {
@@ -395,10 +397,15 @@ class NotificationServiceEnhanced {
     int limit,
   ) {
     var filtered = notifications.where((notification) {
-      if (unreadOnly == true && notification.isRead) return false;
-      if (priorityFilter != null && notification.priority != priorityFilter)
+      if (unreadOnly == true && notification.isRead) {
         return false;
-      if (typeFilter != null && notification.type != typeFilter) return false;
+      }
+      if (priorityFilter != null && notification.priority != priorityFilter) {
+        return false;
+      }
+      if (typeFilter != null && notification.type != typeFilter) {
+        return false;
+      }
       return true;
     }).toList();
 

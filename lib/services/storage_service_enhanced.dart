@@ -811,10 +811,15 @@ class FileMetadata {
   });
 
   String get sizeFormatted {
-    if (size < 1024) return '${size}B';
-    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)}KB';
-    if (size < 1024 * 1024 * 1024)
+    if (size < 1024) {
+      return '${size}B';
+    }
+    if (size < 1024 * 1024) {
+      return '${(size / 1024).toStringAsFixed(1)}KB';
+    }
+    if (size < 1024 * 1024 * 1024) {
       return '${(size / (1024 * 1024)).toStringAsFixed(1)}MB';
+    }
     return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(1)}GB';
   }
 
@@ -888,16 +893,22 @@ class StorageStats {
   });
 
   String get totalSizeFormatted {
-    if (totalSizeBytes < 1024) return '${totalSizeBytes}B';
-    if (totalSizeBytes < 1024 * 1024)
+    if (totalSizeBytes < 1024) {
+      return '${totalSizeBytes}B';
+    }
+    if (totalSizeBytes < 1024 * 1024) {
       return '${(totalSizeBytes / 1024).toStringAsFixed(1)}KB';
-    if (totalSizeBytes < 1024 * 1024 * 1024)
+    }
+    if (totalSizeBytes < 1024 * 1024 * 1024) {
       return '${(totalSizeBytes / (1024 * 1024)).toStringAsFixed(1)}MB';
+    }
     return '${(totalSizeBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)}GB';
   }
 
   String get mostUsedFileType {
-    if (fileTypeCount.isEmpty) return 'N/A';
+    if (fileTypeCount.isEmpty) {
+      return 'N/A';
+    }
 
     final sorted = fileTypeCount.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));

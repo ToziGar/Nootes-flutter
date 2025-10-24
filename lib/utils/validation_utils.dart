@@ -14,32 +14,40 @@ class ValidationUtils {
     }
 
     final parts = s.split('@');
-    if (parts.length != 2)
+    if (parts.length != 2) {
       throw const ValidationException('email', 'Formato de email inválido');
+    }
 
     final local = parts[0];
     final domain = parts[1];
 
-    if (local.isEmpty)
+    if (local.isEmpty) {
       throw const ValidationException('email', 'Formato de email inválido');
-    if (local.startsWith('.') || local.endsWith('.'))
+    }
+    if (local.startsWith('.') || local.endsWith('.')) {
       throw const ValidationException('email', 'Formato de email inválido');
-    if (local.contains('..'))
+    }
+    if (local.contains('..')) {
       throw const ValidationException('email', 'Formato de email inválido');
+    }
 
     final domainParts = domain.split('.');
-    if (domainParts.length < 2)
+    if (domainParts.length < 2) {
       throw const ValidationException('email', 'Formato de email inválido');
+    }
     for (final part in domainParts) {
-      if (part.isEmpty)
+      if (part.isEmpty) {
         throw const ValidationException('email', 'Formato de email inválido');
-      if (part.startsWith('-') || part.endsWith('-'))
+      }
+      if (part.startsWith('-') || part.endsWith('-')) {
         throw const ValidationException('email', 'Formato de email inválido');
+      }
     }
 
     final tld = domainParts.last;
-    if (tld.length < 2)
+    if (tld.length < 2) {
       throw const ValidationException('email', 'Formato de email inválido');
+    }
 
     return s.toLowerCase();
   }
@@ -202,7 +210,9 @@ class SanitizationUtils {
   static Map<String, dynamic>? sanitizeMetadata(
     Map<String, dynamic>? metadata,
   ) {
-    if (metadata == null) return null;
+    if (metadata == null) {
+      return null;
+    }
 
     final sanitized = <String, dynamic>{};
 
