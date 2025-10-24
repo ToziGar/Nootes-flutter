@@ -471,9 +471,9 @@ class _MarkdownEditorState extends State<MarkdownEditor> {
             ),
           ),
         MarkdownToolbar(
-          onWrapSelection: widget.readOnly ? (_, [__ = '']) {} : _wrapSelection,
+          onWrapSelection: widget.readOnly ? (left, [right = '']) {} : _wrapSelection,
           onInsertAtLineStart: widget.readOnly ? (_) {} : _insertAtLineStart,
-          onInsertBlock: widget.readOnly ? (_, [__ = '']) {} : _insertBlock,
+          onInsertBlock: widget.readOnly ? (prefix, [suffix = '']) {} : _insertBlock,
           onToggleSplit: () => setState(() => _split = !_split),
           isSplit: widget.splitEnabled && (widget.forceSplit ? true : _split),
           onPickImage: widget.readOnly ? null : widget.onPickImage,

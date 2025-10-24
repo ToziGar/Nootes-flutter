@@ -91,8 +91,8 @@ class _GraphPageState extends State<GraphPage> {
                         ? const Center(child: Text('Sin enlaces'))
                         : ListView.separated(
                             itemCount: filteredEdges.length,
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 1),
+              separatorBuilder: (context, index) =>
+                const Divider(height: 1),
                             itemBuilder: (context, i) {
                               final e = filteredEdges[i];
                               final fromTitle =
