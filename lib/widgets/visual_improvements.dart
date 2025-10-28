@@ -38,11 +38,11 @@ class UserAvatar extends StatelessWidget {
   }
 
   Widget _buildAvatar() {
-    if (photoUrl != null && photoUrl!.isNotEmpty) {
+        if (photoUrl != null && photoUrl!.isNotEmpty) {
       return CircleAvatar(
         radius: size / 2,
         backgroundImage: NetworkImage(photoUrl!),
-        onBackgroundImageError: (_, __) {
+        onBackgroundImageError: (error, stack) {
           // Fallback a iniciales si falla la imagen
         },
       );

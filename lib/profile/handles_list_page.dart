@@ -45,7 +45,7 @@ class _HandlesListPageState extends State<HandlesListPage> {
                   subtitle: Text(uid),
                 );
               },
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (context, index) => const Divider(height: 1),
               itemCount: items.length,
             );
           },

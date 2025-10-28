@@ -20,7 +20,7 @@ class SyncStatusWidget extends ConsumerWidget {
         ],
       ),
       loading: () => const CircularProgressIndicator(),
-      error: (_, __) => const Icon(Icons.error),
+  error: (error, stack) => const Icon(Icons.error),
     );
   }
 }
