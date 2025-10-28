@@ -47,8 +47,15 @@ class SecureQueueStorage implements QueueStorage {
     try {
       final raw = await _secure.read(key: _key);
       if (raw == null || raw.isEmpty) return [];
-      final decoded = jsonDecode(raw) as List<dynamic>;
-      return decoded.cast<Map<String, dynamic>>();
+      final decoded = jsonDecode(raw);
+      // Support two formats: legacy stored as a List, or new format as {version: x, items: [...]}
+      if (decoded is List) {
+        return decoded.cast<Map<String, dynamic>>();
+      }
+      if (decoded is Map && decoded['items'] is List) {
+        return (decoded['items'] as List).cast<Map<String, dynamic>>();
+      }
+      return [];
     } catch (_) {
       // If parsing fails or storage read fails, return empty queue to avoid
       // crashing the app; callers can recover or repopulate as needed.
@@ -59,7 +66,9 @@ class SecureQueueStorage implements QueueStorage {
   @override
   Future<void> saveQueue(List<Map<String, dynamic>> items) async {
     try {
-      await _secure.write(key: _key, value: jsonEncode(items));
+      // Persist with a version wrapper so future migrations are possible.
+      final payload = {'version': 1, 'items': items};
+      await _secure.write(key: _key, value: jsonEncode(payload));
     } catch (_) {
       // ignore write errors for now (best-effort persistence)
     }
@@ -68,7 +77,8 @@ class SecureQueueStorage implements QueueStorage {
   @override
   Future<void> saveDeadLetter(List<Map<String, dynamic>> items) async {
     try {
-      await _secure.write(key: _deadKey, value: jsonEncode(items));
+      final payload = {'version': 1, 'items': items};
+      await _secure.write(key: _deadKey, value: jsonEncode(payload));
     } catch (_) {}
   }
 
@@ -77,11 +87,24 @@ class SecureQueueStorage implements QueueStorage {
     try {
       final raw = await _secure.read(key: _deadKey);
       if (raw == null || raw.isEmpty) return [];
-      final decoded = jsonDecode(raw) as List<dynamic>;
-      return decoded.cast<Map<String, dynamic>>();
+      final decoded = jsonDecode(raw);
+      if (decoded is List) return decoded.cast<Map<String, dynamic>>();
+      if (decoded is Map && decoded['items'] is List) {
+        return (decoded['items'] as List).cast<Map<String, dynamic>>();
+      }
+      return [];
     } catch (_) {
       return [];
     }
+  }
+
+  /// Clear both queue and dead-letter storage (used when migration fails or
+  /// user chooses to reset stored queue state).
+  Future<void> clearStorage() async {
+    try {
+      await _secure.write(key: _key, value: jsonEncode({'version': 1, 'items': []}));
+      await _secure.write(key: _deadKey, value: jsonEncode({'version': 1, 'items': []}));
+    } catch (_) {}
   }
 }
 
