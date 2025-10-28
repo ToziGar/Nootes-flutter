@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart'
   show kIsWeb, defaultTargetPlatform, TargetPlatform, visibleForTesting;
 import 'package:http/http.dart' as http;
@@ -962,8 +963,15 @@ class _RestFirestoreService implements FirestoreService {
     return;
   }
   String get _projectId => DefaultFirebaseOptions.web.projectId;
-  String get _base =>
-      'https://firestore.googleapis.com/v1/projects/$_projectId/databases/(default)/documents';
+  String get _base {
+    final host = Platform.environment['FIRESTORE_EMULATOR_HOST'];
+    if (host != null && host.isNotEmpty) {
+      // Emulator exposes a REST endpoint without the https prefix and may
+      // include a port (e.g. localhost:8080). Use http and the provided host.
+      return 'http://$host/v1/projects/$_projectId/databases/(default)/documents';
+    }
+    return 'https://firestore.googleapis.com/v1/projects/$_projectId/databases/(default)/documents';
+  }
 
   Future<Map<String, String>> _authHeader() async {
     final token = await AuthService.instanceToken();

@@ -20,6 +20,7 @@ class InMemoryQueueStorage implements QueueStorage {
   @override
   Future<void> saveQueue(List<Map<String, dynamic>> items) async {
     _data = List.from(items);
+    // persisted in-memory for tests
   }
 
   @override
